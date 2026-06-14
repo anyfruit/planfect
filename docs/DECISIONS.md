@@ -134,3 +134,44 @@ the abstraction makes Google/Amap drop-in.
 **Consequences.** The iOS app still uses on-device **MapKit** for *rendering* maps and live
 navigation, but *planning-time* geocoding/ETA is computed server-side via the chosen
 `MapsProvider` so the model can reason with it. See `docs/ARCHITECTURE.md` → Maps.
+
+---
+
+## ADR-007 — Multiple LLM providers (OpenAI / Anthropic / Qwen) behind `PlannerLLM`
+
+**Context.** The developer has both OpenAI and Anthropic credit, wants to switch between
+them, and wants to try domestic Chinese models (e.g. Qwen). Lock-in to one vendor is
+undesirable.
+
+**Decision.** Keep ADR-004's `PlannerLLM` seam and ship **adapters**: one OpenAI-compatible
+adapter that serves **OpenAI** *and* **Qwen** (via Alibaba DashScope's OpenAI-compatible
+endpoint, different `baseURL`), plus an **Anthropic** adapter. Provider + model come from env
+(`ACTIVE_LLM_PROVIDER` / `PLANNER_MODEL`) and are overridable per request.
+
+**Rationale.** OpenAI and Qwen share the OpenAI wire format, so two adapters cover three
+providers. Tools are defined provider-neutrally and converted per adapter. Switching/A-B is
+config, and every call is metered by provider+model for data-driven comparison (ADR-008).
+
+**Consequences.** Each provider's request/response mapping must track the shared `PlannerLLM`
+contract. Network adapters need integration testing; the pure loop is unit-tested via a mock.
+Qwen pricing must be filled into `PRICING` before its cost numbers are trusted.
+
+---
+
+## ADR-008 — Usage metering + a separate developer dashboard
+
+**Context.** We need visibility into users, action volume, token usage, cost, and how the
+models compare — separate from the user-facing app.
+
+**Decision.** Meter every model call as a `usage_event` (provider, model, tokens, cost,
+latency) and log product actions as `app_events`. Build a **separate, admin-only web app**
+reading SQL aggregation views (`metrics_*`). Analytics tables are written by Edge Functions
+(service role) and readable only by members of `admins`.
+
+**Rationale.** The planner already emits `UsageEvent`s, so data accrues from day one. SQL
+views keep the dashboard thin. A separate deploy keeps admin concerns out of the user app and
+is platform-independent (no Mac). The model-comparison view makes OpenAI vs Anthropic vs Qwen
+a data decision.
+
+**Consequences.** Cost figures depend on the `PRICING` table staying current (ADR-007). RLS
+plus the `admins` table are the access boundary; the service-role key must stay server-side.

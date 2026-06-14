@@ -98,9 +98,11 @@ interface PlannerLLM {
   run(input: { system, messages, tools }): Promise<LLMStep>
 }
 ```
-- **OpenAIPlanner** (default) — OpenAI function calling + Structured Outputs.
-- **ClaudePlanner** (later/optional) — Anthropic tool use. Same contract.
-- Selected by an env var in the Edge Function. See `AI_PLANNING.md` for the tool schemas.
+- **OpenAICompatiblePlanner** (default) — OpenAI function calling; also drives **Qwen**
+  (Alibaba DashScope, OpenAI-compatible) via a different `baseURL`.
+- **AnthropicPlanner** — Anthropic tool use. Same contract.
+- Selected by `ACTIVE_LLM_PROVIDER` in the Edge Function; adapters live in
+  `server/llm/providers.ts`. See `AI_PROVIDERS.md`.
 
 ### `MapsProvider` (geocoding + ETA)
 ```
@@ -123,6 +125,15 @@ interface MapsProvider {
 - **Edge Functions authenticate** the caller's JWT and derive `user_id` server-side — they
   never trust a `user_id` sent by the client.
 - Per-user rate limiting / quota lives in the Edge Function (protects the OpenAI bill).
+
+## Analytics & the developer dashboard
+
+Every model step emits a `UsageEvent` (provider, model, tokens, cost, latency — see
+`server/usage.ts`) that the `/plan` function writes to `usage_events`; the app/Edge Functions
+also log product actions to `app_events`. A **separate, admin-only web app** reads SQL
+aggregation views (`metrics_*`) for DAU, action volume, token/cost trends, and an
+OpenAI-vs-Anthropic-vs-Qwen comparison. Schema: `supabase/analytics.sql`; design:
+`docs/DASHBOARD.md`. It's a separate deploy and platform-independent (no Mac).
 
 ## Why server-side for AI *and* maps
 

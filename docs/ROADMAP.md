@@ -6,9 +6,10 @@ happens on macOS with Xcode. Each phase is shippable/testable on its own.
 Legend: ✅ done · 🔜 next · ⬜ later
 
 ## Phase 0 — Foundation (no Mac needed) ✅
-- ✅ Product spec, architecture, data model, AI planning design, decision log.
-- ✅ Postgres schema + Row-Level Security (`supabase/schema.sql`).
-- Outcome: a clear, agreed blueprint and a runnable database schema.
+- ✅ Product spec, architecture, data model, AI planning + providers, dashboard design, decisions.
+- ✅ Postgres schema + RLS (`supabase/schema.sql`) and analytics schema + dashboard views (`supabase/analytics.sql`).
+- ✅ **Backend logic, unit-tested on Node** (`server/`): scheduling engine, planner agent loop with the clarifying-question interrupt, multi-provider LLM layer (OpenAI/Anthropic/Qwen), usage accounting. `npm test` green (18 tests).
+- Outcome: a clear blueprint, a runnable schema, and tested core logic ready to drop into the Edge Function.
 
 ## Phase 1 — Backend stands up (mostly Mac, some cloud) 🔜
 - ⬜ Create the Supabase project; apply `schema.sql`; enable Auth (email + Apple/Google).
@@ -18,8 +19,9 @@ Legend: ✅ done · 🔜 next · ⬜ later
 - Outcome: can create tasks → time_blocks via an authenticated call; data visible in the DB.
 
 ## Phase 2 — The planner brain 🔜
-- ⬜ `PlannerLLM` OpenAI adapter + the agent loop.
-- ⬜ `ask_user_questions` interrupt flow (return questions → resume with answers).
+- ⬜ Wire the agent loop (`server/planner.ts`, done) to a real provider via `createPlanner`
+  (OpenAI default; Anthropic/Qwen swappable) and persist `usage_events`.
+- ⬜ `ask_user_questions` interrupt flow (return questions → resume with answers) — logic done, wire to the API.
 - ⬜ System prompt + duration heuristics; prompt caching on the stable prefix.
 - Outcome: send a free-text message → get clarifying questions and/or a scheduling receipt.
 
@@ -52,6 +54,13 @@ Legend: ✅ done · 🔜 next · ⬜ later
 - ⬜ Privacy: data-use disclosures (mic, location, AI processing), privacy policy.
 - ⬜ App icon, screenshots, description; TestFlight beta.
 - ⬜ Submit for review.
+
+## Phase 8 — Developer dashboard ⬜
+- ⬜ Persist `usage_events` (from the planner) and `app_events` (key actions) — wire the sinks
+  in Phase 1/2 so data accrues early.
+- ⬜ Seed an `admins` row; build the admin web app (separate deploy) reading the `metrics_*` views.
+- ⬜ Panels: DAU + actions, token usage, cost, **model/provider comparison**, latency/errors.
+- Outcome: real visibility into users, usage, spend, and OpenAI-vs-Anthropic-vs-Qwen. (Mac-free; buildable any time.)
 
 ## Later / post-v1 ⬜
 - ⬜ EventKit two-way sync with the system calendar.

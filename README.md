@@ -22,10 +22,11 @@ settings.
 
 ## Status
 
-🟡 **Greenfield / foundation.** This branch contains the platform-independent design docs
-and the database schema. None of it depends on a Mac, so it can move forward while the
-native app work waits for a local macOS environment. App implementation (native iOS) is
-the next phase.
+🟡 **Foundation.** This branch contains the platform-independent design docs, the database
++ analytics schema, and **working, unit-tested backend logic** (`server/`): the scheduling
+engine, the planner agent loop with the clarifying-question interrupt, the multi-provider
+LLM layer, and usage accounting — `npm test` is green (18 tests). None of it needs a Mac.
+Next: stand up Supabase + the `/plan` Edge Function, then the native iOS app.
 
 ## Tech stack
 
@@ -35,9 +36,10 @@ Rationale for every choice is recorded in [`docs/DECISIONS.md`](docs/DECISIONS.m
 |---|---|
 | iOS app | **Native SwiftUI** (iOS-first; Android later reuses the backend, not the UI) |
 | Backend | **Supabase** — Postgres + Auth + Storage + Edge Functions |
-| AI | **OpenAI GPT** via a server-side Edge Function — provider-agnostic, Claude swappable |
+| AI | **OpenAI / Anthropic / Qwen** via a server-side Edge Function, behind one `PlannerLLM` interface — switch or A/B with a config change |
 | Maps / commute | Server-side **maps provider** behind an abstraction (Apple Maps Server API default; Google; Amap for China later) |
 | Market | **International first** (Apple Maps + Google Maps, English UI), China later |
+| Analytics | **Usage metering** (tokens/cost/model) + a separate admin **dashboard** |
 
 ## Why this shape
 
@@ -53,16 +55,26 @@ Rationale for every choice is recorded in [`docs/DECISIONS.md`](docs/DECISIONS.m
 ```
 planfect/
 ├── README.md
+├── package.json            # Node test runner for the server/ logic
+├── .env.example            # env vars (Supabase, LLM providers, maps)
 ├── docs/
 │   ├── PRODUCT_SPEC.md     # Features, the three screens, user stories
 │   ├── ARCHITECTURE.md     # System design, data flow, security, provider abstractions
 │   ├── DATA_MODEL.md       # Entities, relationships, schema walkthrough
-│   ├── AI_PLANNING.md      # The conversational planner: agent loop, clarifying-question
-│   │                       #   pattern (GPT function calling / structured outputs), prompts
+│   ├── AI_PLANNING.md      # Planner agent loop, clarifying-question pattern, prompts
+│   ├── AI_PROVIDERS.md     # Multi-provider strategy (OpenAI / Anthropic / Qwen)
+│   ├── DASHBOARD.md        # Developer/admin dashboard (usage, cost, model comparison)
 │   ├── ROADMAP.md          # Phased plan to App Store; what's done / next
 │   └── DECISIONS.md        # ADR log capturing the key decisions and their rationale
+├── server/                 # Backend logic (TypeScript), unit-tested on Node
+│   ├── scheduling/         #   pure free-slot + placement engine
+│   ├── llm/                #   PlannerLLM contract, tools, provider adapters, mock
+│   ├── maps/               #   MapsProvider interface
+│   ├── usage.ts            #   usage events + cost estimation (dashboard data)
+│   └── planner.ts          #   the agent loop
 └── supabase/
-    └── schema.sql          # Initial Postgres schema + Row-Level Security policies
+    ├── schema.sql          # App schema + Row-Level Security
+    └── analytics.sql       # Usage/analytics tables + dashboard views
 ```
 
 ## Docs index
@@ -70,7 +82,8 @@ planfect/
 - **Start here:** [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
 - **How it fits together:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **The data:** [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) + [`supabase/schema.sql`](supabase/schema.sql)
-- **The AI brain:** [`docs/AI_PLANNING.md`](docs/AI_PLANNING.md)
+- **The AI brain:** [`docs/AI_PLANNING.md`](docs/AI_PLANNING.md) · [`docs/AI_PROVIDERS.md`](docs/AI_PROVIDERS.md)
+- **The dashboard:** [`docs/DASHBOARD.md`](docs/DASHBOARD.md)
 - **The plan to ship:** [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - **Why we chose what we chose:** [`docs/DECISIONS.md`](docs/DECISIONS.md)
 

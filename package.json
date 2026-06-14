@@ -1,0 +1,10 @@
+{
+  "name": "planfect-server",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Planfect backend logic (scheduling engine, planner agent loop, multi-provider LLM, usage accounting). Pure TypeScript, runtime-agnostic; deploys as Supabase Edge Functions (Deno).",
+  "scripts": {
+    "test": "node --experimental-strip-types --test \"server/**/*.test.ts\""
+  }
+}
