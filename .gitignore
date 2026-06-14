@@ -1,0 +1,31 @@
+# Secrets / env — NEVER commit API keys (OpenAI, maps, Supabase service role)
+.env
+.env.*
+!.env.example
+*.local
+
+# Supabase
+.supabase/
+supabase/.branches/
+supabase/.temp/
+
+# macOS
+.DS_Store
+
+# Xcode / SwiftPM (for the iOS app, added in Phase 3)
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+.swiftpm/
+Package.resolved
+
+# Node / Deno (Edge Functions tooling)
+node_modules/
+npm-debug.log*
+.deno/
+
+# Editors
+.idea/
+.vscode/
+*.swp
