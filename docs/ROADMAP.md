@@ -55,12 +55,15 @@ Legend: ✅ done · 🔜 next · ⬜ later
 - ⬜ App icon, screenshots, description; TestFlight beta.
 - ⬜ Submit for review.
 
-## Phase 8 — Developer dashboard ⬜
+## Phase 8 — Developer dashboard 🔜
+- 🔜 Admin web app **scaffold written** (`dashboard/`, Next.js): KPI cards + model-comparison +
+  daily-usage tables reading the `metrics_*` views; pure helpers unit-tested.
 - ⬜ Persist `usage_events` (from the planner) and `app_events` (key actions) — wire the sinks
   in Phase 1/2 so data accrues early.
-- ⬜ Seed an `admins` row; build the admin web app (separate deploy) reading the `metrics_*` views.
-- ⬜ Panels: DAU + actions, token usage, cost, **model/provider comparison**, latency/errors.
-- Outcome: real visibility into users, usage, spend, and OpenAI-vs-Anthropic-vs-Qwen. (Mac-free; buildable any time.)
+- ⬜ Seed an `admins` row; deploy the dashboard (separate, behind access control).
+- ⬜ Add charts (recharts/visx), admin-login (replace the service-role read), and an
+  action-breakdown panel.
+- Outcome: real visibility into users, usage, spend, and OpenAI-vs-Anthropic-vs-Qwen. (Mac-free.)
 
 ## Later / post-v1 ⬜
 - ⬜ EventKit two-way sync with the system calendar.

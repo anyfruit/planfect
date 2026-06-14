@@ -58,6 +58,7 @@ planfect/
 ├── package.json            # Node test runner for the server/ logic
 ├── .env.example            # env vars (Supabase, LLM providers, maps)
 ├── docs/
+│   ├── PROJECT_STATUS.zh.md # 中文进度跟踪（目标 / 各轮进度 / 计划 / 待办）
 │   ├── PRODUCT_SPEC.md     # Features, the three screens, user stories
 │   ├── ARCHITECTURE.md     # System design, data flow, security, provider abstractions
 │   ├── DATA_MODEL.md       # Entities, relationships, schema walkthrough
@@ -73,15 +74,17 @@ planfect/
 │   ├── usage.ts            #   usage events + cost estimation (dashboard data)
 │   ├── planner.ts          #   the agent loop
 │   └── demo/               #   runnable end-to-end demo (Node, no keys)
-└── supabase/
-    ├── schema.sql          # App schema + Row-Level Security
-    ├── analytics.sql       # Usage/analytics tables + dashboard views
-    ├── seed.sql            # Sample data for local testing
-    └── functions/plan/     # The /plan Edge Function (Deno) — wires server/ to Supabase
+├── supabase/
+│   ├── schema.sql          # App schema + Row-Level Security
+│   ├── analytics.sql       # Usage/analytics tables + dashboard views
+│   ├── seed.sql            # Sample data for local testing
+│   └── functions/plan/     # The /plan Edge Function (Deno) — wires server/ to Supabase
+└── dashboard/              # Developer/admin web app (Next.js) — usage/cost/model metrics
 ```
 
 ## Docs index
 
+- **中文进度（项目情况 / 各轮进度 / 计划 / 待办）:** [`docs/PROJECT_STATUS.zh.md`](docs/PROJECT_STATUS.zh.md)
 - **Start here:** [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
 - **How it fits together:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **The data:** [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) + [`supabase/schema.sql`](supabase/schema.sql)
