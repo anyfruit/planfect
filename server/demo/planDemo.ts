@@ -17,14 +17,19 @@ import {
   TOOL_SCHEDULE_TASKS,
 } from '../llm/tools.ts';
 import { type LLMMessage, type LLMStepResult } from '../llm/types.ts';
-import { scheduleTask, dayWindow } from '../scheduling/scheduler.ts';
-import { type Interval } from '../scheduling/freeSlots.ts';
+import { scheduleTask } from '../scheduling/scheduler.ts';
+import { planningWindowsForDate, zonedToUtc, type RoutineInput } from '../scheduling/routines.ts';
 import { MockMapsProvider } from '../maps/types.ts';
 
-// --- the user's day (in production this comes from routines + timezone) ---
-const DAY = Date.UTC(2026, 5, 19); // Fri 2026-06-19
-const availability: Interval[] = [dayWindow(DAY, 7 * 60, 23 * 60)]; // awake 07:00–23:00
-const busy: Interval[] = [dayWindow(DAY, 9 * 60, 17 * 60)]; // work 09:00–17:00
+// --- the user's day, derived from their routine in their timezone (as in production) ---
+const TZ = 'America/New_York';
+const DATE = { year: 2026, month: 6, day: 19 }; // Friday
+const routines: RoutineInput[] = [
+  { kind: 'sleep', daysOfWeek: [0, 1, 2, 3, 4, 5, 6], startMin: 23 * 60, endMin: 7 * 60, isFlexible: false },
+  { kind: 'work', daysOfWeek: [1, 2, 3, 4, 5], startMin: 9 * 60, endMin: 17 * 60, isFlexible: false },
+  { kind: 'meal', daysOfWeek: [1, 2, 3, 4, 5], startMin: 12 * 60 + 30, endMin: 13 * 60, isFlexible: false },
+];
+const { availability, busy } = planningWindowsForDate(routines, DATE, TZ);
 const iso = (ms: number) => new Date(ms).toISOString();
 
 // --- tool handlers: REAL scheduler + mock maps ---
@@ -39,7 +44,7 @@ const handlers: ToolHandlers = {
     const p = scheduleTask(availability, busy, {
       durationMin: 60,
       commuteMin: 25,
-      earliestStart: DAY + 17 * 60 * 60_000,
+      earliestStart: zonedToUtc(DATE, 17 * 60, TZ), // after work (17:00 local)
     });
     if (!p.ok) return JSON.stringify({ items: [], assumptions: ['No free slot found.'] });
     const task = p.blocks.find((b) => b.kind === 'task')!;

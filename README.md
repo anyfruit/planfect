@@ -1,5 +1,7 @@
 # Planfect
 
+[![CI](https://github.com/WeijieCao77/planfect/actions/workflows/ci.yml/badge.svg)](https://github.com/WeijieCao77/planfect/actions/workflows/ci.yml)
+
 **An AI day planner.** Tell it — by voice or text — what you need to do and when, and it
 works out the rest: it estimates how long each task takes, learns your daily routine
 (work, commute, sleep, meals), schedules tasks into your free time, and pre-computes
@@ -25,7 +27,8 @@ settings.
 🟡 **Foundation.** This branch contains the platform-independent design docs, the database
 + analytics schema, and **working, unit-tested backend logic** (`server/`): the scheduling
 engine, the planner agent loop with the clarifying-question interrupt, the multi-provider
-LLM layer, and usage accounting — `npm test` is green (18 tests). None of it needs a Mac.
+LLM layer, and usage accounting — `npm test` is green (23 server + 5 dashboard tests) and
+CI runs them on every push. None of it needs a Mac.
 Next: stand up Supabase + the `/plan` Edge Function, then the native iOS app.
 
 ## Tech stack

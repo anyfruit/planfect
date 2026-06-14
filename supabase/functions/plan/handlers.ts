@@ -72,9 +72,10 @@ export function buildHandlers(supabase: SupabaseClient, userId: string): ToolHan
     },
 
     [TOOL_SCHEDULE_TASKS]: async (args) => {
-      // TODO (Phase 2): for each task, derive availability from `routines` for the target
-      // range, load busy from `time_blocks`, call scheduleTask(...), then insert tasks +
-      // time_blocks (incl. commute/buffer). See server/demo/planDemo.ts for the real call.
+      // TODO (Phase 2): for each task, derive availability with planningWindowsForDate(
+      // routines, date, tz) from server/scheduling/routines.ts (done + tested), load busy
+      // from `time_blocks`, call scheduleTask(...), then insert tasks + time_blocks (incl.
+      // commute/buffer). See server/demo/planDemo.ts for the full real call.
       const items = ((args.tasks as Array<{ title: string }>) ?? []).map((t) => ({
         title: t.title,
         start: null,

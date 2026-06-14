@@ -8,7 +8,7 @@ Legend: ✅ done · 🔜 next · ⬜ later
 ## Phase 0 — Foundation (no Mac needed) ✅
 - ✅ Product spec, architecture, data model, AI planning + providers, dashboard design, decisions.
 - ✅ Postgres schema + RLS (`supabase/schema.sql`) and analytics schema + dashboard views (`supabase/analytics.sql`).
-- ✅ **Backend logic, unit-tested on Node** (`server/`): scheduling engine, planner agent loop with the clarifying-question interrupt, multi-provider LLM layer (OpenAI/Anthropic/Qwen), usage accounting. `npm test` green (18 tests).
+- ✅ **Backend logic, unit-tested on Node** (`server/`): scheduling engine (incl. timezone-aware routine → availability windows), planner agent loop with the clarifying-question interrupt, multi-provider LLM (OpenAI/Anthropic/Qwen), usage accounting. **CI runs the tests on every push** (`.github/workflows/ci.yml`). Green: 23 server + 5 dashboard.
 - Outcome: a clear blueprint, a runnable schema, and tested core logic ready to drop into the Edge Function.
 
 ## Phase 1 — Backend stands up (mostly Mac, some cloud) 🔜

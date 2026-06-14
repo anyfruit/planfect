@@ -3,7 +3,7 @@
 > 这是项目的中文进度文件。每完成一轮我都会更新这里：**目标、技术栈与决策、当前状态、各轮进度、计划、以及当前缺什么/待办**。
 > 英文文档在根目录 `README.md` 和 `docs/` 里。
 
-最后更新：第 4 轮。
+最后更新：第 5 轮。
 
 ---
 
@@ -39,10 +39,11 @@
 ## 三、当前状态（截至第 4 轮）
 
 - ✅ 设计文档齐全；数据库 schema + 行级安全；分析表 + dashboard 视图。
-- ✅ 后端核心逻辑（TypeScript）写好并**单测通过（18/18，Node 跑）**：排程引擎、planner agent 循环（含多选澄清问题的"中断—回答—继续"机制）、多 provider LLM 层、用量记账。
+- ✅ 后端核心逻辑（TypeScript）写好并**单测通过（server 23/23 + dashboard 5/5，Node 跑）**：排程引擎（含**时区感知的"作息→时间窗"**）、planner agent 循环（含多选澄清问题的"中断—回答—继续"机制）、多 provider LLM 层、用量记账。
 - ✅ **端到端 demo 可在本机直接跑**（无需任何 key）：`node --experimental-strip-types server/demo/planDemo.ts`
 - ✅ `/plan` Edge Function 脚手架 + `seed.sql`。
-- ✅ 开发者 **dashboard web 脚手架**（本轮）：纯计算函数有单测；UI 读 `metrics_*` 视图。
+- ✅ 开发者 **dashboard web 脚手架**：纯计算函数有单测；UI 读 `metrics_*` 视图。
+- ✅ **CI**（GitHub Actions）每次 push 自动跑全部测试。
 - ⬜ 还没开始：**iOS App 本体**、连真实 Supabase 部署、接真实模型 key。
 
 ---
@@ -52,7 +53,8 @@
 - **第 1 轮** — 定方向（技术栈 / 市场 / 后端）+ 全套设计文档 + 数据库 schema。（PR #1 起点）
 - **第 2 轮** — 后端核心代码（排程引擎、planner 循环、多 provider、用量记账）+ 分析表/视图；单测 18/18。
 - **第 3 轮** — `/plan` Edge Function 脚手架 + 可运行端到端 demo + `seed.sql`。
-- **第 4 轮（本轮）** — 开发者 dashboard web 脚手架 + 本中文进度文件。
+- **第 4 轮** — 开发者 dashboard web 脚手架 + 本中文进度文件。
+- **第 5 轮（本轮）** — 加 CI（GitHub Actions 跑测试）+ 补完"作息→时间窗（时区感知）"纯函数并测试；demo 改用真实作息派生时间窗。
 
 ---
 
@@ -76,7 +78,7 @@
 - **Apple Developer 账号**：上架准备。
 
 **代码侧待补：**
-- `/plan` 里 `schedule_tasks` 的**真实写库** handler（现在是 TODO；demo 里有可参考的真实排程算法）。
+- `/plan` 里 `schedule_tasks` 的**真实写库**（载入 busy + 插入 `time_blocks`）——"作息→时间窗"已用 `server/scheduling/routines.ts` 实现并测试，剩 DB 读写部分。
 - 三个 provider 适配器的**集成测试**（接真实 key 后）。
 - 把 **Qwen 价格**填进 `server/usage.ts` 的 `PRICING`（现在是占位）。
 - dashboard **接真实数据 + 图表**（recharts），以及把"服务端 service role"换成"管理员登录"方式。
