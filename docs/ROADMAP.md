@@ -12,11 +12,11 @@ Legend: ✅ done · 🔜 next · ⬜ later
 - Outcome: a clear blueprint, a runnable schema, and tested core logic ready to drop into the Edge Function.
 
 ## Phase 1 — Backend stands up (mostly Mac, some cloud) 🔜
-- ⬜ Create the Supabase project; apply `schema.sql`; enable Auth (email + Apple/Google).
-- ⬜ Seed a test user + a sample routine/locations.
-- ⬜ `/plan` Edge Function skeleton: auth the JWT, load context, **`get_schedule` +
-  `schedule_tasks` with no AI yet** — prove scheduling writes end-to-end.
-- Outcome: can create tasks → time_blocks via an authenticated call; data visible in the DB.
+- ⬜ Create the Supabase project; apply `schema.sql` + `analytics.sql`; enable Auth (email + Apple/Google).
+- 🔜 Seed data written (`supabase/seed.sql`: sample user / routine / locations) — apply after creating the auth user.
+- 🔜 `/plan` Edge Function scaffold written (`supabase/functions/plan/`): auth → load context → planner → usage logging. READ handlers wired; schedule-WRITE handlers have TODOs to finish against the live schema.
+- ✅ Runnable end-to-end demo (`server/demo/planDemo.ts`): mock model + the REAL scheduler shows ask → answer → commute → schedule → receipt.
+- Outcome: deploy the function with real keys + finish the write handlers → tasks → time_blocks via an authenticated call.
 
 ## Phase 2 — The planner brain 🔜
 - ⬜ Wire the agent loop (`server/planner.ts`, done) to a real provider via `createPlanner`

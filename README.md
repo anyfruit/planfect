@@ -71,10 +71,13 @@ planfect/
 │   ├── llm/                #   PlannerLLM contract, tools, provider adapters, mock
 │   ├── maps/               #   MapsProvider interface
 │   ├── usage.ts            #   usage events + cost estimation (dashboard data)
-│   └── planner.ts          #   the agent loop
+│   ├── planner.ts          #   the agent loop
+│   └── demo/               #   runnable end-to-end demo (Node, no keys)
 └── supabase/
     ├── schema.sql          # App schema + Row-Level Security
-    └── analytics.sql       # Usage/analytics tables + dashboard views
+    ├── analytics.sql       # Usage/analytics tables + dashboard views
+    ├── seed.sql            # Sample data for local testing
+    └── functions/plan/     # The /plan Edge Function (Deno) — wires server/ to Supabase
 ```
 
 ## Docs index
