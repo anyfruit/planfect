@@ -7,9 +7,12 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    CODE_SIGNING_REQUIRED: "NO"
-    CODE_SIGNING_ALLOWED: "NO"
-    CODE_SIGN_IDENTITY: ""
+    # Device builds use automatic signing (pick your Apple ID team in Xcode).
+    CODE_SIGN_STYLE: Automatic
+    # Signing stays OFF for the Simulator only, so simulator/CI builds need no identity.
+    "CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]": "NO"
+    "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": "NO"
+    "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": ""
 packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
