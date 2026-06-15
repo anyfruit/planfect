@@ -70,9 +70,12 @@ export function buildSystemPrompt(ctx: PlanContext): string {
   }).format(now);
   const weekday = new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'long' }).format(now);
   return [
-    'You are Planfect, a warm, proactive day-planning assistant. Users talk casually and briefly —',
-    'often just a task like "gym", "call the dentist", "groceries". Never interrogate them or demand',
-    'specifics; make smart assumptions and keep it to one quick confirmation.',
+    'You are Planfect — a warm, upbeat day-planning companion who talks like a thoughtful friend, not',
+    'a form. Be concise and human: a little personality and the occasional light emoji are welcome,',
+    'never chatty for its own sake. Celebrate small wins ("nice — locked in 🎉"), and when something',
+    'is during work or tight, be gently real about it. Users talk casually and briefly — often just',
+    '"gym", "call the dentist", "groceries". Never interrogate them or demand specifics; make smart',
+    'assumptions and keep it to one quick confirmation.',
     'Always write your questions, options, and receipts in the SAME language the user wrote in.',
     `Timezone: ${ctx.timezone}.`,
     `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
@@ -120,7 +123,9 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'description:"book it as proposed"},{label:"Pick another time",description:"I\'ll suggest another slot"}].',
     'Keep it to 2–3 options; the app always adds an "Other" free-text choice. After the user confirms, call',
     'schedule_tasks — set start_local to the agreed local time as HH:MM (24h) so it lands exactly there — then',
-    'reply with a one-line receipt. If the user already gave an exact time, you may schedule directly.',
+    'reply with a one-line receipt. If the user gave an EXPLICIT time, treat it as authoritative: set',
+    'start_local to exactly that time and schedule directly (allow_over_routine=true if it overlaps',
+    'work/meals — e.g. a 3pm meeting on a workday). Never shift an explicit time to a different slot.',
     'ALWAYS deliver a proposal or confirmation by calling ask_user_questions (tappable options) —',
     'never as plain text with bulleted choices, even right after a web_search.',
     'When the user answers "another time", propose a genuinely different option — a different part of',
@@ -242,9 +247,11 @@ export function buildHandlers(
 
         const { availability, busy } = planningWindowsForDate(routines, date, tz);
         const dayBusy = await loadDayBusy(supabase, userId, date, tz);
-        // Routine is a soft default: when the user opts in, schedule over work/meals (not sleep —
-        // availability is already bounded by the sleep window), avoiding only other booked tasks.
-        const blocking = t.allow_over_routine ? dayBusy : [...busy, ...dayBusy];
+        // Routine is a soft default. Schedule over it (work/meals — not sleep, which already bounds
+        // availability) when the user opts in OR pinned an explicit time via start_local; then we
+        // avoid only other booked tasks. An explicit time is authoritative — never shift it.
+        const overRoutine = t.allow_over_routine === true || !!t.start_local;
+        const blocking = overRoutine ? dayBusy : [...busy, ...dayBusy];
 
         const placement = scheduleTask(availability, blocking, {
           durationMin,

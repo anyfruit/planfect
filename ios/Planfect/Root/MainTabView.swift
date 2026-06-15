@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject var router: AppRouter
     @State private var showProfile = false
-    @State private var tab = 0
 
     var body: some View {
-        TabView(selection: $tab) {
+        TabView(selection: $router.tab) {
             NavigationStack {
                 ChatView().planfectAvatar { showProfile = true }
             }
@@ -21,7 +21,7 @@ struct MainTabView: View {
         .sheet(isPresented: $showProfile) { ProfileView() }
         .onAppear {
             #if DEBUG
-            if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "schedule" { tab = 1 }
+            if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "schedule" { router.tab = 1 }
             if ProcessInfo.processInfo.environment["PLANFECT_SHOW_PROFILE"] == "1" { showProfile = true }
             #endif
         }

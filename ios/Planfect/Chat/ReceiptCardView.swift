@@ -3,6 +3,7 @@ import SwiftUI
 /// The scheduling receipt. Times are formatted from the structured (UTC) timestamps into the
 /// device's local time — so this is always correct even if the model's prose says otherwise.
 struct ReceiptCardView: View {
+    @EnvironmentObject var router: AppRouter
     let receipt: Receipt
 
     var body: some View {
@@ -29,11 +30,27 @@ struct ReceiptCardView: View {
                 Text(receipt.assumptions.joined(separator: " "))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            HStack(spacing: 4) {
+                Image(systemName: "calendar")
+                Text("Tap to view & edit in your schedule")
+                Image(systemName: "chevron.right")
+            }
+            .font(.caption2).foregroundStyle(.tint)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.green.opacity(0.3)))
+        .contentShape(Rectangle())
+        .onTapGesture { openInSchedule() }
+    }
+
+    private func openInSchedule() {
+        if let day = receipt.items.compactMap({ $0.start.flatMap(APIDate.parse) }).first {
+            router.openSchedule(on: Calendar.current.startOfDay(for: day))
+        } else {
+            router.tab = 1
+        }
     }
 
     private func timeRange(_ item: ReceiptItem) -> String? {

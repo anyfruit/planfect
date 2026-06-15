@@ -37,6 +37,7 @@ final class ScheduleViewModel: ObservableObject {
 
 struct ScheduleView: View {
     @EnvironmentObject var supa: SupabaseManager
+    @EnvironmentObject var router: AppRouter
     @StateObject private var vm = ScheduleViewModel()
     @State private var scope: ScheduleScope = .day
     @State private var anchor = Date()
@@ -83,7 +84,14 @@ struct ScheduleView: View {
             }
         }
         .navigationTitle("Schedule").navigationBarTitleDisplayMode(.inline)
-        .onAppear { vm.bind(supa); Task { await vm.load() } }
+        .onAppear {
+            vm.bind(supa)
+            if let day = router.jumpDay { anchor = day; scope = .day; router.jumpDay = nil }
+            Task { await vm.load() }
+        }
+        .onChange(of: router.jumpDay) { _, day in
+            if let day { anchor = day; scope = .day; router.jumpDay = nil }
+        }
         .refreshable { await vm.load() }
         .sheet(item: $selectedBlock) { block in
             BlockDetailView(block: block) { Task { await vm.load() } }

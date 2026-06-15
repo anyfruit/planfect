@@ -171,10 +171,30 @@ private struct ChatRow: View {
     var body: some View {
         switch item.content {
         case .text(.user, let s): Bubble(text: s, mine: true)
-        case .text(.assistant, let s): Bubble(text: s, mine: false)
-        case .questions(let qs): QuestionCardView(questions: qs, onSubmit: onAnswer)
-        case .receipt(let r): ReceiptCardView(receipt: r)
+        case .text(.assistant, let s): withAvatar { Bubble(text: s, mine: false) }
+        case .questions(let qs): withAvatar { QuestionCardView(questions: qs, onSubmit: onAnswer) }
+        case .receipt(let r): withAvatar { ReceiptCardView(receipt: r) }
         }
+    }
+
+    @ViewBuilder private func withAvatar<V: View>(@ViewBuilder _ content: () -> V) -> some View {
+        HStack(alignment: .top, spacing: 8) { BotAvatar(); content() }
+    }
+}
+
+/// Planfect's little face — a friendly gradient mark next to everything the assistant says.
+struct BotAvatar: View {
+    var body: some View {
+        Image(systemName: "sparkles")
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 30, height: 30)
+            .background(
+                LinearGradient(colors: [.accentColor, .purple],
+                               startPoint: .topLeading, endPoint: .bottomTrailing),
+                in: Circle()
+            )
+            .accessibilityHidden(true)
     }
 }
 
