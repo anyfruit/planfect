@@ -100,8 +100,10 @@ private struct BlockCell: View {
             RoundedRectangle(cornerRadius: 2).fill(cat.color).frame(width: 3)
             VStack(alignment: .leading, spacing: 1) {
                 Text(block.title)
-                    .font(compact ? .system(size: 9, weight: .medium) : .caption.weight(.medium))
-                    .lineLimit(compact ? 1 : 2)
+                    .font(compact ? .system(size: 9.5, weight: .medium) : .caption.weight(.medium))
+                    .lineLimit(compact ? nil : 2)               // week: wrap to show the full name
+                    .minimumScaleFactor(compact ? 0.7 : 1)      // shrink a touch before wrapping in tight blocks
+                    .multilineTextAlignment(.leading)
                     .strikethrough(block.isDone)
                     .foregroundStyle(block.isDone ? Color.secondary : Color.primary)
                 if !compact {
@@ -122,44 +124,7 @@ private struct BlockCell: View {
 
 private func isToday(_ d: Date) -> Bool { Calendar.current.isDateInToday(d) }
 
-// MARK: - Day
-
-struct DayTimelineView: View {
-    let day: Date
-    let blocks: [TimeBlock]
-    let onTap: (TimeBlock) -> Void
-
-    private let hourHeight: CGFloat = 52
-    private let ruler: CGFloat = 54
-
-    var body: some View {
-        let laid = TimelineLayout.lanes(for: blocks)
-        ScrollViewReader { proxy in
-            ScrollView {
-                ZStack(alignment: .topLeading) {
-                    HourGrid(hourHeight: hourHeight, ruler: ruler)
-                    GeometryReader { geo in
-                        let areaW = geo.size.width - ruler - 8
-                        ForEach(laid) { lo in
-                            let colW = areaW / CGFloat(lo.laneCount)
-                            let h = TimelineMath.height(lo.block, hourHeight)
-                            BlockCell(block: lo.block, compact: false)
-                                .frame(width: max(0, colW - 4), height: h)
-                                .position(x: ruler + colW * (CGFloat(lo.lane) + 0.5),
-                                          y: TimelineMath.y(lo.block.start, hourHeight) + h / 2)
-                                .onTapGesture { onTap(lo.block) }
-                        }
-                    }
-                }
-                .frame(height: hourHeight * 24)
-                .padding(.vertical, 6)
-            }
-            .onAppear { proxy.scrollTo(TimelineMath.firstHour(blocks), anchor: .top) }
-        }
-    }
-}
-
-// MARK: - Week
+// MARK: - Week (Day uses the list layout in ScheduleView; this grid is for Week/Month)
 
 struct WeekTimelineView: View {
     let weekStart: Date

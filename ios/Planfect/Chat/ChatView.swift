@@ -27,7 +27,11 @@ final class ChatViewModel: ObservableObject {
     private var supa: SupabaseManager?
     private var history: [JSONValue] = []   // full LLM thread, sent every turn so context persists
 
-    func bind(_ supa: SupabaseManager) { if self.supa == nil { self.supa = supa } }
+    func bind(_ supa: SupabaseManager) {
+        guard self.supa == nil else { return }
+        self.supa = supa
+        loadPersisted()
+    }
 
     #if DEBUG
     private var seeded = false
@@ -45,6 +49,7 @@ final class ChatViewModel: ObservableObject {
         input = ""
         items.append(.user(text))
         history.append(.object(["role": .string("user"), "content": .string(text)]))
+        persist()
         Task { await run(PlanRequest(messages: history)) }
     }
 
@@ -65,6 +70,7 @@ final class ChatViewModel: ObservableObject {
             "toolCallId": .string(askId),
             "content": .string(payload),
         ]))
+        persist()
         Task { await run(PlanRequest(messages: history)) }
     }
 
@@ -88,7 +94,67 @@ final class ChatViewModel: ObservableObject {
         } catch {
             items.append(.assistant("⚠️ \(error.localizedDescription)"))
         }
+        persist()
         sending = false
+    }
+
+    // MARK: - Local persistence (so the transcript survives relaunch / view rebuilds)
+
+    func clearPersisted() {
+        items = []; history = []
+        if let url = storageURL() { try? FileManager.default.removeItem(at: url) }
+    }
+
+    private func loadPersisted() {
+        guard let url = storageURL(), let data = try? Data(contentsOf: url),
+              let saved = try? JSONDecoder().decode(PersistedChat.self, from: data) else { return }
+        history = saved.history
+        items = saved.items.compactMap { $0.toChatItem() }
+    }
+
+    private func persist() {
+        guard let url = storageURL() else { return }
+        let payload = PersistedChat(history: history, items: items.map(PersistedItem.init))
+        if let data = try? JSONEncoder().encode(payload) { try? data.write(to: url) }
+    }
+
+    /// Per-user file in Application Support so one account's chat never shows under another.
+    private func storageURL() -> URL? {
+        guard let uid = supa?.userId else { return nil }
+        let fm = FileManager.default
+        guard let dir = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else { return nil }
+        return dir.appendingPathComponent("planfect-chat-\(uid.uuidString).json")
+    }
+}
+
+/// Codable snapshot of the chat: the LLM thread plus a flattened view of the visible transcript.
+private struct PersistedChat: Codable {
+    var history: [JSONValue]
+    var items: [PersistedItem]
+}
+
+private struct PersistedItem: Codable {
+    var kind: String        // "text" | "questions" | "receipt"
+    var role: String        // "user" | "assistant" (text only)
+    var text: String?
+    var questions: [PlanQuestion]?
+    var receipt: Receipt?
+
+    init(_ item: ChatItem) {
+        switch item.content {
+        case .text(let r, let s): kind = "text"; role = (r == .user ? "user" : "assistant"); text = s
+        case .questions(let q): kind = "questions"; role = "assistant"; questions = q
+        case .receipt(let r): kind = "receipt"; role = "assistant"; receipt = r
+        }
+    }
+
+    func toChatItem() -> ChatItem? {
+        switch kind {
+        case "text": return ChatItem(content: .text(role == "user" ? .user : .assistant, text ?? ""))
+        case "questions": return questions.map { ChatItem(content: .questions($0)) }
+        case "receipt": return receipt.map { ChatItem(content: .receipt($0)) }
+        default: return nil
+        }
     }
 }
 

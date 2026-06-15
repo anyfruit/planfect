@@ -89,7 +89,7 @@ struct ScheduleView: View {
         } else {
             switch scope {
             case .day:
-                DayTimelineView(day: anchor, blocks: blocks(in: .day)) { selectedBlock = $0 }
+                dayList
             case .week:
                 WeekTimelineView(weekStart: Self.range(.week, anchor).0, blocks: blocks(in: .week),
                                  onTapBlock: { selectedBlock = $0 },
@@ -99,6 +99,42 @@ struct ScheduleView: View {
                               onTapDay: { anchor = $0; scope = .day })
             }
         }
+    }
+
+    // Day keeps the original list layout (checkbox, category pill, swipe-delete, tap to edit).
+    private var dayList: some View {
+        let items = blocks(in: .day).sorted { $0.start < $1.start }
+        return Group {
+            if items.isEmpty {
+                emptyDay
+            } else {
+                List {
+                    ForEach(items) { block in
+                        BlockRow(block: block) { Task { await vm.toggleDone(block) } }
+                            .contentShape(Rectangle())
+                            .onTapGesture { selectedBlock = block }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) { Task { await vm.delete(block) } } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+                .listStyle(.insetGrouped)
+            }
+        }
+    }
+
+    private var emptyDay: some View {
+        VStack(spacing: 10) {
+            Spacer()
+            Image(systemName: "calendar.day.timeline.left").font(.largeTitle).foregroundStyle(.secondary)
+            Text("Nothing scheduled").font(.headline)
+            Text("Tell Planfect a plan in Chat and it'll show up here.")
+                .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
+            Spacer()
+        }
+        .padding()
     }
 
     private func blocks(in scope: ScheduleScope) -> [TimeBlock] {
@@ -136,5 +172,39 @@ struct ScheduleView: View {
             let s = cal.dateInterval(of: .month, for: anchor)?.start ?? anchor
             return (s, cal.date(byAdding: .month, value: 1, to: s) ?? s)
         }
+    }
+}
+
+private struct BlockRow: View {
+    let block: TimeBlock
+    let onToggleDone: () -> Void
+
+    var body: some View {
+        let cat = TaskCategory.of(block)
+        return HStack(spacing: 12) {
+            Button(action: onToggleDone) {
+                Image(systemName: block.isDone ? "checkmark.circle.fill" : "circle")
+                    .font(.title3).foregroundStyle(block.isDone ? Color.green : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            RoundedRectangle(cornerRadius: 3).fill(cat.color).frame(width: 5, height: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(block.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                    .strikethrough(block.isDone)
+                    .foregroundStyle(block.isDone ? Color.secondary : Color.primary)
+                Text("\(block.start.formatted(date: .omitted, time: .shortened)) – \(block.end.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 3) {
+                Image(systemName: cat.icon)
+                Text(cat.label)
+            }
+            .font(.caption2).foregroundStyle(cat.color)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .background(cat.color.opacity(0.15), in: Capsule())
+        }
+        .padding(.vertical, 2)
+        .opacity(block.isDone ? 0.6 : 1)
     }
 }

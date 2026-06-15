@@ -59,7 +59,7 @@ struct PlanResponse: Decodable {
     let messages: [JSONValue]?
 }
 
-struct PlanQuestion: Decodable, Identifiable {
+struct PlanQuestion: Codable, Identifiable {
     let id: String
     let header: String?
     let question: String
@@ -70,19 +70,19 @@ struct PlanQuestion: Decodable, Identifiable {
     var isMulti: Bool { multi_select ?? false }
 }
 
-struct PlanOption: Decodable, Identifiable, Hashable {
+struct PlanOption: Codable, Identifiable, Hashable {
     var id: String { label }
     let label: String
     let description: String?
 }
 
-struct Receipt: Decodable {
+struct Receipt: Codable {
     let summary: String
     let items: [ReceiptItem]
     let assumptions: [String]
 }
 
-struct ReceiptItem: Decodable, Identifiable {
+struct ReceiptItem: Codable, Identifiable {
     var id: String { title + (start ?? "") }
     let title: String
     let start: String?
@@ -90,7 +90,7 @@ struct ReceiptItem: Decodable, Identifiable {
     let commute: ReceiptCommute?
 }
 
-struct ReceiptCommute: Decodable {
+struct ReceiptCommute: Codable {
     let mode: String
     let leaveAt: String
     let durationMin: Int
