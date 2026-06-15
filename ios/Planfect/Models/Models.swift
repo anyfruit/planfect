@@ -53,16 +53,19 @@ struct PlanResponse: Decodable {
 
 struct PlanQuestion: Decodable, Identifiable {
     let id: String
-    let header: String
+    let header: String?
     let question: String
-    let multi_select: Bool
+    let multi_select: Bool?
     let options: [PlanOption]
+
+    var headerText: String { let h = header ?? ""; return h.isEmpty ? "Quick question" : h }
+    var isMulti: Bool { multi_select ?? false }
 }
 
 struct PlanOption: Decodable, Identifiable, Hashable {
     var id: String { label }
     let label: String
-    let description: String
+    let description: String?
 }
 
 struct Receipt: Decodable {

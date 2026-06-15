@@ -16,10 +16,10 @@ struct QuestionCardView: View {
         VStack(alignment: .leading, spacing: 18) {
             ForEach(questions) { q in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(q.header.uppercased()).font(.caption2.bold()).foregroundStyle(.tint)
+                    Text(q.headerText.uppercased()).font(.caption2.bold()).foregroundStyle(.tint)
                     Text(q.question).font(.subheadline.weight(.medium))
                     ForEach(q.options) { opt in
-                        OptionRow(title: opt.label, subtitle: opt.description,
+                        OptionRow(title: opt.label, subtitle: opt.description ?? "",
                                   selected: isPicked(q, opt.label)) { toggle(q, opt.label) }
                     }
                     OtherRow(selected: isPicked(q, Self.otherKey),
@@ -42,7 +42,7 @@ struct QuestionCardView: View {
 
     private func toggle(_ q: PlanQuestion, _ label: String) {
         var set = picked[q.id] ?? []
-        if q.multi_select {
+        if q.isMulti {
             if set.contains(label) { set.remove(label) } else { set.insert(label) }
         } else {
             set = set.contains(label) ? [] : [label]

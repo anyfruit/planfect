@@ -12,21 +12,29 @@ extension SupabaseManager {
     /// the SDK's own `client.auth.session` can lag several seconds after sign-in in the simulator.
     func currentToken() async -> String {
         for _ in 0..<25 {
-            if let token = session?.accessToken { return token }
+            if let token = try? await client.auth.session.accessToken { return token }  // refreshes if expired
+            if let token = session?.accessToken { return token }                        // event-session fallback
             try? await Task.sleep(nanoseconds: 120_000_000)
         }
-        return (try? await client.auth.session.accessToken) ?? SupabaseConfig.anonKey
+        return SupabaseConfig.anonKey
     }
 
-    /// Call the `/plan` Edge Function (the planning agent). The SDK attaches the user's JWT.
+    /// Call the `/plan` Edge Function over URLSession with the session JWT. (The SDK's invoke did
+    /// not reliably attach the token, causing 401s.)
     func plan(_ request: PlanRequest) async throws -> PlanResponse {
-        _ = await currentToken()
-        return try await client.functions.invoke(
-            "plan",
-            options: FunctionInvokeOptions(body: request)
-        ) { data, _ in
-            try JSONDecoder().decode(PlanResponse.self, from: data)
+        let token = await currentToken()
+        var req = URLRequest(url: URL(string: SupabaseConfig.url.absoluteString + "/functions/v1/plan")!)
+        req.httpMethod = "POST"
+        req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(request)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw NSError(domain: "Planfect.Plan", code: http.statusCode,
+                          userInfo: [NSLocalizedDescriptionKey: "Planner unavailable (HTTP \(http.statusCode)). Please try again."])
         }
+        return try JSONDecoder().decode(PlanResponse.self, from: data)
     }
 
     func fetchBlocks() async throws -> [TimeBlock] {
@@ -51,6 +59,9 @@ extension SupabaseManager {
 
     /// First-run gate: a user with no routines yet should see onboarding.
     func refreshOnboardingState() async {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["PLANFECT_FORCE_ONBOARDING"] == "1" { needsOnboarding = true; return }
+        #endif
         do {
             needsOnboarding = try await fetchRoutines().isEmpty
         } catch {

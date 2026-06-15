@@ -1,56 +1,73 @@
 import SwiftUI
 
-/// First-run setup: capture the fixed routine the planner schedules around (work/study + sleep),
-/// so later "schedule this" requests automatically avoid those blocks.
+/// Conversational first-run setup: the bot asks a couple of tappable questions (same card UI as
+/// the planner's clarifying questions) and turns the answers into the routine it plans around.
 struct OnboardingView: View {
     @EnvironmentObject var supa: SupabaseManager
 
-    @State private var worksRegular = true
-    @State private var workStart = time(9)
-    @State private var workEnd = time(17)
-    @State private var workDays: Set<Int> = [1, 2, 3, 4, 5]
-    @State private var sleepStart = time(23)
-    @State private var sleepEnd = time(7)
+    @State private var step = 0
+    @State private var work: WorkOption?
+    @State private var sleep: SleepOption?
     @State private var saving = false
     @State private var error: String?
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Text("Let's learn your week")
-                        .font(.title2.bold())
-                    Text("Planfect schedules new tasks **around** these fixed blocks, so you never get double-booked over work or sleep. You can refine them anytime.")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    botBubble("👋 Hi, I'm Planfect. Tell me a few things about your week and I'll fit tasks around it — about 20 seconds.")
 
-                Section("Work / school") {
-                    Toggle("I have regular hours", isOn: $worksRegular.animation())
-                    if worksRegular {
-                        DatePicker("Starts", selection: $workStart, displayedComponents: .hourAndMinute)
-                        DatePicker("Ends", selection: $workEnd, displayedComponents: .hourAndMinute)
-                        WeekdayPicker(selection: $workDays)
+                    if step >= 1, let work { answerBubble(work.label) }
+                    if step == 0 {
+                        QuestionCardView(questions: [Self.workQuestion]) { answers in
+                            work = WorkOption.all.first { $0.label == answers.first?.selected.first }
+                            withAnimation { step = 1 }
+                        }
+                    }
+
+                    if step >= 1 { botBubble("Got it. And when do you usually sleep?") }
+                    if step >= 2, let sleep { answerBubble(sleep.label) }
+                    if step == 1 {
+                        QuestionCardView(questions: [Self.sleepQuestion]) { answers in
+                            sleep = SleepOption.all.first { $0.label == answers.first?.selected.first }
+                            withAnimation { step = 2 }
+                        }
+                    }
+
+                    if step >= 2 {
+                        botBubble("Perfect — I'll plan around that. You can fine-tune anytime in your profile.")
+                        if let error { Text(error).font(.footnote).foregroundStyle(.red) }
+                        Button(action: finish) {
+                            HStack { if saving { ProgressView() }; Text("Start planning").bold() }
+                                .frame(maxWidth: .infinity).frame(height: 26)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(saving)
+                        .padding(.top, 4)
                     }
                 }
-
-                Section("Sleep") {
-                    DatePicker("Bedtime", selection: $sleepStart, displayedComponents: .hourAndMinute)
-                    DatePicker("Wake up", selection: $sleepEnd, displayedComponents: .hourAndMinute)
-                }
-
-                if let error {
-                    Section { Text(error).foregroundStyle(.red).font(.footnote) }
-                }
-
-                Section {
-                    Button(action: finish) {
-                        HStack { if saving { ProgressView() }; Text("Start planning").bold() }
-                            .frame(maxWidth: .infinity)
-                    }
-                    .disabled(saving)
-                }
+                .padding()
             }
             .navigationTitle("Welcome").navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func botBubble(_ text: String) -> some View {
+        HStack {
+            Text(text)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+            Spacer(minLength: 40)
+        }
+    }
+
+    private func answerBubble(_ text: String) -> some View {
+        HStack {
+            Spacer(minLength: 40)
+            Text(text)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 18))
+                .foregroundStyle(.white)
         }
     }
 
@@ -58,16 +75,14 @@ struct OnboardingView: View {
         saving = true; error = nil
         Task {
             guard let uid = supa.userId?.uuidString else { saving = false; return }
-            var routines: [RoutineInsert] = [
-                RoutineInsert(user_id: uid, label: "Sleep", kind: "sleep",
-                              days_of_week: [0, 1, 2, 3, 4, 5, 6],
-                              start_time: hhmmss(sleepStart), end_time: hhmmss(sleepEnd), is_flexible: false),
-            ]
-            if worksRegular, !workDays.isEmpty {
+            var routines: [RoutineInsert] = []
+            let s = (sleep ?? SleepOption.all[0])
+            routines.append(RoutineInsert(user_id: uid, label: "Sleep", kind: "sleep",
+                                          days_of_week: [0, 1, 2, 3, 4, 5, 6],
+                                          start_time: s.start, end_time: s.end, is_flexible: false))
+            if let w = work, let h = w.hours {
                 routines.append(RoutineInsert(user_id: uid, label: "Work", kind: "work",
-                                              days_of_week: workDays.sorted(),
-                                              start_time: hhmmss(workStart), end_time: hhmmss(workEnd),
-                                              is_flexible: false))
+                                              days_of_week: h.days, start_time: h.start, end_time: h.end, is_flexible: false))
             }
             do {
                 try? await supa.setTimezone(TimeZone.current.identifier)
@@ -79,33 +94,43 @@ struct OnboardingView: View {
             }
         }
     }
+
+    // MARK: - Options (label → routine values; no fragile string matching elsewhere)
+
+    static let workQuestion = PlanQuestion(
+        id: "work", header: "Your week",
+        question: "When do you usually work or study?", multi_select: false,
+        options: WorkOption.all.map { PlanOption(label: $0.label, description: $0.desc) })
+
+    static let sleepQuestion = PlanQuestion(
+        id: "sleep", header: "Sleep",
+        question: "When do you usually sleep?", multi_select: false,
+        options: SleepOption.all.map { PlanOption(label: $0.label, description: $0.desc) })
 }
 
-private struct WeekdayPicker: View {
-    @Binding var selection: Set<Int>
-    private let labels = ["S", "M", "T", "W", "T", "F", "S"]   // 0=Sun … 6=Sat
+struct WorkOption {
+    let label: String
+    let desc: String
+    let hours: (start: String, end: String, days: [Int])?
 
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(0..<7, id: \.self) { i in
-                let on = selection.contains(i)
-                Text(labels[i])
-                    .font(.subheadline.bold())
-                    .frame(width: 34, height: 34)
-                    .background(on ? Color.accentColor : Color(.secondarySystemBackground), in: Circle())
-                    .foregroundStyle(on ? Color.white : Color.primary)
-                    .onTapGesture { if on { selection.remove(i) } else { selection.insert(i) } }
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
+    static let all: [WorkOption] = [
+        .init(label: "9–5, weekdays", desc: "Mon–Fri, 9 to 5", hours: ("09:00:00", "17:00:00", [1, 2, 3, 4, 5])),
+        .init(label: "Evenings", desc: "Afternoons into the evening", hours: ("17:00:00", "21:00:00", [1, 2, 3, 4, 5])),
+        .init(label: "Flexible / varies", desc: "No fixed hours to plan around", hours: nil),
+        .init(label: "Not right now", desc: "No work or study block", hours: nil),
+    ]
 }
 
-private func time(_ hour: Int) -> Date {
-    Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
-}
+struct SleepOption {
+    let label: String
+    let desc: String
+    let start: String
+    let end: String
 
-private func hhmmss(_ date: Date) -> String {
-    let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-    return String(format: "%02d:%02d:00", c.hour ?? 0, c.minute ?? 0)
+    static let all: [SleepOption] = [
+        .init(label: "11 PM – 7 AM", desc: "A typical night", start: "23:00:00", end: "07:00:00"),
+        .init(label: "Midnight – 8 AM", desc: "A bit later", start: "00:00:00", end: "08:00:00"),
+        .init(label: "1 AM – 9 AM", desc: "Night owl", start: "01:00:00", end: "09:00:00"),
+        .init(label: "10 PM – 6 AM", desc: "Early bird", start: "22:00:00", end: "06:00:00"),
+    ]
 }
