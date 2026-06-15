@@ -51,7 +51,16 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
     // No tool calls → the model is done.
     if (res.toolCalls.length === 0) {
       if (scheduled) {
-        return { type: 'scheduled', receipt: { summary: res.text ?? '', items: scheduledItems, assumptions }, messages: msgs };
+        const placed = scheduledItems.filter((it) => it && it.start != null);
+        if (placed.length > 0) {
+          return { type: 'scheduled', receipt: { summary: res.text ?? '', items: placed, assumptions }, messages: msgs };
+        }
+        // schedule_tasks ran but nothing actually landed on the calendar — report honestly
+        // instead of rendering a green "Scheduled" receipt for an empty plan.
+        const reason = assumptions.join(' ').trim();
+        const text = (res.text ?? '').trim() || reason ||
+          "I couldn't find a spot for that. Want me to put it over the conflicting block, or pick another time?";
+        return { type: 'message', text, messages: msgs };
       }
       return { type: 'message', text: res.text ?? '', messages: msgs };
     }
