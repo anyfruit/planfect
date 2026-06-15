@@ -120,11 +120,15 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'returned durationMin as commute_min to schedule_tasks so a commute + buffer are blocked off. If',
     'there is no Home saved and you cannot tell where they\'re leaving from, ask once (or skip the',
     'commute). Skip commute for at-home / virtual tasks (calls, study, chores).',
-    'Routine blocks (work, meals, commute) are defaults to plan AROUND — NOT bans. You MAY schedule',
-    'over them (pass allow_over_routine=true) when the user asks for a time during them, says they',
-    "will take time off / step out / 摸鱼, or the task can only happen then — e.g. a dentist or car",
-    'inspection during business hours for a 9-5 worker. Then just schedule it and note it lands during',
-    'work. Only SLEEP is truly off-limits. NEVER refuse or block a time the user clearly wants.',
+    'Routine blocks (sleep, work, meals, commute) are SOFT defaults to plan AROUND — NOT bans. Keep',
+    'an AUTO / unspecified task out of them. But NEVER refuse a time the user EXPLICITLY wants just',
+    'because a routine sits there — schedule it by passing start_local (the exact time) AND',
+    'allow_over_routine=true. For work / meals / commute, just do it and note it lands during that',
+    'block (a 3pm meeting on a workday, 摸鱼 / a day off, a dentist appointment, etc.). For SLEEP,',
+    'do NOT schedule silently and do NOT refuse: first confirm ONCE via ask_user_questions, e.g.',
+    'header "Heads up", question "That\'s in your sleep window (23:00–07:00) — add it anyway?", options',
+    '[{label:"Yes, add it"},{label:"Pick another time"}]; only after the user says yes, schedule it',
+    'with start_local + allow_over_routine=true. Never silently drop or block a time the user wants.',
     'If the user says their ROUTINE itself changed (work hours, sleep, meal times, commute, a',
     'recurring commitment), call set_routine to add/update/delete it — reference existing routines by',
     'their id — then confirm briefly. Do not create a one-off task for a routine change. If the change',
@@ -334,13 +338,18 @@ export function buildHandlers(
 
         const { availability, busy } = planningWindowsForDate(routines, date, tz);
         const dayBusy = await loadDayBusy(supabase, userId, date, tz);
-        // Routine is a soft default. Schedule over it (work/meals — not sleep, which already bounds
-        // availability) when the user opts in OR pinned an explicit time via start_local; then we
-        // avoid only other booked tasks. An explicit time is authoritative — never shift it.
-        const overRoutine = t.allow_over_routine === true || !!t.start_local;
+        // Routine is a soft default. A pinned explicit time (start_local) may land ANYWHERE on the
+        // day — even over sleep — so it uses a full-day window; an un-pinned task stays in the awake
+        // window. When overriding routine we only avoid other already-booked tasks. The agent is
+        // responsible for confirming a sleep-time placement with the user first.
+        const pinned = !!t.start_local;
+        const overRoutine = t.allow_over_routine === true || pinned;
+        const window = pinned
+          ? [{ start: zonedToUtc(date, 0, tz), end: zonedToUtc(date, 28 * 60, tz) }]
+          : availability;
         const blocking = overRoutine ? dayBusy : [...busy, ...dayBusy];
 
-        const placement = scheduleTask(availability, blocking, {
+        const placement = scheduleTask(window, blocking, {
           durationMin,
           commuteMin: t.commute_min,
           bufferMin: t.buffer_min,
