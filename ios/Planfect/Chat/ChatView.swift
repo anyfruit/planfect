@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct QuestionAnswer { let question: PlanQuestion; let selected: [String] }
 
@@ -163,6 +164,7 @@ struct ChatView: View {
     @StateObject private var vm = ChatViewModel()
     @StateObject private var speech = SpeechRecognizer()
     @FocusState private var inputFocused: Bool
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         VStack(spacing: 0) {
@@ -191,9 +193,23 @@ struct ChatView: View {
             vm.bind(supa)
             #if DEBUG
             vm.seedIfRequested()
+            if ProcessInfo.processInfo.environment["PLANFECT_MIC_TEST"] == "1" {
+                Task { try? await Task.sleep(nanoseconds: 1_500_000_000); speech.start() }
+            }
             #endif
         }
         .onChange(of: speech.transcript) { _, t in if !t.isEmpty { vm.input = t } }
+        .alert("Voice input", isPresented: Binding(
+            get: { speech.errorMessage != nil },
+            set: { if !$0 { speech.errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                Button("Open Settings") { openURL(url) }
+            }
+        } message: {
+            Text(speech.errorMessage ?? "")
+        }
     }
 
     private var inputBar: some View {
