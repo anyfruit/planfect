@@ -88,6 +88,7 @@ planfect/
 ## Docs index
 
 - **中文进度（项目情况 / 各轮进度 / 计划 / 待办）:** [`docs/PROJECT_STATUS.zh.md`](docs/PROJECT_STATUS.zh.md)
+- **中文上手 / 继续指南（有 Mac 后怎么做）:** [`docs/SETUP.zh.md`](docs/SETUP.zh.md)
 - **Start here:** [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
 - **How it fits together:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - **The data:** [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md) + [`supabase/schema.sql`](supabase/schema.sql)

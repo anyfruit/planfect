@@ -87,6 +87,7 @@
 
 ## 七、怎么自己看 / 怎么继续
 
+- **有 Mac 了？照着 [`SETUP.zh.md`](SETUP.zh.md) 一步步继续（把 Claude Code 跑到 Mac 上 → 建 Supabase → 做 App）。**
 - 跑测试：`npm test`
 - 看流程 demo：`node --experimental-strip-types server/demo/planDemo.ts`
 - dashboard 纯函数测试：`cd dashboard && npm test`（UI 需 `npm install && npm run dev`）
