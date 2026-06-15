@@ -4,14 +4,26 @@ import SwiftUI
 /// `category` when present, falls back to keyword inference for older/uncategorized blocks,
 /// and keeps structural kinds (commute/buffer/routine) as-is.
 enum TaskCategory {
-    static func of(_ block: TimeBlock) -> (label: String, icon: String, color: Color) {
+    typealias Style = (label: String, icon: String, color: Color)
+
+    static func of(_ block: TimeBlock) -> Style {
         switch block.kind {
         case "commute": return ("Commute", "car.fill", .orange)
         case "buffer": return ("Buffer", "hourglass", .gray)
         case "routine": return ("Routine", "repeat", .purple)
-        default: break
+        default: return style(forKey: key(block))
         }
-        switch block.category ?? infer(block.title) {
+    }
+
+    /// Resolved semantic key for a task block: the planner-assigned category, else inferred from
+    /// the title. Shared by the pill, the timeline, the month dots and the reminders so they agree.
+    static func key(_ block: TimeBlock) -> String { block.category ?? infer(block.title) }
+
+    static func color(forKey key: String) -> Color { style(forKey: key).color }
+
+    /// The single source of truth for how a semantic category looks.
+    static func style(forKey key: String) -> Style {
+        switch key {
         case "work": return ("Work", "briefcase.fill", .blue)
         case "focus": return ("Focus", "target", .indigo)
         case "fitness": return ("Fitness", "figure.run", .green)
@@ -26,10 +38,6 @@ enum TaskCategory {
         default: return ("Task", "checkmark.circle.fill", .accentColor)
         }
     }
-
-    /// Resolved semantic key for a task block: the planner-assigned category, else inferred from
-    /// the title. Shared by the pill and the reminder so they always agree.
-    static func key(_ block: TimeBlock) -> String { block.category ?? infer(block.title) }
 
     /// Best-effort guess from the title (CN + EN) for blocks scheduled before categories existed.
     static func infer(_ title: String) -> String {

@@ -25,6 +25,7 @@
 		C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B266EB035034732CCE00FD /* ChatView.swift */; };
 		C58AC76843AEE44BA888CF52 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */; };
 		D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80448107C701A74A60580C71 /* AuthView.swift */; };
+		DD29AF440E60FE00EDD74544 /* TimelineViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7DCD96ACADCB82289EE9026 /* TimelineViews.swift */; };
 		FC43EB3A10CA1A76FC72C0B6 /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54521C45A418BBBD81C4174E /* SupabaseManager.swift */; };
 		FCA5D02799924C05CBAB2EFF /* ReceiptCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */; };
 		FF56E5C6E2F4A899DDF5CBA6 /* TaskCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C57028392E6CFC13CFF701 /* TaskCategory.swift */; };
@@ -45,6 +46,7 @@
 		80448107C701A74A60580C71 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		83C57028392E6CFC13CFF701 /* TaskCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCategory.swift; sourceTree = "<group>"; };
 		A7B266EB035034732CCE00FD /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		A7DCD96ACADCB82289EE9026 /* TimelineViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViews.swift; sourceTree = "<group>"; };
 		BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
 		C2B68EB2FABB371E417D0387 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		D07C79F5E50489C2AFF73A95 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -92,6 +94,7 @@
 				63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */,
 				D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */,
 				83C57028392E6CFC13CFF701 /* TaskCategory.swift */,
+				A7DCD96ACADCB82289EE9026 /* TimelineViews.swift */,
 			);
 			path = Schedule;
 			sourceTree = "<group>";
@@ -261,6 +264,7 @@
 				8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */,
 				FC43EB3A10CA1A76FC72C0B6 /* SupabaseManager.swift in Sources */,
 				FF56E5C6E2F4A899DDF5CBA6 /* TaskCategory.swift in Sources */,
+				DD29AF440E60FE00EDD74544 /* TimelineViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
