@@ -28,16 +28,28 @@ import {
 
 export interface PlanContext {
   routines: unknown[];
-  locations: unknown[];
+  locations: LocationRow[];
   timezone: string;
   blocks: unknown[];   // upcoming time_blocks, so the planner knows the user's current plans
+  homeLocationId?: string;
+  workLocationId?: string;
+  preferredModes: string[];   // ordered: e.g. ['transit','walking','driving']
+}
+
+interface LocationRow {
+  id: string;
+  name: string;
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  place_id?: string | null;
 }
 
 export async function loadContext(supabase: SupabaseClient, userId: string): Promise<PlanContext> {
   const [routines, locations, profile] = await Promise.all([
     supabase.from('routines').select('*').eq('user_id', userId),
-    supabase.from('locations').select('*').eq('user_id', userId),
-    supabase.from('profiles').select('timezone').eq('id', userId).single(),
+    supabase.from('locations').select('id,name,address,lat,lng,place_id').eq('user_id', userId),
+    supabase.from('profiles').select('timezone,home_location_id,work_location_id,preferred_modes').eq('id', userId).single(),
   ]);
   const timezone = profile.data?.timezone ?? 'UTC';
   // Upcoming schedule from the start of today (user's tz) so the planner knows existing plans and
@@ -55,9 +67,12 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     .limit(100);
   return {
     routines: routines.data ?? [],
-    locations: locations.data ?? [],
+    locations: (locations.data ?? []) as LocationRow[],
     timezone,
     blocks: blocks ?? [],
+    homeLocationId: profile.data?.home_location_id ?? undefined,
+    workLocationId: profile.data?.work_location_id ?? undefined,
+    preferredModes: (profile.data?.preferred_modes as string[] | undefined) ?? ['transit', 'walking', 'driving'],
   };
 }
 
@@ -97,8 +112,14 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     "get_schedule, then choose a slot that fits BOTH the free time AND the activity's natural window.",
     'If that window is already busy on the assumed day (e.g. a weekday job fills the daytime), prefer',
     'the soonest day it IS free — e.g. a weekend afternoon for a daytime outing — over cramming it',
-    'into an odd hour, and name that day in your confirmation. For a task at a saved location,',
-    'estimate_commute and add a commute + buffer.',
+    'into an odd hour, and name that day in your confirmation.',
+    'TRAVEL TIME — for a task at a physical place (an address, venue, "across town", a saved spot):',
+    'if the place is not already in Saved locations, call geocode_place first to resolve it; then call',
+    'estimate_commute with from = the user\'s Home (use "home", or their Work via "work" if the task',
+    'directly follows work) and to = that location, with arrive_by set to the task start. Pass the',
+    'returned durationMin as commute_min to schedule_tasks so a commute + buffer are blocked off. If',
+    'there is no Home saved and you cannot tell where they\'re leaving from, ask once (or skip the',
+    'commute). Skip commute for at-home / virtual tasks (calls, study, chores).',
     'Routine blocks (work, meals, commute) are defaults to plan AROUND — NOT bans. You MAY schedule',
     'over them (pass allow_over_routine=true) when the user asks for a time during them, says they',
     "will take time off / step out / 摸鱼, or the task can only happen then — e.g. a dentist or car",
@@ -142,9 +163,28 @@ export function buildHandlers(
   ctx: PlanContext,
   analytics?: SupabaseClient,
   searchApiKey?: string,
+  mapsApiKey?: string,
 ): ToolHandlers {
   const routines = toRoutineInputs(ctx.routines);
   const tz = ctx.timezone;
+
+  // Resolve a from/to argument (a location id, a "home"/"work" keyword, a saved place name, or a
+  // raw address) to something Google Routes can take.
+  const resolvePlace = (raw: string): ResolvedPlace | null => {
+    const s = raw.trim();
+    if (!s) return null;
+    const low = s.toLowerCase();
+    let id = s;
+    if (low === 'home' || low === '家') id = ctx.homeLocationId ?? '';
+    else if (low === 'work' || low === 'office' || low === '公司' || low === '单位') id = ctx.workLocationId ?? '';
+    const byId = ctx.locations.find((l) => l.id === id);
+    if (byId) return placeFromRow(byId);
+    const byName = ctx.locations.find((l) => l.name.toLowerCase() === low);
+    if (byName) return placeFromRow(byName);
+    if (!isUuid(s)) return { address: s };   // let Routes geocode a free-text address
+    return null;
+  };
+
   return {
     [TOOL_WEB_SEARCH]: async (args) => {
       const query = String(args.query ?? '').trim();
@@ -219,14 +259,51 @@ export function buildHandlers(
       }
     },
 
-    [TOOL_ESTIMATE_COMMUTE]: async () => {
-      // TODO: resolve from/to lat-lng from `locations`, call the configured MapsProvider.
-      return JSON.stringify({ mode: 'transit', durationMin: 25, distanceM: 6000 });
+    [TOOL_ESTIMATE_COMMUTE]: async (args) => {
+      const fromArg = String(args.from_location_id ?? '').trim();
+      const toArg = String(args.to_location_id ?? '').trim();
+      const arriveBy = args.arrive_by ? String(args.arrive_by) : undefined;
+      const mode = ctx.preferredModes[0] ?? 'transit';
+      if (!mapsApiKey) return JSON.stringify({ mode, durationMin: 25, distanceM: 6000, note: 'maps not configured — rough estimate' });
+      const from = resolvePlace(fromArg);
+      const to = resolvePlace(toArg);
+      if (!from || !to) {
+        return JSON.stringify({ mode, durationMin: 25, note: 'could not resolve from/to — rough estimate. Ask the user for the missing address, or geocode_place it first.' });
+      }
+      try {
+        const r = await googleRoute(mapsApiKey, from, to, mode, arriveBy);
+        if (!r) return JSON.stringify({ mode, durationMin: 25, note: 'no route found — rough estimate' });
+        return JSON.stringify({ mode, durationMin: r.durationMin, distanceM: r.distanceM });
+      } catch (e) {
+        return JSON.stringify({ mode, durationMin: 25, note: `route error (${(e as Error).message}) — rough estimate` });
+      }
     },
 
     [TOOL_GEOCODE_PLACE]: async (args) => {
-      // TODO: MapsProvider.geocode(query) then upsert into `locations`; returning a stub.
-      return JSON.stringify({ name: String(args.query), placeId: null });
+      const query = String(args.query ?? '').trim();
+      if (!query) return JSON.stringify({ error: 'empty query' });
+      if (!mapsApiKey) return JSON.stringify({ name: query, placeId: null, note: 'maps not configured' });
+      try {
+        const g = await googleGeocode(mapsApiKey, query);
+        if (!g) return JSON.stringify({ name: query, placeId: null, note: 'no match found' });
+        // Reuse an already-saved location for the same place rather than duplicating it.
+        const existing = ctx.locations.find((l) => l.place_id && l.place_id === g.placeId);
+        if (existing) {
+          return JSON.stringify({ id: existing.id, name: existing.name, address: g.address, lat: g.lat, lng: g.lng, placeId: g.placeId });
+        }
+        const { data, error } = await supabase
+          .from('locations')
+          .insert({ user_id: userId, name: query, address: g.address, lat: g.lat, lng: g.lng, place_id: g.placeId })
+          .select('id').single();
+        if (error || !data) {
+          return JSON.stringify({ name: query, address: g.address, lat: g.lat, lng: g.lng, placeId: g.placeId, note: 'resolved but not saved' });
+        }
+        const id = (data as { id: string }).id;
+        ctx.locations.push({ id, name: query, address: g.address, lat: g.lat, lng: g.lng, place_id: g.placeId });
+        return JSON.stringify({ id, name: query, address: g.address, lat: g.lat, lng: g.lng, placeId: g.placeId });
+      } catch (e) {
+        return JSON.stringify({ error: (e as Error).message });
+      }
     },
 
     [TOOL_SCHEDULE_TASKS]: async (args) => {
@@ -485,4 +562,83 @@ function blockRow(
     end_at: new Date(b.end).toISOString(),
     ...extra,
   };
+}
+
+// ============================================================================
+// Google Maps Platform — Geocoding API + Routes API (computeRoutes).
+// Key comes from the GOOGLE_MAPS_API_KEY secret; absent it, the handlers above
+// fall back to a rough estimate so the planner still works.
+// ============================================================================
+
+interface ResolvedPlace { address?: string; lat?: number; lng?: number }
+
+function placeFromRow(l: LocationRow): ResolvedPlace {
+  if (l.lat != null && l.lng != null) return { lat: l.lat, lng: l.lng };
+  return { address: l.address ?? l.name };
+}
+
+function isUuid(s: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+async function googleGeocode(
+  key: string,
+  query: string,
+): Promise<{ address: string; lat: number; lng: number; placeId: string } | null> {
+  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${key}`;
+  const res = await fetch(url);
+  const j = await res.json() as {
+    status: string;
+    results?: Array<{ formatted_address: string; place_id: string; geometry: { location: { lat: number; lng: number } } }>;
+  };
+  const r = j.results?.[0];
+  if (!r) return null;
+  return { address: r.formatted_address, lat: r.geometry.location.lat, lng: r.geometry.location.lng, placeId: r.place_id };
+}
+
+const ROUTES_TRAVEL_MODE: Record<string, string> = {
+  driving: 'DRIVE', transit: 'TRANSIT', walking: 'WALK', cycling: 'BICYCLE',
+};
+
+function routesWaypoint(p: ResolvedPlace): Record<string, unknown> {
+  if (p.lat != null && p.lng != null) return { location: { latLng: { latitude: p.lat, longitude: p.lng } } };
+  return { address: p.address };
+}
+
+async function googleRoute(
+  key: string,
+  from: ResolvedPlace,
+  to: ResolvedPlace,
+  mode: string,
+  arriveBy?: string,
+): Promise<{ durationMin: number; distanceM: number } | null> {
+  const travelMode = ROUTES_TRAVEL_MODE[mode] ?? 'DRIVE';
+  const body: Record<string, unknown> = {
+    origin: routesWaypoint(from),
+    destination: routesWaypoint(to),
+    travelMode,
+  };
+  // Routes only accepts a future time. Driving uses live/predictive traffic; transit needs a time.
+  const future = arriveBy && Date.parse(arriveBy) > Date.now() ? new Date(Date.parse(arriveBy)).toISOString() : undefined;
+  if (travelMode === 'DRIVE') {
+    body.routingPreference = 'TRAFFIC_AWARE';
+    if (future) body.departureTime = future;
+  } else if (travelMode === 'TRANSIT' && future) {
+    body.arrivalTime = future;
+  }
+  const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'X-Goog-Api-Key': key,
+      'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters',
+    },
+    body: JSON.stringify(body),
+  });
+  const j = await res.json() as { routes?: Array<{ duration?: string; distanceMeters?: number }>; error?: { message?: string } };
+  if (j.error) throw new Error(j.error.message ?? 'routes error');
+  const route = j.routes?.[0];
+  if (!route?.duration) return null;
+  const secs = parseInt(String(route.duration), 10) || 0;   // "123s" / "123.4s" -> 123 (parseInt stops at non-digit)
+  return { durationMin: Math.max(1, Math.round(secs / 60)), distanceM: route.distanceMeters ?? 0 };
 }

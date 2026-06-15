@@ -21,6 +21,9 @@ struct OnboardingView: View {
     @State private var hasDinner = true
     @State private var dinner = clock(18, 30)
 
+    @State private var homeAddress = ""
+    @State private var workAddress = ""
+
     @State private var saving = false
     @State private var error: String?
 
@@ -60,6 +63,15 @@ struct OnboardingView: View {
                     Text("Meals")
                 } footer: {
                     Text("I'll keep these free so nothing gets scheduled over a meal.")
+                }
+
+                Section {
+                    TextField("Home address", text: $homeAddress, axis: .vertical).lineLimit(1...2)
+                    TextField("Work address (optional)", text: $workAddress, axis: .vertical).lineLimit(1...2)
+                } header: {
+                    Text("Where you're based")
+                } footer: {
+                    Text("Optional — lets me estimate real travel time to places you plan. You can add it later in your profile.")
                 }
 
                 if let error { Section { Text(error).foregroundStyle(.red).font(.footnote) } }
@@ -112,6 +124,7 @@ struct OnboardingView: View {
             do {
                 try? await supa.setTimezone(TimeZone.current.identifier)
                 try await supa.saveRoutines(r)
+                try? await supa.saveHomeWork(home: homeAddress, work: workAddress)   // best-effort
                 await NotificationManager.shared.ensureAuthorization()
                 supa.needsOnboarding = false
             } catch {

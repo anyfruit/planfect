@@ -18,6 +18,7 @@
 		9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */; };
 		970AD175F28E222FCBC2B8BA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 0E4FF856D84138F0AC98C741 /* Supabase */; };
 		99D653613F32DF3DAF9EB60D /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */; };
+		A2DA1AE753300328BC310D12 /* AddressEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */; };
 		A7C09B5495743B1F03E9F368 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B68EB2FABB371E417D0387 /* AppRouter.swift */; };
 		B3CDEA4CF3DEC41ABBD75F15 /* PlanfectApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */; };
 		BE52F96CBFB53D468DC29F89 /* RoutineEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D3F42E7102085C0772E633 /* RoutineEditView.swift */; };
@@ -33,6 +34,7 @@
 
 /* Begin PBXFileReference section */
 		0016DA3561DE72EB9D6B20CA /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressEditView.swift; sourceTree = "<group>"; };
 		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
 		54521C45A418BBBD81C4174E /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		6265160A353BD5092527B6F7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
@@ -178,6 +180,7 @@
 		F658456C2F8464443D81E877 /* Profile */ = {
 			isa = PBXGroup;
 			children = (
+				2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */,
 				D07C79F5E50489C2AFF73A95 /* ProfileView.swift */,
 				D5D3F42E7102085C0772E633 /* RoutineEditView.swift */,
 			);
@@ -244,6 +247,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A2DA1AE753300328BC310D12 /* AddressEditView.swift in Sources */,
 				A7C09B5495743B1F03E9F368 /* AppRouter.swift in Sources */,
 				D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */,
 				08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */,

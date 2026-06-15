@@ -6,8 +6,13 @@ struct ProfileView: View {
     @State private var routines: [Routine] = []
     @State private var editing: Routine?
     @State private var addingNew = false
+    @State private var homeAddr = ""
+    @State private var workAddr = ""
+    @State private var editingPlace: PlaceKind?
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
+
+    private enum PlaceKind: String, Identifiable { case home, work; var id: String { rawValue } }
 
     var body: some View {
         NavigationStack {
@@ -55,6 +60,15 @@ struct ProfileView: View {
                 }
 
                 Section {
+                    placeRow("Home", systemImage: "house.fill", value: homeAddr) { editingPlace = .home }
+                    placeRow("Work", systemImage: "briefcase.fill", value: workAddr) { editingPlace = .work }
+                } header: {
+                    Text("Places")
+                } footer: {
+                    Text("Planfect uses these to estimate real travel time to places you schedule.")
+                }
+
+                Section {
                     Toggle("Reminders", isOn: $remindersEnabled.animation())
                     if remindersEnabled {
                         Stepper(leadMin == 0 ? "Notify at start time" : "Notify \(leadMin) min before",
@@ -83,6 +97,16 @@ struct ProfileView: View {
             .task { await reload() }
             .sheet(item: $editing) { r in RoutineEditView(existing: r) { Task { await reload() } } }
             .sheet(isPresented: $addingNew) { RoutineEditView(existing: nil) { Task { await reload() } } }
+            .sheet(item: $editingPlace) { kind in
+                AddressEditView(title: kind == .home ? "Home" : "Work",
+                                initial: kind == .home ? homeAddr : workAddr) { newVal in
+                    Task {
+                        try? await supa.saveHomeWork(home: kind == .home ? newVal : nil,
+                                                     work: kind == .work ? newVal : nil)
+                        await reload()
+                    }
+                }
+            }
             .onChange(of: remindersEnabled) { _, on in
                 Task {
                     if on { await NotificationManager.shared.ensureAuthorization(); await resyncReminders() }
@@ -93,7 +117,26 @@ struct ProfileView: View {
         }
     }
 
-    private func reload() async { routines = (try? await supa.fetchRoutines()) ?? [] }
+    private func reload() async {
+        routines = (try? await supa.fetchRoutines()) ?? []
+        let hw = await supa.fetchHomeWork()
+        homeAddr = hw.home ?? ""; workAddr = hw.work ?? ""
+    }
+
+    @ViewBuilder
+    private func placeRow(_ label: String, systemImage: String, value: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: systemImage).foregroundStyle(.secondary).frame(width: 22)
+                Text(label).foregroundStyle(.primary)
+                Spacer()
+                Text(value.isEmpty ? "Add" : value)
+                    .foregroundStyle(value.isEmpty ? Color.accentColor : .secondary)
+                    .lineLimit(1).truncationMode(.tail).frame(maxWidth: 170, alignment: .trailing)
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+            }
+        }
+    }
 
     /// Re-arm reminders from the live schedule after a settings change.
     private func resyncReminders() async {
