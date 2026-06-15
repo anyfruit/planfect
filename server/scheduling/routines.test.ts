@@ -53,3 +53,17 @@ test('planningWindowsForDate + scheduleTask places a task in the morning gap', (
   assert.equal(p.blocks[0].start, Date.UTC(2026, 5, 15, 11, 0));
   assert.equal(p.blocks[0].end, Date.UTC(2026, 5, 15, 11, 45));
 });
+
+test('late sleeper (same-day sleep 01:00–10:00) gets a forward awake window, not an empty one', () => {
+  const late: RoutineInput[] = [{ kind: 'sleep', daysOfWeek: everyday, startMin: 60, endMin: 600, isFlexible: false }];
+  const date = { year: 2026, month: 6, day: 16 };
+  const { availability } = planningWindowsForDate(late, date, NY);
+  assert.equal(availability.length, 1);
+  // wake 10:00 EDT (=14:00 UTC, 16th) → bed 01:00 EDT the NEXT day (=05:00 UTC, 17th)
+  assert.equal(availability[0].start, Date.UTC(2026, 5, 16, 14, 0));
+  assert.equal(availability[0].end, Date.UTC(2026, 5, 17, 5, 0));
+  assert.ok(availability[0].end > availability[0].start, 'awake window must move forward in time');
+  // a 2h task at 10:00 now fits (previously failed with no_slot)
+  const p = scheduleTask(availability, [], { durationMin: 120, earliestStart: zonedToUtc(date, 600, NY) });
+  assert.equal(p.ok, true);
+});

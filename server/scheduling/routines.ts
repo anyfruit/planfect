@@ -108,9 +108,13 @@ export function planningWindowsForDate(
   const fromMin = sleep ? sleep.endMin : defaultAwake.fromMin;   // wake time
   const toMin = sleep ? sleep.startMin : defaultAwake.toMin;     // bedtime
 
+  // Awake window runs wake → bedtime. When bedtime is at/earlier than wake in clock terms it
+  // belongs to the NEXT day (e.g. a late sleeper: wake 10:00, bed 01:00) — without this the
+  // window would invert to empty and nothing could ever be scheduled.
+  const endDate = toMin <= fromMin ? nextDay(date) : date;
   const availability: Interval[] = [{
     start: zonedToUtc(date, fromMin, tz),
-    end: zonedToUtc(date, toMin, tz),
+    end: zonedToUtc(endDate, toMin, tz),
   }];
 
   const busy = routineInstancesForDate(routines, date, tz)

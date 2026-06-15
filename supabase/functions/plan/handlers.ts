@@ -347,8 +347,8 @@ export function buildHandlers(
           sessionMin: t.session_min,
           earliestStart: t.start_local
             ? zonedToUtc(date, timeToMin(t.start_local), tz)
-            : (t.earliest_start ? Date.parse(t.earliest_start) : undefined),
-          deadline: t.deadline ? Date.parse(t.deadline) : undefined,
+            : parseWhen(t.earliest_start, tz),
+          deadline: parseWhen(t.deadline, tz),
         });
         if (!placement.ok) {
           items.push({ title: t.title, start: null, end: null });
@@ -509,6 +509,21 @@ function toRoutineInputs(rows: unknown[]): RoutineInput[] {
 function timeToMin(t: string): number {
   const [h, m] = String(t ?? '').split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+/**
+ * Parse a datetime the model passed for earliest_start / deadline. A string with an explicit
+ * zone (trailing Z or ±HH:MM) is absolute; a NAIVE "YYYY-MM-DDTHH:MM" is read as wall-clock in
+ * the user's timezone — NOT UTC. (Deno's Date.parse treats naive strings as UTC, which silently
+ * shifted a model-supplied local time by the tz offset and could push it into the sleep block.)
+ */
+function parseWhen(s: unknown, tz: string): number | undefined {
+  if (typeof s !== 'string' || !s.trim()) return undefined;
+  const v = s.trim();
+  if (/([zZ]|[+-]\d{2}:?\d{2})$/.test(v)) return Date.parse(v);   // explicit zone → absolute
+  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (m) return zonedToUtc({ year: +m[1], month: +m[2], day: +m[3] }, (+m[4]) * 60 + (+m[5]), tz);
+  return Date.parse(v);   // date-only or unrecognized → best effort
 }
 
 /** Compact, timezone-local summary of existing blocks for the system prompt. */
