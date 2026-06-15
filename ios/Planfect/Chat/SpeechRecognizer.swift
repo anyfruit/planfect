@@ -11,8 +11,25 @@ final class SpeechRecognizer: ObservableObject {
     @Published var isRecording = false
     @Published var errorMessage: String?
 
-    // Default initializer follows the device's current locale, so a Chinese user gets Chinese STT.
-    private let recognizer = SFSpeechRecognizer() ?? SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
+    static let langKey = "planfect.voiceLang"   // "" = auto, else a locale id like "zh-CN" / "en-US"
+
+    /// The speech-recognition locale: the user's saved choice, else the best match of their device's
+    /// preferred languages against the locales STT actually supports (SFSpeechRecognizer is one
+    /// language at a time — it can't auto-detect across languages).
+    static func resolvedLocale() -> Locale {
+        let saved = UserDefaults.standard.string(forKey: langKey) ?? ""
+        if !saved.isEmpty { return Locale(identifier: saved) }
+        let supported = SFSpeechRecognizer.supportedLocales()
+        for pref in Locale.preferredLanguages {
+            let lang = Locale(identifier: pref).language.languageCode?.identifier
+            if let hit = supported.first(where: { $0.identifier == pref })
+                ?? supported.first(where: { $0.language.languageCode?.identifier == lang }) {
+                return hit
+            }
+        }
+        return Locale(identifier: "en-US")
+    }
+
     private let engine = AVAudioEngine()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
@@ -42,7 +59,10 @@ final class SpeechRecognizer: ObservableObject {
     }
 
     private func begin() {
-        guard let recognizer else { errorMessage = "Speech recognition isn't available on this device."; return }
+        // Build the recognizer for the chosen language each time, so a setting change takes effect.
+        guard let recognizer = SFSpeechRecognizer(locale: Self.resolvedLocale()) else {
+            errorMessage = "Speech recognition isn't available for the selected language."; return
+        }
         guard recognizer.isAvailable else { errorMessage = "Speech recognition is temporarily unavailable — check your connection."; return }
         guard !isRecording else { return }
         do {

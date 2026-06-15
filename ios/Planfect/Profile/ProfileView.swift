@@ -11,6 +11,7 @@ struct ProfileView: View {
     @State private var editingPlace: PlaceKind?
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
+    @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
 
     private enum PlaceKind: String, Identifiable { case home, work; var id: String { rawValue } }
 
@@ -78,6 +79,20 @@ struct ProfileView: View {
                     Text("Reminders")
                 } footer: {
                     Text("A nudge when it's time to head out, and before each task begins.")
+                }
+
+                Section {
+                    Picker("Language", selection: $voiceLang) {
+                        Text("Auto (device)").tag("")
+                        Text("中文").tag("zh-CN")
+                        Text("English").tag("en-US")
+                        Text("粤语 Cantonese").tag("zh-HK")
+                        Text("日本語").tag("ja-JP")
+                    }
+                } header: {
+                    Text("Voice input")
+                } footer: {
+                    Text("Language the mic uses for speech-to-text. \"Auto\" follows your device language.")
                 }
 
                 Section("Settings") {
