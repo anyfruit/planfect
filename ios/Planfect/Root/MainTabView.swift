@@ -1,0 +1,42 @@
+import SwiftUI
+
+struct MainTabView: View {
+    @State private var showProfile = false
+    @State private var tab = 0
+
+    var body: some View {
+        TabView(selection: $tab) {
+            NavigationStack {
+                ChatView().planfectAvatar { showProfile = true }
+            }
+            .tabItem { Label("Chat", systemImage: "bubble.left.and.text.bubble.right.fill") }
+            .tag(0)
+
+            NavigationStack {
+                ScheduleView().planfectAvatar { showProfile = true }
+            }
+            .tabItem { Label("Schedule", systemImage: "calendar") }
+            .tag(1)
+        }
+        .sheet(isPresented: $showProfile) { ProfileView() }
+        .onAppear {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "schedule" { tab = 1 }
+            #endif
+        }
+    }
+}
+
+extension View {
+    /// The top-right avatar button shared across the main tabs.
+    func planfectAvatar(_ action: @escaping () -> Void) -> some View {
+        toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: action) {
+                    Image(systemName: "person.crop.circle").font(.title2)
+                }
+                .accessibilityLabel("Profile")
+            }
+        }
+    }
+}

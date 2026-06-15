@@ -1,0 +1,11 @@
+# Build artifacts & SPM checkout (regenerated)
+.build/
+.spm/
+DerivedData/
+
+# Xcode user state
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+.DS_Store

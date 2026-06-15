@@ -1,0 +1,466 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02CBD4F151FA45EFA99F3299 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */; };
+		0A5C8DAC0FBFA5594A8266E9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07C79F5E50489C2AFF73A95 /* ProfileView.swift */; };
+		2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */; };
+		50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */; };
+		6579D9C67852BFF7A690D3EA /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0016DA3561DE72EB9D6B20CA /* Models.swift */; };
+		8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */; };
+		9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */; };
+		970AD175F28E222FCBC2B8BA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 0E4FF856D84138F0AC98C741 /* Supabase */; };
+		99D653613F32DF3DAF9EB60D /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */; };
+		B3CDEA4CF3DEC41ABBD75F15 /* PlanfectApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */; };
+		C0B0DAEFD017BADCBE2FA70A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C02298574E621578D70481 /* RootView.swift */; };
+		C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B266EB035034732CCE00FD /* ChatView.swift */; };
+		C58AC76843AEE44BA888CF52 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */; };
+		D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80448107C701A74A60580C71 /* AuthView.swift */; };
+		FC43EB3A10CA1A76FC72C0B6 /* SupabaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54521C45A418BBBD81C4174E /* SupabaseManager.swift */; };
+		FCA5D02799924C05CBAB2EFF /* ReceiptCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0016DA3561DE72EB9D6B20CA /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
+		54521C45A418BBBD81C4174E /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
+		6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptCardView.swift; sourceTree = "<group>"; };
+		6FCB597B22B7D9B63127A986 /* Planfect.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Planfect.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		70C02298574E621578D70481 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanfectApp.swift; sourceTree = "<group>"; };
+		730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SupabaseManager+Data.swift"; sourceTree = "<group>"; };
+		80448107C701A74A60580C71 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
+		A7B266EB035034732CCE00FD /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
+		D07C79F5E50489C2AFF73A95 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
+		D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
+		E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
+		FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7016690267B9E578ABFDBDA1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				970AD175F28E222FCBC2B8BA /* Supabase in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		02A87C1D112EE0B5B434EF4B /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				54521C45A418BBBD81C4174E /* SupabaseManager.swift */,
+				730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		0A2D2A42BE17F876A3493B2A /* Root */ = {
+			isa = PBXGroup;
+			children = (
+				6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */,
+				70C02298574E621578D70481 /* RootView.swift */,
+			);
+			path = Root;
+			sourceTree = "<group>";
+		};
+		3E747E2FFC2ED066BBECC301 /* Schedule */ = {
+			isa = PBXGroup;
+			children = (
+				D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */,
+			);
+			path = Schedule;
+			sourceTree = "<group>";
+		};
+		56EAA38340066614DC7CFAF5 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+		6391CDF8CF648A8CE0C2CDDE /* Planfect */ = {
+			isa = PBXGroup;
+			children = (
+				71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */,
+				7A65A8D2769A5EC3F87E06EC /* Auth */,
+				CA4CA4385930BC7B69644F79 /* Chat */,
+				56EAA38340066614DC7CFAF5 /* Config */,
+				8AB02D0E40C697C9F765A83E /* Models */,
+				AE1D94631E9CD7B3F31B2D90 /* Onboarding */,
+				F658456C2F8464443D81E877 /* Profile */,
+				0A2D2A42BE17F876A3493B2A /* Root */,
+				3E747E2FFC2ED066BBECC301 /* Schedule */,
+				02A87C1D112EE0B5B434EF4B /* Services */,
+			);
+			path = Planfect;
+			sourceTree = "<group>";
+		};
+		7A65A8D2769A5EC3F87E06EC /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				80448107C701A74A60580C71 /* AuthView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		8047E0CC2FD1008F7F350A45 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6FCB597B22B7D9B63127A986 /* Planfect.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8AB02D0E40C697C9F765A83E /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				0016DA3561DE72EB9D6B20CA /* Models.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		ACCC200A2BACFFEA9A8C6FA2 = {
+			isa = PBXGroup;
+			children = (
+				6391CDF8CF648A8CE0C2CDDE /* Planfect */,
+				8047E0CC2FD1008F7F350A45 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AE1D94631E9CD7B3F31B2D90 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		CA4CA4385930BC7B69644F79 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				A7B266EB035034732CCE00FD /* ChatView.swift */,
+				51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */,
+				6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */,
+				E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */,
+			);
+			path = Chat;
+			sourceTree = "<group>";
+		};
+		F658456C2F8464443D81E877 /* Profile */ = {
+			isa = PBXGroup;
+			children = (
+				D07C79F5E50489C2AFF73A95 /* ProfileView.swift */,
+			);
+			path = Profile;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		08AE59E820A71603769963B9 /* Planfect */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B7FD5DDAD56907C739F87D07 /* Build configuration list for PBXNativeTarget "Planfect" */;
+			buildPhases = (
+				DFA8C98F10D0F32B776AFB18 /* Sources */,
+				7016690267B9E578ABFDBDA1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Planfect;
+			packageProductDependencies = (
+				0E4FF856D84138F0AC98C741 /* Supabase */,
+			);
+			productName = Planfect;
+			productReference = 6FCB597B22B7D9B63127A986 /* Planfect.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		77728F3C47C2096B6F56FAA0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = A1DDB74A1327981F0BA5C19C /* Build configuration list for PBXProject "Planfect" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = ACCC200A2BACFFEA9A8C6FA2;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2FEB064D822B583490261B95 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 8047E0CC2FD1008F7F350A45 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				08AE59E820A71603769963B9 /* Planfect */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DFA8C98F10D0F32B776AFB18 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */,
+				C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */,
+				9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */,
+				6579D9C67852BFF7A690D3EA /* Models.swift in Sources */,
+				99D653613F32DF3DAF9EB60D /* OnboardingView.swift in Sources */,
+				B3CDEA4CF3DEC41ABBD75F15 /* PlanfectApp.swift in Sources */,
+				0A5C8DAC0FBFA5594A8266E9 /* ProfileView.swift in Sources */,
+				2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */,
+				FCA5D02799924C05CBAB2EFF /* ReceiptCardView.swift in Sources */,
+				C0B0DAEFD017BADCBE2FA70A /* RootView.swift in Sources */,
+				02CBD4F151FA45EFA99F3299 /* ScheduleView.swift in Sources */,
+				50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */,
+				C58AC76843AEE44BA888CF52 /* SupabaseConfig.swift in Sources */,
+				8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */,
+				FC43EB3A10CA1A76FC72C0B6 /* SupabaseManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0871C853165B752FF20F2511 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Planfect uses the microphone so you can dictate your plans.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Planfect transcribes your voice on-device to capture your plans.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.planfect.app;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		1BC2DD4CE4901830C14B5730 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		AA0AB6122F98C781644D675D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Planfect uses the microphone so you can dictate your plans.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Planfect transcribes your voice on-device to capture your plans.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.planfect.app;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E94AC6C37D175055F186220F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1DDB74A1327981F0BA5C19C /* Build configuration list for PBXProject "Planfect" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E94AC6C37D175055F186220F /* Debug */,
+				1BC2DD4CE4901830C14B5730 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B7FD5DDAD56907C739F87D07 /* Build configuration list for PBXNativeTarget "Planfect" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0871C853165B752FF20F2511 /* Debug */,
+				AA0AB6122F98C781644D675D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2FEB064D822B583490261B95 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0E4FF856D84138F0AC98C741 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2FEB064D822B583490261B95 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 77728F3C47C2096B6F56FAA0 /* Project object */;
+}
