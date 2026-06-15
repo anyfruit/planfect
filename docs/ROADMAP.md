@@ -11,18 +11,18 @@ Legend: ✅ done · 🔜 next · ⬜ later
 - ✅ **Backend logic, unit-tested on Node** (`server/`): scheduling engine (incl. timezone-aware routine → availability windows), planner agent loop with the clarifying-question interrupt, multi-provider LLM (OpenAI/Anthropic/Qwen), usage accounting. **CI runs the tests on every push** (`.github/workflows/ci.yml`). Green: 23 server + 5 dashboard.
 - Outcome: a clear blueprint, a runnable schema, and tested core logic ready to drop into the Edge Function.
 
-## Phase 1 — Backend stands up (mostly Mac, some cloud) 🔜
-- ⬜ Create the Supabase project; apply `schema.sql` + `analytics.sql`; enable Auth (email + Apple/Google).
-- 🔜 Seed data written (`supabase/seed.sql`: sample user / routine / locations) — apply after creating the auth user.
-- 🔜 `/plan` Edge Function scaffold written (`supabase/functions/plan/`): auth → load context → planner → usage logging. READ handlers wired; schedule-WRITE handlers have TODOs to finish against the live schema.
+## Phase 1 — Backend stands up ✅ (live on Supabase `piyfhwmrumbexofbjqyu`)
+- ✅ Supabase project created; `schema.sql` + `analytics.sql` applied via migrations (`supabase db push`). Email auth on; Apple/Google providers later.
+- ✅ Seed data applied via the admin/REST API (test user `test@planfect.dev` + routine + locations).
+- ✅ `/plan` Edge Function **deployed** (JWT-gated): auth → load context → planner → usage logging. READ handlers wired; **schedule-WRITE handlers finished** (`planningWindowsForDate` + day busy + `scheduleTask` → insert `tasks` + `time_blocks` incl. commute/buffer). `index.ts` now splits a user-context client (RLS) from a service-role client (analytics).
+- ✅ Verified against the LIVE DB with the real handler over a test-user JWT: writes commute + task blocks, links `task_id`, sets `status`, logs `app_events`.
 - ✅ Runnable end-to-end demo (`server/demo/planDemo.ts`): mock model + the REAL scheduler shows ask → answer → commute → schedule → receipt.
-- Outcome: deploy the function with real keys + finish the write handlers → tasks → time_blocks via an authenticated call.
+- ✅ `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` secrets set; **full `/plan` LLM round-trip verified live** (OpenAI `gpt-4.1`): agent loop estimate_commute → get_schedule → schedule_tasks → receipt, AND the ask-clarifying-questions branch, with `usage_events` cost correctly priced (dated-snapshot ids fall back to the base price).
 
-## Phase 2 — The planner brain 🔜
-- ⬜ Wire the agent loop (`server/planner.ts`, done) to a real provider via `createPlanner`
-  (OpenAI default; Anthropic/Qwen swappable) and persist `usage_events`.
-- ⬜ `ask_user_questions` interrupt flow (return questions → resume with answers) — logic done, wire to the API.
-- ⬜ System prompt + duration heuristics; prompt caching on the stable prefix.
+## Phase 2 — The planner brain 🔜 (real provider already wired & verified in Phase 1)
+- ✅ Agent loop wired to a real provider via `createPlanner` (OpenAI `gpt-4.1` default; Anthropic/Qwen swappable by secret); `usage_events` persisted with correct cost.
+- ✅ `ask_user_questions` interrupt returns multiple-choice cards over the live API (verified). 🔜 Persist conversation/messages so the resume (answers → schedule) survives without the client replaying `messages`.
+- ⬜ System prompt + duration heuristics; prompt caching on the stable prefix; fix receipt local-time rendering (model occasionally mis-states UTC→local in the prose).
 - Outcome: send a free-text message → get clarifying questions and/or a scheduling receipt.
 
 ## Phase 3 — iOS app shell (SwiftUI) 🔜

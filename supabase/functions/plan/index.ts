@@ -18,11 +18,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     // Authenticate as the caller (their JWT) so RLS applies; derive user_id server-side.
     const authHeader = req.headers.get('Authorization') ?? '';
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
+    const url = Deno.env.get('SUPABASE_URL')!;
+    // User-context client: RLS applies as the caller, so it only reads/writes their own rows.
+    const supabase = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+    // Service-role client: analytics sinks (usage_events / app_events) that must bypass RLS.
+    const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+      auth: { persistSession: false },
+    });
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: 'unauthorized' }, 401);
 
@@ -41,9 +46,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       model,
       system: buildSystemPrompt(ctx),
       tools: PLANNER_TOOLS,
-      handlers: buildHandlers(supabase, user.id),
+      handlers: buildHandlers(supabase, user.id, ctx, admin),
       context: { userId: user.id, conversationId },
-      usage: new SupabaseUsageSink(supabase),
+      usage: new SupabaseUsageSink(admin),
     });
 
     // NOTE (Phase 2): also persist `messages` into the `messages` table here so the

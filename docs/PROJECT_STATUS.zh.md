@@ -3,7 +3,7 @@
 > 这是项目的中文进度文件。每完成一轮我都会更新这里：**目标、技术栈与决策、当前状态、各轮进度、计划、以及当前缺什么/待办**。
 > 英文文档在根目录 `README.md` 和 `docs/` 里。
 
-最后更新：第 5 轮。
+最后更新：第 6 轮。
 
 ---
 
@@ -36,7 +36,7 @@
 
 ---
 
-## 三、当前状态（截至第 4 轮）
+## 三、当前状态（截至第 6 轮）
 
 - ✅ 设计文档齐全；数据库 schema + 行级安全；分析表 + dashboard 视图。
 - ✅ 后端核心逻辑（TypeScript）写好并**单测通过（server 23/23 + dashboard 5/5，Node 跑）**：排程引擎（含**时区感知的"作息→时间窗"**）、planner agent 循环（含多选澄清问题的"中断—回答—继续"机制）、多 provider LLM 层、用量记账。
@@ -44,7 +44,8 @@
 - ✅ `/plan` Edge Function 脚手架 + `seed.sql`。
 - ✅ 开发者 **dashboard web 脚手架**：纯计算函数有单测；UI 读 `metrics_*` 视图。
 - ✅ **CI**（GitHub Actions）每次 push 自动跑全部测试。
-- ⬜ 还没开始：**iOS App 本体**、连真实 Supabase 部署、接真实模型 key。
+- ✅ **Phase 1 后端已上线并跑通完整链路（真实 Supabase，ref `piyfhwmrumbexofbjqyu`）**：schema + analytics 已 `db push`；`/plan` Edge Function 已部署（JWT 鉴权）；`schedule_tasks` 真实写库已补完；**完整 `/plan` LLM 链路已实测**（真实 OpenAI `gpt-4.1`：agent 多步 estimate_commute → get_schedule → schedule_tasks → 回执；以及多选澄清问题分支），`tasks`/`time_blocks`/`usage_events`/`app_events` 均正确落库。
+- ⬜ 还没开始：**iOS App 本体**。
 
 ---
 
@@ -54,7 +55,8 @@
 - **第 2 轮** — 后端核心代码（排程引擎、planner 循环、多 provider、用量记账）+ 分析表/视图；单测 18/18。
 - **第 3 轮** — `/plan` Edge Function 脚手架 + 可运行端到端 demo + `seed.sql`。
 - **第 4 轮** — 开发者 dashboard web 脚手架 + 本中文进度文件。
-- **第 5 轮（本轮）** — 加 CI（GitHub Actions 跑测试）+ 补完"作息→时间窗（时区感知）"纯函数并测试；demo 改用真实作息派生时间窗。
+- **第 5 轮** — 加 CI（GitHub Actions 跑测试）+ 补完"作息→时间窗（时区感知）"纯函数并测试；demo 改用真实作息派生时间窗。
+- **第 6 轮（本轮）** — **后端在真实 Supabase 上跑起来并端到端实测**：装 Supabase CLI（绕开 Xcode 直装二进制）、建迁移并 `db push`、部署 `/plan`、扩展 `schedule_tasks` 入参（加 `date` / 通勤 / 缓冲 / `earliest_start` 等）、补完真实写库 handler（`planningWindowsForDate` + 当天 busy + `scheduleTask` → 写 `tasks`/`time_blocks`）、`index.ts` 拆分用户态/service-role 客户端、建测试用户 + 种子数据。然后设 OpenAI/Anthropic secrets、给 system prompt 注入"今天日期"（解析"这周五 / 明晚"）、**跑通完整 `/plan` LLM 链路**（排程分支 + 澄清问题分支都实测）、修计价（vendor 返回的带日期 model id 按基础价兜底，dashboard 成本不再恒为 0）。**24/24 测试绿**。
 
 ---
 
@@ -72,13 +74,14 @@
 ## 六、当前缺什么 / 待办
 
 **需要你（到家 / 有账号时）：**
-- 建 **Supabase 项目**，跑 `schema.sql` + `analytics.sql`；建测试用户后跑 `seed.sql`。
-- 配 **OpenAI / Anthropic / Qwen 的 key**、**Apple Maps token**（放 Supabase secrets / `.env`）。
+- ✅ ~~建 **Supabase 项目**，跑 `schema.sql` + `analytics.sql`~~ —— 已完成（ref `piyfhwmrumbexofbjqyu`；迁移已 `db push`；测试用户 `test@planfect.dev` + 种子数据已建）。
+- ✅ ~~**OpenAI key**（设为 Supabase secret，跑完整 `/plan` 实测）~~ —— 已设（默认 OpenAI `gpt-4.1`；Anthropic key 也已设，改 `ACTIVE_LLM_PROVIDER`/`PLANNER_MODEL` 即可切）；剩**可选** Qwen key、**Apple Maps token**（Phase 5）。
+- **接受 Xcode 许可证**：`sudo xcodebuild -license accept`（解锁本机 git 提交，也修好 Homebrew）。
 - **Mac + Xcode**：开始 iOS App（原生 SwiftUI）。
 - **Apple Developer 账号**：上架准备。
 
 **代码侧待补：**
-- `/plan` 里 `schedule_tasks` 的**真实写库**（载入 busy + 插入 `time_blocks`）——"作息→时间窗"已用 `server/scheduling/routines.ts` 实现并测试，剩 DB 读写部分。
+- ✅ ~~`/plan` 里 `schedule_tasks` 的**真实写库** + 完整 `/plan` LLM 链路实测~~ —— 均已完成并实测（见第 6 轮）：排程分支 + 多选澄清分支都跑通，`usage_events` 落库且成本计价正确。剩 **Phase 2 打磨**：回执文案的本地时间渲染（模型把 UTC 转本地偶尔说错）、跨"问→答"持久化会话。
 - 三个 provider 适配器的**集成测试**（接真实 key 后）。
 - 把 **Qwen 价格**填进 `server/usage.ts` 的 `PRICING`（现在是占位）。
 - dashboard **接真实数据 + 图表**（recharts），以及把"服务端 service role"换成"管理员登录"方式。

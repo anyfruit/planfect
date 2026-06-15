@@ -24,3 +24,8 @@ test('cached input is cheaper than fresh input (gpt-5.5)', () => {
 test('unknown model returns 0 (never invents a cost)', () => {
   assert.equal(estimateCostUsd('qwen', 'mystery-model', { inputTokens: 1000, outputTokens: 1000 }), 0);
 });
+
+test('dated snapshot id falls back to the base model price (gpt-4.1-2025-04-14)', () => {
+  const dated = estimateCostUsd('openai', 'gpt-4.1-2025-04-14', { inputTokens: 1_000_000, outputTokens: 1_000_000 });
+  assert.ok(close(dated, 10), `got ${dated}`);
+});

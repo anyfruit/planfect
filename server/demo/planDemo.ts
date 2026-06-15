@@ -39,19 +39,21 @@ const handlers: ToolHandlers = {
     const routes = await maps.directions({ lat: 0, lng: 0 }, { lat: 0, lng: 0 }, ['transit']);
     return JSON.stringify(routes[0]);
   },
-  [TOOL_SCHEDULE_TASKS]: () => {
-    // Place a 60-min dentist visit with a 25-min commute, after work, using the real engine.
+  [TOOL_SCHEDULE_TASKS]: (args) => {
+    // The same call the production handler makes: place the task with the real engine using the
+    // duration / commute / earliest-start the model passed in via the extended tool args.
+    const t = (args.tasks as Array<{ title: string; estimated_duration_min?: number; commute_min?: number; earliest_start?: string }>)[0];
     const p = scheduleTask(availability, busy, {
-      durationMin: 60,
-      commuteMin: 25,
-      earliestStart: zonedToUtc(DATE, 17 * 60, TZ), // after work (17:00 local)
+      durationMin: t.estimated_duration_min ?? 60,
+      commuteMin: t.commute_min,
+      earliestStart: t.earliest_start ? Date.parse(t.earliest_start) : undefined,
     });
     if (!p.ok) return JSON.stringify({ items: [], assumptions: ['No free slot found.'] });
     const task = p.blocks.find((b) => b.kind === 'task')!;
     const commute = p.blocks.find((b) => b.kind === 'commute');
     return JSON.stringify({
       items: [{
-        title: 'Dentist',
+        title: t.title,
         start: iso(task.start),
         end: iso(task.end),
         commute: commute
@@ -70,7 +72,7 @@ function step(p: Partial<LLMStepResult>): LLMStepResult {
 const script: LLMStepResult[] = [
   step({ finishReason: 'tool_calls', toolCalls: [{ id: 'c1', name: TOOL_ASK_USER_QUESTIONS, arguments: { questions: [{ id: 'q1', header: 'Duration', question: 'How long is the dentist visit?', multiSelect: false, options: [{ label: '30 min', description: 'checkup' }, { label: '1 hour', description: 'with cleaning' }] }] } }] }),
   step({ finishReason: 'tool_calls', toolCalls: [{ id: 'c2', name: TOOL_ESTIMATE_COMMUTE, arguments: { from_location_id: 'home', to_location_id: 'dentist' } }] }),
-  step({ finishReason: 'tool_calls', toolCalls: [{ id: 'c3', name: TOOL_SCHEDULE_TASKS, arguments: { tasks: [{ title: 'Dentist' }] } }] }),
+  step({ finishReason: 'tool_calls', toolCalls: [{ id: 'c3', name: TOOL_SCHEDULE_TASKS, arguments: { tasks: [{ title: 'Dentist', date: '2026-06-19', estimated_duration_min: 60, commute_min: 25, earliest_start: iso(zonedToUtc(DATE, 17 * 60, TZ)) }] } }] }),
   step({ text: 'Done — dentist booked for Friday evening with travel time.', finishReason: 'stop' }),
 ];
 

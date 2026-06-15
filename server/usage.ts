@@ -59,9 +59,15 @@ export const PRICING: Record<string, ModelPrice> = {
   'qwen:qwen-turbo': { inputPerM: 0, outputPerM: 0 },
 };
 
+/** Strip a dated snapshot suffix so a vendor-returned id matches PRICING:
+ *  'gpt-4.1-2025-04-14' → 'gpt-4.1', 'claude-sonnet-4-6-20250930' → 'claude-sonnet-4-6'. */
+function baseModelId(model: string): string {
+  return model.replace(/-(\d{4}-\d{2}-\d{2}|\d{8})$/, '');
+}
+
 /** Estimate USD cost of one call. Returns 0 for unknown models (never invents a cost). */
 export function estimateCostUsd(provider: LLMProvider, model: string, usage: LLMUsage): number {
-  const p = PRICING[`${provider}:${model}`];
+  const p = PRICING[`${provider}:${model}`] ?? PRICING[`${provider}:${baseModelId(model)}`];
   if (!p) return 0;
   const cached = usage.cachedInputTokens ?? 0;
   const freshInput = Math.max(0, usage.inputTokens - cached);

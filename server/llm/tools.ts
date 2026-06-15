@@ -93,7 +93,10 @@ const getSchedule: ToolDef = {
 
 const scheduleTasks: ToolDef = {
   name: TOOL_SCHEDULE_TASKS,
-  description: 'Commit the plan: create/refresh tasks and their time blocks (incl. commute + buffers).',
+  description:
+    "Commit the plan: for each task, place it on the given local date around the user's routine " +
+    'and existing blocks, then create the task and its time blocks (incl. commute + buffer). ' +
+    'Pass commute_min from a prior estimate_commute when the task is at a location.',
   parameters: {
     type: 'object',
     additionalProperties: false,
@@ -104,11 +107,26 @@ const scheduleTasks: ToolDef = {
         items: {
           type: 'object',
           additionalProperties: false,
-          required: ['title'],
+          required: ['title', 'date'],
           properties: {
             title: { type: 'string' },
-            estimated_duration_min: { type: 'integer' },
+            date: {
+              type: 'string',
+              description: 'Local calendar day to schedule on, YYYY-MM-DD (in the user timezone).',
+            },
+            estimated_duration_min: { type: 'integer', description: 'Minutes; defaults to 60 if omitted.' },
             location_id: { type: ['string', 'null'] },
+            commute_min: {
+              type: 'integer',
+              description: 'Travel minutes to insert as a commute block before the task (from estimate_commute).',
+            },
+            buffer_min: { type: 'integer', description: 'Slack minutes appended after the task.' },
+            session_min: {
+              type: 'integer',
+              description: 'If set and < duration, split into multiple sessions of this length (no commute).',
+            },
+            earliest_start: { type: 'string', description: 'ISO-8601; do not start before this.' },
+            deadline: { type: 'string', description: 'ISO-8601; the task must end by this.' },
           },
         },
       },
