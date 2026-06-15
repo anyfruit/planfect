@@ -47,6 +47,7 @@ export interface ModelPrice {
 export const PRICING: Record<string, ModelPrice> = {
   'openai:gpt-5.5': { inputPerM: 5, outputPerM: 30, cachedInputPerM: 0.5 },
   'openai:gpt-5.4': { inputPerM: 2.5, outputPerM: 15 },
+  'openai:gpt-5.1': { inputPerM: 1.25, outputPerM: 10, cachedInputPerM: 0.125 }, // ESTIMATE — verify against OpenAI pricing
   'openai:gpt-4.1': { inputPerM: 2, outputPerM: 8 },
   'openai:gpt-4.1-mini': { inputPerM: 0.4, outputPerM: 1.6 },
   'openai:gpt-4.1-nano': { inputPerM: 0.1, outputPerM: 0.4 },
