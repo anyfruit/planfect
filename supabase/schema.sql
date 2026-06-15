@@ -135,6 +135,7 @@ create table time_blocks (
   origin_location_id     uuid references locations(id) on delete set null,
   destination_location_id uuid references locations(id) on delete set null,
   transport_mode         transport_mode,
+  category               text,                    -- semantic type for display (work/fitness/meal/…)
   created_at             timestamptz not null default now(),
   updated_at             timestamptz not null default now(),
   constraint time_blocks_range check (end_at > start_at)

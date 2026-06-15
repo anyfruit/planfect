@@ -11,6 +11,7 @@ struct TimeBlock: Decodable, Identifiable {
     let end_at: String
     let transport_mode: String?
     let task_id: UUID?
+    let category: String?
     let tasks: NoteRef?         // embedded task note (PostgREST: tasks(notes))
 
     var start: Date { APIDate.parse(start_at) ?? .distantPast }

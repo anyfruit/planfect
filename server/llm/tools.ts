@@ -122,6 +122,11 @@ const scheduleTasks: ToolDef = {
               description: "Exact local start time as HH:MM (24h) in the user's timezone — set this to pin the task at a specific time; the server converts it to UTC. Prefer this over earliest_start for a concrete time.",
             },
             location_id: { type: ['string', 'null'] },
+            category: {
+              type: 'string',
+              enum: ['work', 'focus', 'fitness', 'meal', 'social', 'errand', 'leisure', 'health', 'learning', 'chore', 'travel', 'other'],
+              description: 'The kind of activity, for display/icon — e.g. 面试/会议→work, 看比赛/电影→leisure, 跑步/健身→fitness, 吃饭→meal, 买菜→errand.',
+            },
             commute_min: {
               type: 'integer',
               description: 'Travel minutes to insert as a commute block before the task (from estimate_commute).',

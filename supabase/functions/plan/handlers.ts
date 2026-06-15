@@ -126,6 +126,8 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'reply with a one-line receipt. If the user gave an EXPLICIT time, treat it as authoritative: set',
     'start_local to exactly that time and schedule directly (allow_over_routine=true if it overlaps',
     'work/meals — e.g. a 3pm meeting on a workday). Never shift an explicit time to a different slot.',
+    'Always set a category on each scheduled task (work / focus / fitness / meal / social / errand /',
+    'leisure / health / learning / chore / travel / other) so the schedule shows the right type & icon.',
     'ALWAYS deliver a proposal or confirmation by calling ask_user_questions (tappable options) —',
     'never as plain text with bulleted choices, even right after a web_search.',
     'When the user answers "another time", propose a genuinely different option — a different part of',
@@ -299,12 +301,14 @@ export function buildHandlers(
             rows.push(blockRow(userId, `${t.title} (${i + 1}/${sessions.length})`, 'task', b, {
               task_id: taskId,
               location_id: t.location_id ?? null,
+              category: t.category ?? null,
             })),
           );
         } else {
           rows.push(blockRow(userId, t.title, 'task', sessions[0], {
             task_id: taskId,
             location_id: t.location_id ?? null,
+            category: t.category ?? null,
           }));
         }
         if (commute) {
@@ -389,6 +393,7 @@ interface ScheduleTaskArg {
   estimated_duration_min?: number;
   start_local?: string; // HH:MM in the user's timezone
   location_id?: string | null;
+  category?: string;
   commute_min?: number;
   buffer_min?: number;
   session_min?: number;

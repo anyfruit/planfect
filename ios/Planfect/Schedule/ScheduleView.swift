@@ -159,13 +159,14 @@ private struct BlockRow: View {
     let onToggleDone: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        let cat = TaskCategory.of(block)
+        return HStack(spacing: 12) {
             Button(action: onToggleDone) {
                 Image(systemName: block.isDone ? "checkmark.circle.fill" : "circle")
                     .font(.title3).foregroundStyle(block.isDone ? Color.green : Color.secondary)
             }
             .buttonStyle(.plain)
-            RoundedRectangle(cornerRadius: 3).fill(color).frame(width: 5, height: 40)
+            RoundedRectangle(cornerRadius: 3).fill(cat.color).frame(width: 5, height: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(block.title).font(.subheadline.weight(.medium)).lineLimit(1)
                     .strikethrough(block.isDone)
@@ -174,22 +175,15 @@ private struct BlockRow: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
-            Text(block.kind.capitalized)
-                .font(.caption2).foregroundStyle(color)
-                .padding(.horizontal, 7).padding(.vertical, 3)
-                .background(color.opacity(0.15), in: Capsule())
+            HStack(spacing: 3) {
+                Image(systemName: cat.icon)
+                Text(cat.label)
+            }
+            .font(.caption2).foregroundStyle(cat.color)
+            .padding(.horizontal, 7).padding(.vertical, 3)
+            .background(cat.color.opacity(0.15), in: Capsule())
         }
         .padding(.vertical, 2)
         .opacity(block.isDone ? 0.6 : 1)
-    }
-
-    private var color: Color {
-        switch block.kind {
-        case "task": return .accentColor
-        case "commute": return .orange
-        case "buffer": return .gray
-        case "routine": return .purple
-        default: return .accentColor
-        }
     }
 }
