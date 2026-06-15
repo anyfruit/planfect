@@ -49,6 +49,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       handlers: buildHandlers(supabase, user.id, ctx, admin),
       context: { userId: user.id, conversationId },
       usage: new SupabaseUsageSink(admin),
+      maxSteps: 14,
     });
 
     // NOTE (Phase 2): also persist `messages` into the `messages` table here so the
