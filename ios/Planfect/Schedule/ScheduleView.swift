@@ -75,7 +75,11 @@ struct ScheduleView: View {
             Task { await vm.load() }
         }
         .onChange(of: router.jumpDay) { _, day in
-            if let day { anchor = day; scope = .day; router.jumpDay = nil }
+            if let day { anchor = day; scope = .day; router.jumpDay = nil; Task { await vm.load() } }
+        }
+        // Re-fetch whenever the Schedule tab becomes active, so a plan just made in Chat shows up.
+        .onChange(of: router.tab) { _, tab in
+            if tab == 1 { Task { await vm.load() } }
         }
         .refreshable { await vm.load() }
         .sheet(item: $selectedBlock) { block in
