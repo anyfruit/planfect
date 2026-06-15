@@ -30,11 +30,28 @@ struct DayCategoryStat: Identifiable {
     let id = UUID()
 }
 
+/// Compact payload the `/insights` AI function reads.
+struct InsightsSummary: Encodable {
+    let period: String
+    let scope: String
+    let language: String
+    let total_min: Int
+    let tasks_done: Int
+    let tasks_total: Int
+    let categories: [Item]
+    let per_day: [Day]
+    struct Item: Encodable { let label: String; let minutes: Int }
+    struct Day: Encodable { let day: String; let items: [Item] }
+}
+
 struct InsightsView: View {
     @EnvironmentObject var supa: SupabaseManager
     @StateObject private var vm = InsightsViewModel()
     @State private var scope: ScheduleScope = .week
     @State private var anchor = Date()
+    @State private var analysis: String?
+    @State private var analyzing = false
+    @State private var analysisError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -61,14 +78,15 @@ struct InsightsView: View {
                             summaryCard
                             donutCard
                             if scope != .day { dailyCard.id("daily") }
+                            aiCard.id("ai")
                         }
                         .padding()
                     }
                     #if DEBUG
                     .task {
                         guard ProcessInfo.processInfo.environment["PLANFECT_INSIGHTS_SCROLL"] == "1" else { return }
-                        try? await Task.sleep(nanoseconds: 1_300_000_000)
-                        withAnimation { proxy.scrollTo("daily", anchor: .bottom) }
+                        try? await Task.sleep(nanoseconds: 9_000_000_000)   // let an auto-run analysis finish first
+                        withAnimation { proxy.scrollTo("ai", anchor: .bottom) }
                     }
                     #endif
                 }
@@ -81,9 +99,84 @@ struct InsightsView: View {
             if let s = ProcessInfo.processInfo.environment["PLANFECT_SCHEDULE_SCOPE"],
                let sc = ScheduleScope(rawValue: s.capitalized) { scope = sc }
             #endif
-            Task { await vm.load() }
+            Task {
+                await vm.load()
+                #if DEBUG
+                if ProcessInfo.processInfo.environment["PLANFECT_INSIGHTS_AUTORUN"] == "1" { runAnalysis() }
+                #endif
+            }
         }
         .refreshable { await vm.load() }
+        .onChange(of: scope) { _, _ in analysis = nil; analysisError = nil }
+        .onChange(of: anchor) { _, _ in analysis = nil; analysisError = nil }
+    }
+
+    // MARK: - AI analysis
+
+    private var aiCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").foregroundStyle(.tint)
+                Text("AI analysis").font(.subheadline.weight(.semibold))
+                Spacer()
+                if analysis != nil && !analyzing {
+                    Button { runAnalysis() } label: { Image(systemName: "arrow.clockwise").font(.caption) }
+                        .buttonStyle(.plain).foregroundStyle(.secondary)
+                }
+            }
+            if analyzing {
+                HStack(spacing: 8) { ProgressView(); Text("Reading your \(scope.rawValue.lowercased())…").font(.callout).foregroundStyle(.secondary) }
+            } else if let analysis, !analysis.isEmpty {
+                Text(analysis).font(.callout).textSelection(.enabled)
+            } else {
+                Text("Get a quick read of where your time goes — and a couple of gentle suggestions.")
+                    .font(.callout).foregroundStyle(.secondary)
+                Button { runAnalysis() } label: {
+                    Label("Analyze with AI", systemImage: "sparkles").font(.callout.weight(.medium))
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            if let analysisError { Text(analysisError).font(.caption).foregroundStyle(.red) }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            LinearGradient(colors: [Color.accentColor.opacity(0.10), Color.purple.opacity(0.08)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 16)
+        )
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.accentColor.opacity(0.18), lineWidth: 0.5))
+    }
+
+    private func runAnalysis() {
+        analyzing = true; analysisError = nil
+        Task {
+            do { analysis = try await supa.analyzeInsights(currentSummary()) }
+            catch { analysisError = error.localizedDescription }
+            analyzing = false
+        }
+    }
+
+    private func currentSummary() -> InsightsSummary {
+        InsightsSummary(
+            period: periodLabel,
+            scope: scope.rawValue,
+            language: Locale.current.language.languageCode?.identifier ?? "en",
+            total_min: totalMinutes,
+            tasks_done: doneCount,
+            tasks_total: taskCount,
+            categories: stats.map { .init(label: $0.label, minutes: $0.minutes) },
+            per_day: scope == .day ? [] : groupedDays()
+        )
+    }
+
+    private func groupedDays() -> [InsightsSummary.Day] {
+        let cal = Calendar.current
+        let byDay = Dictionary(grouping: dailyStats) { cal.startOfDay(for: $0.day) }
+        return byDay.keys.sorted().map { day in
+            InsightsSummary.Day(day: day.formatted(.dateTime.month().day()),
+                                items: byDay[day]!.map { .init(label: $0.label, minutes: $0.minutes) })
+        }
     }
 
     // MARK: - Cards

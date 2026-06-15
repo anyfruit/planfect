@@ -42,6 +42,24 @@ extension SupabaseManager {
         return try JSONDecoder().decode(PlanResponse.self, from: data)
     }
 
+    /// Ask the `/insights` Edge Function for an AI read of the user's time breakdown.
+    func analyzeInsights(_ summary: InsightsSummary) async throws -> String {
+        let token = await currentToken()
+        var req = URLRequest(url: URL(string: SupabaseConfig.url.absoluteString + "/functions/v1/insights")!)
+        req.httpMethod = "POST"
+        req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(summary)
+        let (data, resp) = try await URLSession.shared.data(for: req)
+        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+            throw NSError(domain: "Planfect.Insights", code: http.statusCode,
+                          userInfo: [NSLocalizedDescriptionKey: "Analysis unavailable (HTTP \(http.statusCode)). Please try again."])
+        }
+        struct R: Decodable { let analysis: String? }
+        return (try JSONDecoder().decode(R.self, from: data)).analysis ?? ""
+    }
+
     func fetchBlocks() async throws -> [TimeBlock] {
         let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode,category,task_id,tasks(notes)&order=start_at")
         return try JSONDecoder().decode([TimeBlock].self, from: data)
