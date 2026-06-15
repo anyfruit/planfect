@@ -20,6 +20,7 @@ struct MainTabView: View {
         }
         .sheet(isPresented: $showProfile) { ProfileView() }
         .onAppear {
+            Task { await NotificationManager.shared.ensureAuthorization() }
             #if DEBUG
             if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "schedule" { router.tab = 1 }
             if ProcessInfo.processInfo.environment["PLANFECT_SHOW_PROFILE"] == "1" { showProfile = true }

@@ -17,7 +17,10 @@ final class ScheduleViewModel: ObservableObject {
     func load() async {
         guard let supa else { return }
         loading = true; error = nil
-        do { blocks = try await supa.fetchBlocks() }
+        do {
+            blocks = try await supa.fetchBlocks()
+            await NotificationManager.shared.reschedule(for: blocks)
+        }
         catch { self.error = error.localizedDescription }
         loading = false
     }

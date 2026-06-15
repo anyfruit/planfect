@@ -27,6 +27,10 @@ enum TaskCategory {
         }
     }
 
+    /// Resolved semantic key for a task block: the planner-assigned category, else inferred from
+    /// the title. Shared by the pill and the reminder so they always agree.
+    static func key(_ block: TimeBlock) -> String { block.category ?? infer(block.title) }
+
     /// Best-effort guess from the title (CN + EN) for blocks scheduled before categories existed.
     static func infer(_ title: String) -> String {
         let t = title.lowercased()

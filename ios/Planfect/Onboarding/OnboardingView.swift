@@ -112,6 +112,7 @@ struct OnboardingView: View {
             do {
                 try? await supa.setTimezone(TimeZone.current.identifier)
                 try await supa.saveRoutines(r)
+                await NotificationManager.shared.ensureAuthorization()
                 supa.needsOnboarding = false
             } catch {
                 self.error = error.localizedDescription

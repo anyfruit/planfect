@@ -6,6 +6,8 @@ struct ProfileView: View {
     @State private var routines: [Routine] = []
     @State private var editing: Routine?
     @State private var addingNew = false
+    @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
+    @AppStorage(NotificationManager.leadKey) private var leadMin = 10
 
     var body: some View {
         NavigationStack {
@@ -52,9 +54,21 @@ struct ProfileView: View {
                     Text("Tap to edit times or days. You can also just tell the assistant in chat.")
                 }
 
+                Section {
+                    Toggle("Reminders", isOn: $remindersEnabled.animation())
+                    if remindersEnabled {
+                        Stepper(leadMin == 0 ? "Notify at start time" : "Notify \(leadMin) min before",
+                                value: $leadMin, in: 0...60, step: 5)
+                    }
+                } header: {
+                    Text("Reminders")
+                } footer: {
+                    Text("A nudge when it's time to head out, and before each task begins.")
+                }
+
                 Section("Settings") {
                     LabeledContent("Timezone", value: TimeZone.current.identifier)
-                    Text("Notifications, locations & maps — coming soon")
+                    Text("Locations & maps — coming soon")
                         .font(.caption).foregroundStyle(.tertiary)
                 }
 
@@ -69,10 +83,24 @@ struct ProfileView: View {
             .task { await reload() }
             .sheet(item: $editing) { r in RoutineEditView(existing: r) { Task { await reload() } } }
             .sheet(isPresented: $addingNew) { RoutineEditView(existing: nil) { Task { await reload() } } }
+            .onChange(of: remindersEnabled) { _, on in
+                Task {
+                    if on { await NotificationManager.shared.ensureAuthorization(); await resyncReminders() }
+                    else { NotificationManager.shared.cancelAll() }
+                }
+            }
+            .onChange(of: leadMin) { _, _ in Task { await resyncReminders() } }
         }
     }
 
     private func reload() async { routines = (try? await supa.fetchRoutines()) ?? [] }
+
+    /// Re-arm reminders from the live schedule after a settings change.
+    private func resyncReminders() async {
+        if let blocks = try? await supa.fetchBlocks() {
+            await NotificationManager.shared.reschedule(for: blocks)
+        }
+    }
 
     private func daysLabel(_ days: [Int]) -> String {
         let s = days.sorted()

@@ -80,6 +80,8 @@ final class ChatViewModel: ObservableObject {
                 else { items.append(.assistant("I had a question but it came through empty.")) }
             case "scheduled":
                 if let r = resp.receipt { items.append(.receipt(r)) } else { items.append(.assistant("Scheduled.")) }
+                // Refresh reminders so a just-scheduled plan nudges even if the user never opens Schedule.
+                if let blocks = try? await supa.fetchBlocks() { await NotificationManager.shared.reschedule(for: blocks) }
             default:
                 items.append(.assistant(resp.text ?? "Done."))
             }
