@@ -25,7 +25,7 @@ final class ChatViewModel: ObservableObject {
     @Published var sending = false
 
     private var supa: SupabaseManager?
-    private var lastMessages: [JSONValue] = []
+    private var history: [JSONValue] = []   // full LLM thread, sent every turn so context persists
 
     func bind(_ supa: SupabaseManager) { if self.supa == nil { self.supa = supa } }
 
@@ -44,14 +44,15 @@ final class ChatViewModel: ObservableObject {
         guard !text.isEmpty, !sending else { return }
         input = ""
         items.append(.user(text))
-        Task { await run(PlanRequest(text: text)) }
+        history.append(.object(["role": .string("user"), "content": .string(text)]))
+        Task { await run(PlanRequest(messages: history)) }
     }
 
     func answer(_ answers: [QuestionAnswer]) {
         guard !sending else { return }
         let summary = answers.flatMap(\.selected).joined(separator: ", ")
         items.append(.user(summary.isEmpty ? "(no selection)" : summary))
-        guard let askId = JSONValue.askToolCallId(in: lastMessages) else {
+        guard let askId = JSONValue.askToolCallId(in: history) else {
             items.append(.assistant("Sorry — I lost the thread of that question. Mind rephrasing?"))
             return
         }
@@ -59,12 +60,12 @@ final class ChatViewModel: ObservableObject {
             .object(["id": .string(a.question.id), "selected": .array(a.selected.map { .string($0) })])
         }
         let payload = JSONValue.object(["answers": .array(answerArray)]).jsonString()
-        let toolMsg = JSONValue.object([
+        history.append(.object([
             "role": .string("tool"),
             "toolCallId": .string(askId),
             "content": .string(payload),
-        ])
-        Task { await run(PlanRequest(messages: lastMessages + [toolMsg])) }
+        ]))
+        Task { await run(PlanRequest(messages: history)) }
     }
 
     private func run(_ req: PlanRequest) async {
@@ -72,7 +73,7 @@ final class ChatViewModel: ObservableObject {
         sending = true
         do {
             let resp = try await supa.plan(req)
-            if let m = resp.messages { lastMessages = m }
+            if let m = resp.messages { history = m }
             switch resp.type {
             case "questions":
                 if let qs = resp.questions, !qs.isEmpty { items.append(.questions(qs)) }

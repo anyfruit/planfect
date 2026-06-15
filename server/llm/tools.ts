@@ -116,6 +116,10 @@ const scheduleTasks: ToolDef = {
               description: 'Local calendar day to schedule on, YYYY-MM-DD (in the user timezone).',
             },
             estimated_duration_min: { type: 'integer', description: 'Minutes; defaults to 60 if omitted.' },
+            start_local: {
+              type: 'string',
+              description: "Exact local start time as HH:MM (24h) in the user's timezone — set this to pin the task at a specific time; the server converts it to UTC. Prefer this over earliest_start for a concrete time.",
+            },
             location_id: { type: ['string', 'null'] },
             commute_min: {
               type: 'integer',
@@ -128,6 +132,13 @@ const scheduleTasks: ToolDef = {
             },
             earliest_start: { type: 'string', description: 'ISO-8601; do not start before this.' },
             deadline: { type: 'string', description: 'ISO-8601; the task must end by this.' },
+            allow_over_routine: {
+              type: 'boolean',
+              description:
+                'Place this over a routine block (work / meal / commute) when the user insists on that ' +
+                'time, is taking time off, or the task can only happen then (e.g. a daytime appointment). ' +
+                'Never overrides sleep.',
+            },
           },
         },
       },

@@ -58,7 +58,7 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'specifics; make smart assumptions and keep it to one quick confirmation.',
     'Always write your questions, options, and receipts in the SAME language the user wrote in.',
     `Timezone: ${ctx.timezone}.`,
-    `Routine (never schedule over these inviolable blocks): ${JSON.stringify(ctx.routines)}`,
+    `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
     `Saved locations: ${JSON.stringify(ctx.locations)}`,
     'CRITICAL — do this for EVERY task the user names, not just the examples below: first reason',
     'about when that activity naturally happens for most people, and prefer free time in THAT',
@@ -78,6 +78,11 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'the soonest day it IS free — e.g. a weekend afternoon for a daytime outing — over cramming it',
     'into an odd hour, and name that day in your confirmation. For a task at a saved location,',
     'estimate_commute and add a commute + buffer.',
+    'Routine blocks (work, meals, commute) are defaults to plan AROUND — NOT bans. You MAY schedule',
+    'over them (pass allow_over_routine=true) when the user asks for a time during them, says they',
+    "will take time off / step out / 摸鱼, or the task can only happen then — e.g. a dentist or car",
+    'inspection during business hours for a 9-5 worker. Then just schedule it and note it lands during',
+    'work. Only SLEEP is truly off-limits. NEVER refuse or block a time the user clearly wants.',
     'If the user names an external event whose real time you do not know — a match / tournament,',
     'movie showtime, concert, show, livestream, TV broadcast, store hours — call web_search to find',
     'the actual time(s), then schedule the watching/attending around them. Never say you cannot',
@@ -91,7 +96,7 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     '"Confirm", question "Gym today 3:00–5:00 PM — work for you?", options [{label:"Sounds good",',
     'description:"book it as proposed"},{label:"Pick another time",description:"I\'ll suggest another slot"}].',
     'Keep it to 2–3 options; the app always adds an "Other" free-text choice. After the user confirms, call',
-    'schedule_tasks (pass earliest_start = the agreed start time so it lands exactly there), then',
+    'schedule_tasks — set start_local to the agreed local time as HH:MM (24h) so it lands exactly there — then',
     'reply with a one-line receipt. If the user already gave an exact time, you may schedule directly.',
     'ALWAYS deliver a proposal or confirmation by calling ask_user_questions (tappable options) —',
     'never as plain text with bulleted choices, even right after a web_search.',
@@ -121,7 +126,7 @@ export function buildHandlers(
           body: JSON.stringify({
             model: 'gpt-4.1',
             tools: [{ type: 'web_search' }],
-            input: `${query}\n\nReply with the concrete date(s) and start time(s) you find, with the source. If you cannot find a reliable time, say so plainly.`,
+            input: `${query}\n\nUse authoritative, current sources (the event's official schedule page, well-known listings). Give the concrete date and exact start time(s) in the event's local timezone AND name the source. If sources disagree or you can't verify the time, say so plainly — do not guess.`,
             max_output_tokens: 600,
           }),
         });
@@ -180,13 +185,18 @@ export function buildHandlers(
 
         const { availability, busy } = planningWindowsForDate(routines, date, tz);
         const dayBusy = await loadDayBusy(supabase, userId, date, tz);
+        // Routine is a soft default: when the user opts in, schedule over work/meals (not sleep —
+        // availability is already bounded by the sleep window), avoiding only other booked tasks.
+        const blocking = t.allow_over_routine ? dayBusy : [...busy, ...dayBusy];
 
-        const placement = scheduleTask(availability, [...busy, ...dayBusy], {
+        const placement = scheduleTask(availability, blocking, {
           durationMin,
           commuteMin: t.commute_min,
           bufferMin: t.buffer_min,
           sessionMin: t.session_min,
-          earliestStart: t.earliest_start ? Date.parse(t.earliest_start) : undefined,
+          earliestStart: t.start_local
+            ? zonedToUtc(date, timeToMin(t.start_local), tz)
+            : (t.earliest_start ? Date.parse(t.earliest_start) : undefined),
           deadline: t.deadline ? Date.parse(t.deadline) : undefined,
         });
         if (!placement.ok) {
@@ -313,12 +323,14 @@ interface ScheduleTaskArg {
   title: string;
   date: string; // YYYY-MM-DD, user-local
   estimated_duration_min?: number;
+  start_local?: string; // HH:MM in the user's timezone
   location_id?: string | null;
   commute_min?: number;
   buffer_min?: number;
   session_min?: number;
   earliest_start?: string; // ISO-8601
   deadline?: string;       // ISO-8601
+  allow_over_routine?: boolean;
 }
 
 interface ScheduledItem {
