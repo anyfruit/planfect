@@ -4,6 +4,8 @@ struct ProfileView: View {
     @EnvironmentObject var supa: SupabaseManager
     @Environment(\.dismiss) private var dismiss
     @State private var routines: [Routine] = []
+    @State private var editing: Routine?
+    @State private var addingNew = false
 
     var body: some View {
         NavigationStack {
@@ -20,21 +22,34 @@ struct ProfileView: View {
                     .padding(.vertical, 4)
                 }
 
-                Section("Your routine") {
-                    if routines.isEmpty {
-                        Text("No routine set yet").foregroundStyle(.secondary)
-                    } else {
-                        ForEach(routines) { r in
-                            HStack {
+                Section {
+                    ForEach(routines) { r in
+                        Button { editing = r } label: {
+                            HStack(spacing: 10) {
                                 Image(systemName: icon(r.kind)).foregroundStyle(.secondary).frame(width: 22)
-                                Text(r.label)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(r.label).foregroundStyle(.primary)
+                                    Text(daysLabel(r.days_of_week)).font(.caption).foregroundStyle(.secondary)
+                                }
                                 Spacer()
                                 Text("\(hhmm(r.start_time))–\(hhmm(r.end_time))")
                                     .foregroundStyle(.secondary).font(.callout.monospacedDigit())
+                                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
                             }
                         }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                Task { try? await supa.deleteRoutine(r.id); await reload() }
+                            } label: { Label("Delete", systemImage: "trash") }
+                        }
                     }
-                    Text("Edit routine — coming soon").font(.caption).foregroundStyle(.tertiary)
+                    Button { addingNew = true } label: {
+                        Label("Add to routine", systemImage: "plus.circle.fill")
+                    }
+                } header: {
+                    Text("Your routine")
+                } footer: {
+                    Text("Tap to edit times or days. You can also just tell the assistant in chat.")
                 }
 
                 Section("Settings") {
@@ -51,8 +66,21 @@ struct ProfileView: View {
             }
             .navigationTitle("Profile").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
-            .task { routines = (try? await supa.fetchRoutines()) ?? [] }
+            .task { await reload() }
+            .sheet(item: $editing) { r in RoutineEditView(existing: r) { Task { await reload() } } }
+            .sheet(isPresented: $addingNew) { RoutineEditView(existing: nil) { Task { await reload() } } }
         }
+    }
+
+    private func reload() async { routines = (try? await supa.fetchRoutines()) ?? [] }
+
+    private func daysLabel(_ days: [Int]) -> String {
+        let s = days.sorted()
+        if s == [0, 1, 2, 3, 4, 5, 6] { return "Every day" }
+        if s == [1, 2, 3, 4, 5] { return "Weekdays" }
+        if s == [0, 6] { return "Weekends" }
+        let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return s.map { names[$0] }.joined(separator: " ")
     }
 
     private func icon(_ kind: String) -> String {

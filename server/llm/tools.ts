@@ -10,6 +10,7 @@ export const TOOL_GET_SCHEDULE = 'get_schedule';
 export const TOOL_SCHEDULE_TASKS = 'schedule_tasks';
 export const TOOL_UPDATE_TASK = 'update_task';
 export const TOOL_WEB_SEARCH = 'web_search';
+export const TOOL_SET_ROUTINE = 'set_routine';
 
 // The interrupt tool: when the model calls this, the loop returns the questions to the app
 // (rendered as multiple-choice cards + an "Other" affordance) instead of fulfilling it.
@@ -181,6 +182,29 @@ const webSearch: ToolDef = {
   },
 };
 
+const setRoutine: ToolDef = {
+  name: TOOL_SET_ROUTINE,
+  description:
+    "Add, update, or delete one of the user's recurring routine blocks (work / sleep / meal / " +
+    'commute / custom) when they tell you their routine changed — e.g. "I work till 3 on Fridays", ' +
+    '"lunch is at 1 now", "drop my gym block". Reference an existing routine by the id shown in the ' +
+    'routine list. The planner schedules around routine, so keep it accurate.',
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['action'],
+    properties: {
+      action: { type: 'string', enum: ['add', 'update', 'delete'] },
+      routine_id: { type: ['string', 'null'], description: 'Required for update/delete — the id from the routine list.' },
+      label: { type: 'string' },
+      kind: { type: 'string', enum: ['work', 'sleep', 'meal', 'commute', 'custom'] },
+      days_of_week: { type: 'array', items: { type: 'integer' }, description: '0=Sun … 6=Sat' },
+      start_time: { type: 'string', description: 'HH:MM (24h), local time' },
+      end_time: { type: 'string', description: 'HH:MM (24h), local time' },
+    },
+  },
+};
+
 export const PLANNER_TOOLS: ToolDef[] = [
   askUserQuestions,
   geocodePlace,
@@ -189,4 +213,5 @@ export const PLANNER_TOOLS: ToolDef[] = [
   scheduleTasks,
   updateTask,
   webSearch,
+  setRoutine,
 ];

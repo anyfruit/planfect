@@ -76,6 +76,18 @@ extension SupabaseManager {
         _ = try await rest("POST", "routines", body: try JSONEncoder().encode(routines), prefer: "return=minimal")
     }
 
+    func addRoutine(_ r: RoutineInsert) async throws {
+        _ = try await rest("POST", "routines", body: try JSONEncoder().encode([r]), prefer: "return=minimal")
+    }
+
+    func updateRoutine(_ id: UUID, _ r: RoutineInsert) async throws {
+        _ = try await rest("PATCH", "routines?id=eq.\(id.uuidString)", body: try JSONEncoder().encode(r), prefer: "return=minimal")
+    }
+
+    func deleteRoutine(_ id: UUID) async throws {
+        _ = try await rest("DELETE", "routines?id=eq.\(id.uuidString)")
+    }
+
     /// Set the profile timezone (IANA) so the planner schedules in the user's local time.
     func setTimezone(_ tz: String) async throws {
         guard let uid = userId else { return }

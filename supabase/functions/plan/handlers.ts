@@ -23,6 +23,7 @@ import {
   TOOL_GEOCODE_PLACE,
   TOOL_SCHEDULE_TASKS,
   TOOL_WEB_SEARCH,
+  TOOL_SET_ROUTINE,
 } from '../../../server/llm/tools.ts';
 
 export interface PlanContext {
@@ -100,6 +101,11 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     "will take time off / step out / 摸鱼, or the task can only happen then — e.g. a dentist or car",
     'inspection during business hours for a 9-5 worker. Then just schedule it and note it lands during',
     'work. Only SLEEP is truly off-limits. NEVER refuse or block a time the user clearly wants.',
+    'If the user says their ROUTINE itself changed (work hours, sleep, meal times, commute, a',
+    'recurring commitment), call set_routine to add/update/delete it — reference existing routines by',
+    'their id — then confirm briefly. Do not create a one-off task for a routine change. If the change',
+    'applies to only SOME of a routine\'s days (e.g. "Fridays I finish at 3"), SPLIT it: update the',
+    'original to drop those days, then ADD a new routine for them — do not change all days at once.',
     'If the user names an external event whose real time you do not know — a match / tournament,',
     'movie showtime, concert, show, livestream, TV broadcast, store hours — call web_search to find',
     'the actual time(s), then schedule the watching/attending around them. Never say you cannot',
@@ -173,6 +179,37 @@ export function buildHandlers(
         .lte('start_at', end)
         .order('start_at');
       return JSON.stringify(data ?? []);
+    },
+
+    [TOOL_SET_ROUTINE]: async (args) => {
+      const action = String(args.action ?? '');
+      const id = args.routine_id ? String(args.routine_id) : '';
+      try {
+        if (action === 'delete') {
+          if (!id) return JSON.stringify({ ok: false, error: 'missing routine_id' });
+          await supabase.from('routines').delete().eq('id', id);
+          return JSON.stringify({ ok: true, action: 'deleted' });
+        }
+        const row: Record<string, unknown> = {};
+        if (args.label !== undefined) row.label = String(args.label);
+        if (args.kind !== undefined) row.kind = String(args.kind);
+        if (Array.isArray(args.days_of_week)) row.days_of_week = args.days_of_week;
+        if (args.start_time !== undefined) row.start_time = String(args.start_time);
+        if (args.end_time !== undefined) row.end_time = String(args.end_time);
+        if (action === 'update') {
+          if (!id) return JSON.stringify({ ok: false, error: 'missing routine_id' });
+          await supabase.from('routines').update(row).eq('id', id);
+          return JSON.stringify({ ok: true, action: 'updated' });
+        }
+        row.user_id = userId;
+        row.is_flexible = false;
+        if (!row.label) row.label = row.kind ?? 'Custom';
+        if (!row.days_of_week) row.days_of_week = [0, 1, 2, 3, 4, 5, 6];
+        await supabase.from('routines').insert(row);
+        return JSON.stringify({ ok: true, action: 'added' });
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: (e as Error).message });
+      }
     },
 
     [TOOL_ESTIMATE_COMMUTE]: async () => {
