@@ -19,6 +19,16 @@ enum TaskCategory {
     /// the title. Shared by the pill, the timeline, the month dots and the reminders so they agree.
     static func key(_ block: TimeBlock) -> String { block.category ?? infer(block.title) }
 
+    /// Grouping key for analytics: structural kinds keep their own bucket, tasks use `key`.
+    static func bucketKey(_ block: TimeBlock) -> String {
+        switch block.kind {
+        case "commute": return "commute"
+        case "buffer": return "buffer"
+        case "routine": return "routine"
+        default: return key(block)
+        }
+    }
+
     static func color(forKey key: String) -> Color { style(forKey: key).color }
 
     /// The single source of truth for how a semantic category looks.

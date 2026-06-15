@@ -12,6 +12,7 @@
 		0A5C8DAC0FBFA5594A8266E9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07C79F5E50489C2AFF73A95 /* ProfileView.swift */; };
 		2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */; };
 		3AA3CCBC58CFEF4BA471B50E /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6265160A353BD5092527B6F7 /* NotificationManager.swift */; };
+		5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6660911D238AB2DB9F54CE /* InsightsView.swift */; };
 		50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */; };
 		6579D9C67852BFF7A690D3EA /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0016DA3561DE72EB9D6B20CA /* Models.swift */; };
 		8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */; };
@@ -45,6 +46,7 @@
 		70C02298574E621578D70481 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanfectApp.swift; sourceTree = "<group>"; };
 		730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SupabaseManager+Data.swift"; sourceTree = "<group>"; };
+		7C6660911D238AB2DB9F54CE /* InsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsView.swift; sourceTree = "<group>"; };
 		80448107C701A74A60580C71 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		83C57028392E6CFC13CFF701 /* TaskCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCategory.swift; sourceTree = "<group>"; };
 		A7B266EB035034732CCE00FD /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
@@ -116,6 +118,7 @@
 				7A65A8D2769A5EC3F87E06EC /* Auth */,
 				CA4CA4385930BC7B69644F79 /* Chat */,
 				56EAA38340066614DC7CFAF5 /* Config */,
+				6BF3221DBB463B927ECE0F3B /* Insights */,
 				8AB02D0E40C697C9F765A83E /* Models */,
 				AE1D94631E9CD7B3F31B2D90 /* Onboarding */,
 				F658456C2F8464443D81E877 /* Profile */,
@@ -124,6 +127,14 @@
 				02A87C1D112EE0B5B434EF4B /* Services */,
 			);
 			path = Planfect;
+			sourceTree = "<group>";
+		};
+		6BF3221DBB463B927ECE0F3B /* Insights */ = {
+			isa = PBXGroup;
+			children = (
+				7C6660911D238AB2DB9F54CE /* InsightsView.swift */,
+			);
+			path = Insights;
 			sourceTree = "<group>";
 		};
 		7A65A8D2769A5EC3F87E06EC /* Auth */ = {
@@ -252,6 +263,7 @@
 				D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */,
 				08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */,
 				C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */,
+				5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */,
 				9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */,
 				6579D9C67852BFF7A690D3EA /* Models.swift in Sources */,
 				3AA3CCBC58CFEF4BA471B50E /* NotificationManager.swift in Sources */,

@@ -17,12 +17,19 @@ struct MainTabView: View {
             }
             .tabItem { Label("Schedule", systemImage: "calendar") }
             .tag(1)
+
+            NavigationStack {
+                InsightsView().planfectAvatar { showProfile = true }
+            }
+            .tabItem { Label("Insights", systemImage: "chart.pie.fill") }
+            .tag(2)
         }
         .sheet(isPresented: $showProfile) { ProfileView() }
         .onAppear {
             Task { await NotificationManager.shared.ensureAuthorization() }
             #if DEBUG
             if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "schedule" { router.tab = 1 }
+            if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "insights" { router.tab = 2 }
             if ProcessInfo.processInfo.environment["PLANFECT_SHOW_PROFILE"] == "1" { showProfile = true }
             #endif
         }
