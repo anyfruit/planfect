@@ -45,7 +45,7 @@
 - ✅ 开发者 **dashboard web 脚手架**：纯计算函数有单测；UI 读 `metrics_*` 视图。
 - ✅ **CI**（GitHub Actions）每次 push 自动跑全部测试。
 - ✅ **Phase 1 后端已上线并跑通完整链路（真实 Supabase，ref `piyfhwmrumbexofbjqyu`）**：schema + analytics 已 `db push`；`/plan` Edge Function 已部署（JWT 鉴权）；`schedule_tasks` 真实写库已补完；**完整 `/plan` LLM 链路已实测**（真实 OpenAI `gpt-4.1`：agent 多步 estimate_commute → get_schedule → schedule_tasks → 回执；以及多选澄清问题分支），`tasks`/`time_blocks`/`usage_events`/`app_events` 均正确落库。
-- ⬜ 还没开始：**iOS App 本体**。
+- ✅ **iOS App（SwiftUI）已跑起来（模拟器）**：登录、注册引导、Chat（接 `/plan`、多选澄清卡带"Other"、回执、语音按钮）、日程（日/周/月）、Profile；**端到端真机实测通过**。
 
 ---
 
@@ -56,7 +56,8 @@
 - **第 3 轮** — `/plan` Edge Function 脚手架 + 可运行端到端 demo + `seed.sql`。
 - **第 4 轮** — 开发者 dashboard web 脚手架 + 本中文进度文件。
 - **第 5 轮** — 加 CI（GitHub Actions 跑测试）+ 补完"作息→时间窗（时区感知）"纯函数并测试；demo 改用真实作息派生时间窗。
-- **第 6 轮（本轮）** — **后端在真实 Supabase 上跑起来并端到端实测**：装 Supabase CLI（绕开 Xcode 直装二进制）、建迁移并 `db push`、部署 `/plan`、扩展 `schedule_tasks` 入参（加 `date` / 通勤 / 缓冲 / `earliest_start` 等）、补完真实写库 handler（`planningWindowsForDate` + 当天 busy + `scheduleTask` → 写 `tasks`/`time_blocks`）、`index.ts` 拆分用户态/service-role 客户端、建测试用户 + 种子数据。然后设 OpenAI/Anthropic secrets、给 system prompt 注入"今天日期"（解析"这周五 / 明晚"）、**跑通完整 `/plan` LLM 链路**（排程分支 + 澄清问题分支都实测）、修计价（vendor 返回的带日期 model id 按基础价兜底，dashboard 成本不再恒为 0）。**24/24 测试绿**。
+- **第 7 轮** — **iOS App 本体（SwiftUI）从零搭起并真机跑通**：XcodeGen 工程 + Supabase Swift SDK、邮箱密码登录、首次注册引导（写作息 + 设时区）、Chat（接 `/plan`、多选澄清卡带"Other"、回执按本地时间渲染、语音听写）、日程页（日/周/月读 `time_blocks`）、Profile。数据读写走 URLSession+JWT（SDK `client.from` 登录后带 token 不稳）。模拟器端到端验证：登录 → 引导 → 一句话排程（真实 GPT-4.1）→ 回执 → 日程表出现。剩：Sign in with Apple（Phase 7）、Profile 作息编辑器、回执点击跳转、精确钟点偏好。
+- **第 6 轮** — **后端在真实 Supabase 上跑起来并端到端实测**：装 Supabase CLI（绕开 Xcode 直装二进制）、建迁移并 `db push`、部署 `/plan`、扩展 `schedule_tasks` 入参（加 `date` / 通勤 / 缓冲 / `earliest_start` 等）、补完真实写库 handler（`planningWindowsForDate` + 当天 busy + `scheduleTask` → 写 `tasks`/`time_blocks`）、`index.ts` 拆分用户态/service-role 客户端、建测试用户 + 种子数据。然后设 OpenAI/Anthropic secrets、给 system prompt 注入"今天日期"（解析"这周五 / 明晚"）、**跑通完整 `/plan` LLM 链路**（排程分支 + 澄清问题分支都实测）、修计价（vendor 返回的带日期 model id 按基础价兜底，dashboard 成本不再恒为 0）。**24/24 测试绿**。
 
 ---
 

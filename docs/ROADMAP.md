@@ -25,16 +25,17 @@ Legend: ✅ done · 🔜 next · ⬜ later
 - ⬜ System prompt + duration heuristics; prompt caching on the stable prefix; fix receipt local-time rendering (model occasionally mis-states UTC→local in the prose).
 - Outcome: send a free-text message → get clarifying questions and/or a scheduling receipt.
 
-## Phase 3 — iOS app shell (SwiftUI) 🔜
-- ⬜ Xcode project; Supabase Swift client; auth flow (Sign in with Apple).
-- ⬜ Three screens wired to data: Chat, Timetable (day/week), Profile.
-- ⬜ Profile → Routine editor (work/sleep/meals/commute).
-- Outcome: a logged-in user can see their schedule and edit their routine.
+## Phase 3 — iOS app shell (SwiftUI) ✅ (running in the simulator)
+- ✅ XcodeGen project (`ios/`) + Supabase Swift client; email/password auth (Sign in with Apple deferred to Phase 7 — needs the paid account).
+- ✅ Two main tabs wired to live data — Chat + Timetable (day/week/month) — plus a Profile sheet via the top-right avatar.
+- ✅ First-run onboarding writes the work/sleep routine and sets the profile timezone. (Full routine editor in Profile is read-only for now — next.)
+- Note: PostgREST reads/writes go over URLSession with the session JWT (the SDK's `client.from` didn't reliably attach the token right after sign-in); `/plan` uses the SDK Functions client.
+- Outcome: a logged-in user sees their schedule and the planner writes to it. **Verified live end-to-end in the simulator.**
 
-## Phase 4 — Chat + voice + cards ⬜
-- ⬜ Chat UI calling `/plan`; render the multiple-choice clarifying cards (+ "Other").
-- ⬜ Mic button → on-device Speech-to-text → same `/plan` path.
-- ⬜ Receipts in the thread, tap-through to the affected day.
+## Phase 4 — Chat + voice + cards 🔜 (mostly done)
+- ✅ Chat UI calling `/plan`; renders multiple-choice clarifying cards (+ "Other") and scheduling receipts (local-time formatted).
+- ✅ Mic button + on-device Speech-to-text (`SpeechRecognizer`) feeding the same `/plan` path.
+- 🔜 Receipt tap-through to the affected day; persist the conversation across the ask→answer round trip (currently the client replays `messages`).
 - Outcome: the core loop — talk/dictate → questions → scheduled — works in the app.
 
 ## Phase 5 — Maps & commute ⬜
