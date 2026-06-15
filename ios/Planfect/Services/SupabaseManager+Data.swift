@@ -38,8 +38,33 @@ extension SupabaseManager {
     }
 
     func fetchBlocks() async throws -> [TimeBlock] {
-        let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode&order=start_at")
+        let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode,task_id,tasks(notes)&order=start_at")
         return try JSONDecoder().decode([TimeBlock].self, from: data)
+    }
+
+    func setBlockDone(_ id: UUID, _ done: Bool) async throws {
+        _ = try await rest("PATCH", "time_blocks?id=eq.\(id.uuidString)",
+                           body: try JSONEncoder().encode(["status": done ? "done" : "planned"]), prefer: "return=minimal")
+    }
+
+    func rescheduleBlock(_ id: UUID, start: Date, end: Date) async throws {
+        _ = try await rest("PATCH", "time_blocks?id=eq.\(id.uuidString)",
+                           body: try JSONEncoder().encode(["start_at": start.ISO8601Format(), "end_at": end.ISO8601Format()]),
+                           prefer: "return=minimal")
+    }
+
+    /// Delete a block. If it belongs to a task, delete the task (cascades its commute/buffer blocks too).
+    func deleteBlock(_ block: TimeBlock) async throws {
+        if let taskId = block.task_id {
+            _ = try await rest("DELETE", "tasks?id=eq.\(taskId.uuidString)")
+        } else {
+            _ = try await rest("DELETE", "time_blocks?id=eq.\(block.id.uuidString)")
+        }
+    }
+
+    func setNotes(_ taskId: UUID, _ notes: String) async throws {
+        _ = try await rest("PATCH", "tasks?id=eq.\(taskId.uuidString)",
+                           body: try JSONEncoder().encode(["notes": notes]), prefer: "return=minimal")
     }
 
     func fetchRoutines() async throws -> [Routine] {

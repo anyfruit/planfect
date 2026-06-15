@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02CBD4F151FA45EFA99F3299 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */; };
+		08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */; };
 		0A5C8DAC0FBFA5594A8266E9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07C79F5E50489C2AFF73A95 /* ProfileView.swift */; };
 		2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */; };
 		50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */; };
@@ -29,6 +30,7 @@
 		0016DA3561DE72EB9D6B20CA /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
 		54521C45A418BBBD81C4174E /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
+		63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDetailView.swift; sourceTree = "<group>"; };
 		6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptCardView.swift; sourceTree = "<group>"; };
 		6FCB597B22B7D9B63127A986 /* Planfect.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Planfect.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -77,6 +79,7 @@
 		3E747E2FFC2ED066BBECC301 /* Schedule */ = {
 			isa = PBXGroup;
 			children = (
+				63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */,
 				D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */,
 			);
 			path = Schedule;
@@ -227,6 +230,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */,
+				08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */,
 				C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */,
 				9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */,
 				6579D9C67852BFF7A690D3EA /* Models.swift in Sources */,

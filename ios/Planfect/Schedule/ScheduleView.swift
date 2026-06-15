@@ -21,6 +21,18 @@ final class ScheduleViewModel: ObservableObject {
         catch { self.error = error.localizedDescription }
         loading = false
     }
+
+    func toggleDone(_ block: TimeBlock) async {
+        guard let supa else { return }
+        do { try await supa.setBlockDone(block.id, !block.isDone); await load() }
+        catch { self.error = error.localizedDescription }
+    }
+
+    func delete(_ block: TimeBlock) async {
+        guard let supa else { return }
+        do { try await supa.deleteBlock(block); await load() }
+        catch { self.error = error.localizedDescription }
+    }
 }
 
 struct ScheduleView: View {
@@ -28,6 +40,7 @@ struct ScheduleView: View {
     @StateObject private var vm = ScheduleViewModel()
     @State private var scope: ScheduleScope = .day
     @State private var anchor = Date()
+    @State private var selectedBlock: TimeBlock?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -53,7 +66,16 @@ struct ScheduleView: View {
                 List {
                     ForEach(groups, id: \.day) { group in
                         Section(group.day.formatted(.dateTime.weekday(.wide).month().day())) {
-                            ForEach(group.blocks) { BlockRow(block: $0) }
+                            ForEach(group.blocks) { block in
+                                BlockRow(block: block) { Task { await vm.toggleDone(block) } }
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { selectedBlock = block }
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) { Task { await vm.delete(block) } } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                            }
                         }
                     }
                 }
@@ -63,6 +85,9 @@ struct ScheduleView: View {
         .navigationTitle("Schedule").navigationBarTitleDisplayMode(.inline)
         .onAppear { vm.bind(supa); Task { await vm.load() } }
         .refreshable { await vm.load() }
+        .sheet(item: $selectedBlock) { block in
+            BlockDetailView(block: block) { Task { await vm.load() } }
+        }
     }
 
     private var emptyState: some View {
@@ -123,12 +148,20 @@ struct ScheduleView: View {
 
 private struct BlockRow: View {
     let block: TimeBlock
+    let onToggleDone: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
+            Button(action: onToggleDone) {
+                Image(systemName: block.isDone ? "checkmark.circle.fill" : "circle")
+                    .font(.title3).foregroundStyle(block.isDone ? Color.green : Color.secondary)
+            }
+            .buttonStyle(.plain)
             RoundedRectangle(cornerRadius: 3).fill(color).frame(width: 5, height: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text(block.title).font(.subheadline.weight(.medium)).lineLimit(1)
+                    .strikethrough(block.isDone)
+                    .foregroundStyle(block.isDone ? Color.secondary : Color.primary)
                 Text("\(block.start.formatted(date: .omitted, time: .shortened)) – \(block.end.formatted(date: .omitted, time: .shortened))")
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -139,6 +172,7 @@ private struct BlockRow: View {
                 .background(color.opacity(0.15), in: Capsule())
         }
         .padding(.vertical, 2)
+        .opacity(block.isDone ? 0.6 : 1)
     }
 
     private var color: Color {

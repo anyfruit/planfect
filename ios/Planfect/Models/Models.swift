@@ -10,10 +10,17 @@ struct TimeBlock: Decodable, Identifiable {
     let start_at: String
     let end_at: String
     let transport_mode: String?
+    let task_id: UUID?
+    let tasks: NoteRef?         // embedded task note (PostgREST: tasks(notes))
 
     var start: Date { APIDate.parse(start_at) ?? .distantPast }
     var end: Date { APIDate.parse(end_at) ?? .distantPast }
+    var isDone: Bool { status == "done" }
+    var notes: String { tasks?.notes ?? "" }
+    var durationMin: Int { max(5, Int(end.timeIntervalSince(start) / 60)) }
 }
+
+struct NoteRef: Decodable { let notes: String? }
 
 struct Routine: Decodable, Identifiable {
     let id: UUID

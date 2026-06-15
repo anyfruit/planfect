@@ -29,6 +29,7 @@ export interface PlanContext {
   routines: unknown[];
   locations: unknown[];
   timezone: string;
+  blocks: unknown[];   // upcoming time_blocks, so the planner knows the user's current plans
 }
 
 export async function loadContext(supabase: SupabaseClient, userId: string): Promise<PlanContext> {
@@ -37,10 +38,25 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     supabase.from('locations').select('*').eq('user_id', userId),
     supabase.from('profiles').select('timezone').eq('id', userId).single(),
   ]);
+  const timezone = profile.data?.timezone ?? 'UTC';
+  // Upcoming schedule from the start of today (user's tz) so the planner knows existing plans and
+  // never claims the day is empty when it isn't.
+  const ymd = new Intl.DateTimeFormat('en-CA', {
+    timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date()).split('-').map(Number);
+  const fromUtc = new Date(zonedToUtc({ year: ymd[0], month: ymd[1], day: ymd[2] }, 0, timezone)).toISOString();
+  const { data: blocks } = await supabase
+    .from('time_blocks')
+    .select('title,kind,status,start_at,end_at')
+    .eq('user_id', userId)
+    .gte('start_at', fromUtc)
+    .order('start_at')
+    .limit(100);
   return {
     routines: routines.data ?? [],
     locations: locations.data ?? [],
-    timezone: profile.data?.timezone ?? 'UTC',
+    timezone,
+    blocks: blocks ?? [],
   };
 }
 
@@ -59,6 +75,7 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'Always write your questions, options, and receipts in the SAME language the user wrote in.',
     `Timezone: ${ctx.timezone}.`,
     `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
+    `Already on the user's calendar (their CURRENT plans — never say a day is empty if any fall on it): ${formatBlocks(ctx.blocks, ctx.timezone)}`,
     `Saved locations: ${JSON.stringify(ctx.locations)}`,
     'CRITICAL — do this for EVERY task the user names, not just the examples below: first reason',
     'about when that activity naturally happens for most people, and prefer free time in THAT',
@@ -145,12 +162,15 @@ export function buildHandlers(
       }
     },
     [TOOL_GET_SCHEDULE]: async (args) => {
+      const start = String(args.start ?? '');
+      const endRaw = String(args.end ?? '');
+      const end = endRaw.includes('T') ? endRaw : `${endRaw}T23:59:59.999Z`; // include the whole end day
       const { data } = await supabase
         .from('time_blocks')
-        .select('start_at,end_at,kind,title')
+        .select('start_at,end_at,kind,title,status')
         .eq('user_id', userId)
-        .gte('start_at', String(args.start))
-        .lte('start_at', String(args.end))
+        .gte('start_at', start)
+        .lte('start_at', end)
         .order('start_at');
       return JSON.stringify(data ?? []);
     },
@@ -355,6 +375,19 @@ function toRoutineInputs(rows: unknown[]): RoutineInput[] {
 function timeToMin(t: string): number {
   const [h, m] = String(t ?? '').split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+/** Compact, timezone-local summary of existing blocks for the system prompt. */
+function formatBlocks(blocks: unknown[], tz: string): string {
+  const list = (blocks as Array<Record<string, unknown>>) ?? [];
+  if (!list.length) return 'nothing yet';
+  const span = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+  const endf = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+  return list
+    .map((b) => `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}`)
+    .join('; ');
 }
 
 /** 'YYYY-MM-DD' (or the date part of an ISO datetime) → CalendarDate; null if unparseable. */
