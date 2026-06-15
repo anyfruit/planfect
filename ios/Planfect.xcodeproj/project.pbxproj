@@ -15,6 +15,7 @@
 		5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6660911D238AB2DB9F54CE /* InsightsView.swift */; };
 		50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */; };
 		6579D9C67852BFF7A690D3EA /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0016DA3561DE72EB9D6B20CA /* Models.swift */; };
+		7CEE3FE1F23691C11D2EDC57 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C211D8C7BE8AE1B0523629AD /* Assets.xcassets */; };
 		8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */; };
 		9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */; };
 		970AD175F28E222FCBC2B8BA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 0E4FF856D84138F0AC98C741 /* Supabase */; };
@@ -52,6 +53,7 @@
 		A7B266EB035034732CCE00FD /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		A7DCD96ACADCB82289EE9026 /* TimelineViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViews.swift; sourceTree = "<group>"; };
 		BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
+		C211D8C7BE8AE1B0523629AD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C2B68EB2FABB371E417D0387 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
 		D07C79F5E50489C2AFF73A95 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		D5D3F42E7102085C0772E633 /* RoutineEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutineEditView.swift; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 		6391CDF8CF648A8CE0C2CDDE /* Planfect */ = {
 			isa = PBXGroup;
 			children = (
+				C211D8C7BE8AE1B0523629AD /* Assets.xcassets */,
 				71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */,
 				7A65A8D2769A5EC3F87E06EC /* Auth */,
 				CA4CA4385930BC7B69644F79 /* Chat */,
@@ -206,6 +209,7 @@
 			buildConfigurationList = B7FD5DDAD56907C739F87D07 /* Build configuration list for PBXNativeTarget "Planfect" */;
 			buildPhases = (
 				DFA8C98F10D0F32B776AFB18 /* Sources */,
+				E82F7AD43D20DB66585431F8 /* Resources */,
 				7016690267B9E578ABFDBDA1 /* Frameworks */,
 			);
 			buildRules = (
@@ -255,6 +259,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E82F7AD43D20DB66585431F8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7CEE3FE1F23691C11D2EDC57 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		DFA8C98F10D0F32B776AFB18 /* Sources */ = {
