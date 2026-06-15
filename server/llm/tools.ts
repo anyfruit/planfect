@@ -9,6 +9,7 @@ export const TOOL_ESTIMATE_COMMUTE = 'estimate_commute';
 export const TOOL_GET_SCHEDULE = 'get_schedule';
 export const TOOL_SCHEDULE_TASKS = 'schedule_tasks';
 export const TOOL_UPDATE_TASK = 'update_task';
+export const TOOL_WEB_SEARCH = 'web_search';
 
 // The interrupt tool: when the model calls this, the loop returns the questions to the app
 // (rendered as multiple-choice cards + an "Other" affordance) instead of fulfilling it.
@@ -148,6 +149,27 @@ const updateTask: ToolDef = {
   },
 };
 
+const webSearch: ToolDef = {
+  name: TOOL_WEB_SEARCH,
+  description:
+    'Search the web for a real-world, time-sensitive fact that scheduling depends on — a sports ' +
+    'match/tournament start time, a movie showtime, a concert/event time, a TV or livestream ' +
+    'broadcast time, store opening hours. Use it WHENEVER the user names an external event whose ' +
+    'real time you do not already know, then schedule around the actual time(s) you find. Never ' +
+    "tell the user you can't look things up — call this instead.",
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['query'],
+    properties: {
+      query: {
+        type: 'string',
+        description: 'What to look up, e.g. "VALORANT Masters schedule today match start times".',
+      },
+    },
+  },
+};
+
 export const PLANNER_TOOLS: ToolDef[] = [
   askUserQuestions,
   geocodePlace,
@@ -155,4 +177,5 @@ export const PLANNER_TOOLS: ToolDef[] = [
   getSchedule,
   scheduleTasks,
   updateTask,
+  webSearch,
 ];

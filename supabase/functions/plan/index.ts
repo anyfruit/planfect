@@ -46,7 +46,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       model,
       system: buildSystemPrompt(ctx),
       tools: PLANNER_TOOLS,
-      handlers: buildHandlers(supabase, user.id, ctx, admin),
+      handlers: buildHandlers(supabase, user.id, ctx, admin, Deno.env.get('OPENAI_API_KEY')),
       context: { userId: user.id, conversationId },
       usage: new SupabaseUsageSink(admin),
       maxSteps: 14,

@@ -22,6 +22,7 @@ import {
   TOOL_ESTIMATE_COMMUTE,
   TOOL_GEOCODE_PLACE,
   TOOL_SCHEDULE_TASKS,
+  TOOL_WEB_SEARCH,
 } from '../../../server/llm/tools.ts';
 
 export interface PlanContext {
@@ -77,6 +78,10 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'the soonest day it IS free — e.g. a weekend afternoon for a daytime outing — over cramming it',
     'into an odd hour, and name that day in your confirmation. For a task at a saved location,',
     'estimate_commute and add a commute + buffer.',
+    'If the user names an external event whose real time you do not know — a match / tournament,',
+    'movie showtime, concert, show, livestream, TV broadcast, store hours — call web_search to find',
+    'the actual time(s), then schedule the watching/attending around them. Never say you cannot',
+    'look things up. If the search is inconclusive, say what you found and ask the user for the time.',
     'Be efficient: infer free days from the routine directly (a weekday job means weekends are open) —',
     'call get_schedule at most once, for the day you intend to propose. Do not keep exploring; decide',
     'and ask within a couple of tool calls.',
@@ -88,6 +93,8 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'Keep it to 2–3 options; the app always adds an "Other" free-text choice. After the user confirms, call',
     'schedule_tasks (pass earliest_start = the agreed start time so it lands exactly there), then',
     'reply with a one-line receipt. If the user already gave an exact time, you may schedule directly.',
+    'ALWAYS deliver a proposal or confirmation by calling ask_user_questions (tappable options) —',
+    'never as plain text with bulleted choices, even right after a web_search.',
     'When the user answers "another time", propose a genuinely different option — a different part of',
     'the day or another day — not just a slightly later slot.',
     `Today is ${weekday}, ${ymd} (${ctx.timezone}); resolve relative dates like "this Friday" / "tomorrow" against it.`,
@@ -99,10 +106,39 @@ export function buildHandlers(
   userId: string,
   ctx: PlanContext,
   analytics?: SupabaseClient,
+  searchApiKey?: string,
 ): ToolHandlers {
   const routines = toRoutineInputs(ctx.routines);
   const tz = ctx.timezone;
   return {
+    [TOOL_WEB_SEARCH]: async (args) => {
+      const query = String(args.query ?? '').trim();
+      if (!query || !searchApiKey) return JSON.stringify({ result: 'Web search is unavailable.' });
+      try {
+        const res = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${searchApiKey}` },
+          body: JSON.stringify({
+            model: 'gpt-4.1',
+            tools: [{ type: 'web_search' }],
+            input: `${query}\n\nReply with the concrete date(s) and start time(s) you find, with the source. If you cannot find a reliable time, say so plainly.`,
+            max_output_tokens: 600,
+          }),
+        });
+        const json = (await res.json()) as { output?: Array<Record<string, unknown>>; error?: { message?: string } };
+        if (json.error) return JSON.stringify({ result: `Search error: ${json.error.message ?? 'unknown'}` });
+        const text = (json.output ?? [])
+          .filter((o) => o.type === 'message')
+          .flatMap((o) => ((o.content as Array<Record<string, unknown>>) ?? [])
+            .filter((c) => c.type === 'output_text')
+            .map((c) => String(c.text ?? '')))
+          .join('\n')
+          .trim();
+        return JSON.stringify({ result: text || 'No clear results found.' });
+      } catch (e) {
+        return JSON.stringify({ result: `Search failed: ${(e as Error).message}` });
+      }
+    },
     [TOOL_GET_SCHEDULE]: async (args) => {
       const { data } = await supabase
         .from('time_blocks')
