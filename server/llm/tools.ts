@@ -141,9 +141,16 @@ const scheduleTasks: ToolDef = {
             allow_over_routine: {
               type: 'boolean',
               description:
-                'Place this over a routine block (work / meal / commute) when the user insists on that ' +
-                'time, is taking time off, or the task can only happen then (e.g. a daytime appointment). ' +
-                'Never overrides sleep.',
+                'Place this over a routine block (sleep / work / meal / commute) when the user insists ' +
+                'on that time, is taking time off, or the task can only happen then (e.g. a daytime ' +
+                'appointment, or a confirmed sleep-time task).',
+            },
+            allow_overlap: {
+              type: 'boolean',
+              description:
+                'Allow this to sit CONCURRENTLY with an already-scheduled task instead of finding a ' +
+                'separate free slot — set it (with start_local at that activity\'s time) when the user ' +
+                'wants to do this WHILE doing something else (一边…一边…, "during", "at the same time").',
             },
           },
         },
@@ -154,14 +161,23 @@ const scheduleTasks: ToolDef = {
 
 const updateTask: ToolDef = {
   name: TOOL_UPDATE_TASK,
-  description: 'Modify an existing task/block (reschedule, mark done, change duration).',
+  description:
+    'Modify an EXISTING scheduled task, referenced by the [task:…] id shown in the calendar list: ' +
+    'move it, mark it done, or delete it. Use for "change the time of X", "X is done", "delete X", ' +
+    'or to swap/reorder two items (call once per item with its new start_local).',
   parameters: {
     type: 'object',
     additionalProperties: false,
     required: ['task_id'],
     properties: {
-      task_id: { type: 'string' },
-      changes: { type: 'object', additionalProperties: true },
+      task_id: { type: 'string', description: 'The id from a [task:…] tag in the calendar list.' },
+      changes: {
+        type: 'object',
+        additionalProperties: true,
+        description:
+          "What to change: { start_local: 'HH:MM', date: 'YYYY-MM-DD' } to move it, " +
+          "{ estimated_duration_min: 90 } to resize, { status: 'done' } to complete, { delete: true } to remove.",
+      },
     },
   },
 };

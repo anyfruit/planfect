@@ -22,6 +22,7 @@ import {
   TOOL_ESTIMATE_COMMUTE,
   TOOL_GEOCODE_PLACE,
   TOOL_SCHEDULE_TASKS,
+  TOOL_UPDATE_TASK,
   TOOL_WEB_SEARCH,
   TOOL_SET_ROUTINE,
 } from '../../../server/llm/tools.ts';
@@ -60,7 +61,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
   const fromUtc = new Date(zonedToUtc({ year: ymd[0], month: ymd[1], day: ymd[2] }, 0, timezone)).toISOString();
   const { data: blocks } = await supabase
     .from('time_blocks')
-    .select('title,kind,status,start_at,end_at')
+    .select('title,kind,status,start_at,end_at,task_id')
     .eq('user_id', userId)
     .gte('start_at', fromUtc)
     .order('start_at')
@@ -144,6 +145,19 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'Be efficient: infer free days from the routine directly (a weekday job means weekends are open) —',
     'call get_schedule at most once, for the day you intend to propose. Do not keep exploring; decide',
     'and ask within a couple of tool calls.',
+    'CONCURRENT activities: if the user wants to do one thing WHILE doing another (一边…一边…, "during",',
+    '"at the same time as X", "while I watch the match"), do NOT find a separate free slot — schedule it',
+    'at the SAME time as that activity: set start_local to that activity\'s start time and allow_overlap=true',
+    'so the two sit on top of each other.',
+    'EDITING existing plans: to move, resize, complete, or delete something already on the calendar, call',
+    'update_task with its id (shown as [task:UUID] in the calendar list above) and the changes — e.g.',
+    '{start_local:"14:00"} or {date:"2026-06-17"} to move it, {status:"done"}, {delete:true}. To SWAP or',
+    'reorder two items, call update_task once for each with its new start_local. Do not delete-and-recreate',
+    'when a simple move works.',
+    'NEVER expose internal mechanics to the user: do not mention tool names, task ids / task_id, UUIDs,',
+    '"the system", "no task_id", JSON, or how scheduling works. Those [task:…] ids are for your tool calls',
+    'ONLY. Talk like a friend about the plan itself (titles, times, days) — if something cannot be done,',
+    'say so plainly in human terms and offer a next step, never a technical explanation.',
     'PROPOSE then confirm — this is the core interaction. When you have ASSUMED any of {time, day,',
     'duration}, do NOT schedule yet. First call ask_user_questions with ONE short confirmation that',
     'names the concrete slot you picked. Every option needs a short description, e.g. header',
@@ -232,7 +246,7 @@ export function buildHandlers(
       const end = endRaw.includes('T') ? endRaw : `${endRaw}T23:59:59.999Z`; // include the whole end day
       const { data } = await supabase
         .from('time_blocks')
-        .select('start_at,end_at,kind,title,status')
+        .select('start_at,end_at,kind,title,status,task_id')
         .eq('user_id', userId)
         .gte('start_at', start)
         .lte('start_at', end)
@@ -266,6 +280,48 @@ export function buildHandlers(
         if (!row.days_of_week) row.days_of_week = [0, 1, 2, 3, 4, 5, 6];
         await supabase.from('routines').insert(row);
         return JSON.stringify({ ok: true, action: 'added' });
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: (e as Error).message });
+      }
+    },
+
+    // Edit an EXISTING task (referenced by the [task:…] id shown in the calendar list): move it,
+    // mark it done, or delete it. Used for "change the time of X", "X is done", "swap X and Y".
+    [TOOL_UPDATE_TASK]: async (args) => {
+      const taskId = String(args.task_id ?? '').trim();
+      const changes = (args.changes ?? {}) as Record<string, unknown>;
+      if (!taskId) return JSON.stringify({ ok: false, error: 'missing task_id' });
+      try {
+        if (changes.delete === true || changes.status === 'cancelled') {
+          await supabase.from('tasks').delete().eq('id', taskId);   // cascades its time_blocks
+          return JSON.stringify({ ok: true, action: 'deleted' });
+        }
+        if (typeof changes.status === 'string') {
+          const status = changes.status === 'done' ? 'done' : 'planned';
+          await supabase.from('time_blocks').update({ status }).eq('task_id', taskId);
+          await supabase.from('tasks').update({ status: changes.status }).eq('id', taskId);
+          if (!changes.date && !changes.start_local) return JSON.stringify({ ok: true, action: 'status', status });
+        }
+        if (changes.start_local || changes.date || changes.estimated_duration_min) {
+          const { data: blocks } = await supabase
+            .from('time_blocks').select('id,kind,start_at,end_at').eq('task_id', taskId).order('start_at');
+          const main = (blocks ?? []).find((b) => b.kind === 'task') ?? (blocks ?? [])[0];
+          if (!main) return JSON.stringify({ ok: false, error: 'task has no blocks' });
+          const cur = localParts(Date.parse(String(main.start_at)), tz);
+          const durMin = changes.estimated_duration_min
+            ? Number(changes.estimated_duration_min)
+            : Math.round((Date.parse(String(main.end_at)) - Date.parse(String(main.start_at))) / 60_000);
+          const date = changes.date ? parseDate(String(changes.date)) : cur.date;
+          if (!date) return JSON.stringify({ ok: false, error: 'invalid date' });
+          const startMin = changes.start_local ? timeToMin(String(changes.start_local)) : cur.minutes;
+          const newStart = zonedToUtc(date, startMin, tz);
+          const newEnd = newStart + durMin * 60_000;
+          await supabase.from('time_blocks').update({
+            start_at: new Date(newStart).toISOString(), end_at: new Date(newEnd).toISOString(),
+          }).eq('id', main.id);
+          return JSON.stringify({ ok: true, action: 'rescheduled', start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString() });
+        }
+        return JSON.stringify({ ok: true, action: 'noop' });
       } catch (e) {
         return JSON.stringify({ ok: false, error: (e as Error).message });
       }
@@ -343,11 +399,14 @@ export function buildHandlers(
         // window. When overriding routine we only avoid other already-booked tasks. The agent is
         // responsible for confirming a sleep-time placement with the user first.
         const pinned = !!t.start_local;
+        const overlap = t.allow_overlap === true;
         const overRoutine = t.allow_over_routine === true || pinned;
         const window = pinned
           ? [{ start: zonedToUtc(date, 0, tz), end: zonedToUtc(date, 28 * 60, tz) }]
           : availability;
-        const blocking = overRoutine ? dayBusy : [...busy, ...dayBusy];
+        // allow_overlap = the user wants this concurrently with another activity (一边…一边…),
+        // so don't treat existing tasks as conflicts — just drop it at the requested time.
+        const blocking = overlap ? [] : (overRoutine ? dayBusy : [...busy, ...dayBusy]);
 
         const placement = scheduleTask(window, blocking, {
           durationMin,
@@ -494,6 +553,7 @@ interface ScheduleTaskArg {
   earliest_start?: string; // ISO-8601
   deadline?: string;       // ISO-8601
   allow_over_routine?: boolean;
+  allow_overlap?: boolean;
 }
 
 interface ScheduledItem {
@@ -535,6 +595,17 @@ function parseWhen(s: unknown, tz: string): number | undefined {
   return Date.parse(v);   // date-only or unrecognized → best effort
 }
 
+/** Local Y-M-D and minutes-from-midnight of a UTC instant, in the given tz. */
+function localParts(ms: number, tz: string): { date: CalendarDate; minutes: number } {
+  const p = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  }).formatToParts(new Date(ms));
+  const m: Record<string, number> = {};
+  for (const x of p) if (x.type !== 'literal') m[x.type] = Number(x.value);
+  return { date: { year: m.year, month: m.month, day: m.day }, minutes: m.hour * 60 + m.minute };
+}
+
 /** Compact, timezone-local summary of existing blocks for the system prompt. */
 function formatBlocks(blocks: unknown[], tz: string): string {
   const list = (blocks as Array<Record<string, unknown>>) ?? [];
@@ -544,7 +615,10 @@ function formatBlocks(blocks: unknown[], tz: string): string {
   });
   const endf = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
   return list
-    .map((b) => `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}`)
+    .map((b) => {
+      const id = b.task_id ? ` [task:${String(b.task_id)}]` : '';
+      return `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}${id}`;
+    })
     .join('; ');
 }
 

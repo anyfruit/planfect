@@ -36,6 +36,7 @@ struct QuestionCardView: View {
         .padding(16)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
         .opacity(submitted ? 0.6 : 1)
+        .disabled(submitted)   // once sent, lock the whole card (no more editing the Other field / options)
     }
 
     private func isPicked(_ q: PlanQuestion, _ label: String) -> Bool { picked[q.id]?.contains(label) ?? false }
