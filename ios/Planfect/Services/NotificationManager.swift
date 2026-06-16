@@ -8,9 +8,25 @@ import UserNotifications
 /// requests and re-adds the soonest ones, so a done/deleted/rescheduled block never leaves a
 /// stale buzz behind. Local-only — needs no push entitlement or Apple Developer account.
 @MainActor
-final class NotificationManager {
+final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationManager()
-    private init() {}
+    private override init() {
+        super.init()
+        center.delegate = self
+        registerCategories()
+    }
+
+    private static let taskCategory = "PLANFECT_TASK"       // Mark done + Snooze
+    private static let commuteCategory = "PLANFECT_COMMUTE" // Snooze only
+
+    private func registerCategories() {
+        let done = UNNotificationAction(identifier: "DONE", title: "Mark done", options: [])
+        let snooze = UNNotificationAction(identifier: "SNOOZE", title: "Snooze 10 min", options: [])
+        center.setNotificationCategories([
+            UNNotificationCategory(identifier: Self.taskCategory, actions: [done, snooze], intentIdentifiers: [], options: []),
+            UNNotificationCategory(identifier: Self.commuteCategory, actions: [snooze], intentIdentifiers: [], options: []),
+        ])
+    }
 
     // Settings live in UserDefaults so Profile (@AppStorage) and this manager share one source.
     static let enabledKey = "planfect.remindersEnabled"
@@ -90,6 +106,7 @@ final class NotificationManager {
             fire = b.start
             content.title = "🚗 Time to head out"
             content.body = b.title.isEmpty ? "Your commute starts now." : b.title
+            content.categoryIdentifier = Self.commuteCategory
 
         case "task":
             guard b.start > now else { return nil }
@@ -99,6 +116,7 @@ final class NotificationManager {
             let focusStyle = ["work", "focus", "learning"].contains(key)
             content.title = focusStyle ? "🎯 \(TaskCategory.of(b).label) time" : "⏰ Up next"
             content.body = "\(b.title) · \(b.start.formatted(date: .omitted, time: .shortened))"
+            content.categoryIdentifier = Self.taskCategory
 
         default:
             return nil   // routine / buffer blocks don't nudge
@@ -108,5 +126,36 @@ final class NotificationManager {
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
         let req = UNNotificationRequest(identifier: "blk-\(b.id.uuidString)", content: content, trigger: trigger)
         return (fire, req)
+    }
+
+    // MARK: - Action handling (Mark done / Snooze straight from the notification)
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            willPresent notification: UNNotification) async
+    -> UNNotificationPresentationOptions { [.banner, .sound] }
+
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            didReceive response: UNNotificationResponse) async {
+        let id = response.notification.request.identifier
+        let action = response.actionIdentifier
+        let content = response.notification.request.content
+        await handle(action: action, id: id, content: content)
+    }
+
+    private func handle(action: String, id: String, content: UNNotificationContent) async {
+        guard id.hasPrefix("blk-") else { return }
+        switch action {
+        case "DONE":
+            if let uuid = UUID(uuidString: String(id.dropFirst(4).prefix(36))) {
+                try? await SupabaseManager.shared.setBlockDone(uuid, true)
+                if let blocks = try? await SupabaseManager.shared.fetchBlocks() { await reschedule(for: blocks) }
+            }
+        case "SNOOZE":
+            let copy = (content.mutableCopy() as? UNMutableNotificationContent) ?? UNMutableNotificationContent()
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 600, repeats: false)   // +10 min
+            try? await center.add(UNNotificationRequest(identifier: id + "-snooze", content: copy, trigger: trigger))
+        default:
+            break   // default tap → just opens the app
+        }
     }
 }

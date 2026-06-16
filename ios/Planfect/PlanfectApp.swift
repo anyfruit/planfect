@@ -26,7 +26,10 @@ struct PlanfectApp: App {
             RootView()
                 .environmentObject(supa)
                 .environmentObject(router)
-                .task { await supa.start() }
+                .task {
+                    _ = NotificationManager.shared   // sets the notification delegate so actions work at launch
+                    await supa.start()
+                }
         }
     }
 }
