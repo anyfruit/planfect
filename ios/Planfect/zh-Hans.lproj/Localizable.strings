@@ -1,0 +1,131 @@
+/* Planfect — Simplified Chinese UI. SwiftUI auto-localizes Text/Label/Button/navigationTitle keys. */
+
+/* Tabs + nav */
+"Chat" = "对话";
+"Schedule" = "日程";
+"Insights" = "分析";
+"Profile" = "我的";
+"Edit" = "编辑";
+
+/* Chat */
+"What's on your plate?" = "最近有什么要安排的?";
+"“Dentist Friday afternoon, groceries this weekend, finish the report this week.”\nI'll fit it around your routine and travel time — and ask if I'm unsure." = "「周五下午看牙、周末买菜、这周写完报告。」\n我会按你的作息和路上时间帮你安排好——拿不准就问你一句。";
+"Tell me a plan…" = "说个安排吧…";
+"Planning…" = "安排中…";
+"Voice input" = "语音输入";
+"OK" = "好";
+"Open Settings" = "打开设置";
+"Send answer" = "发送";
+"Sent" = "已发送";
+"Other…" = "其他…";
+"Type your answer" = "输入你的回答";
+"Quick question" = "问一下";
+
+/* Receipt */
+"Scheduled" = "已安排";
+"Tap to view & edit in your schedule" = "点这里在日程里查看和编辑";
+
+/* Schedule */
+"Day" = "日";
+"Week" = "周";
+"Month" = "月";
+"Nothing scheduled" = "暂无安排";
+"Tell Planfect a plan in Chat and it'll show up here." = "在对话里告诉 Planfect 一个安排,这里就会出现。";
+"Delete" = "删除";
+
+/* Block detail */
+"Title" = "标题";
+"Done" = "完成";
+"Time" = "时间";
+"Starts" = "开始";
+"Duration: %lld min" = "时长:%lld 分钟";
+"Notes" = "备注";
+"Add a note" = "加个备注";
+"Cancel" = "取消";
+"Save" = "保存";
+
+/* Insights */
+"By category" = "按类别";
+"total" = "合计";
+"planned" = "已计划";
+"tasks done" = "完成任务";
+"most time" = "占时最多";
+"Each day this week" = "本周每天";
+"Across the month" = "整月分布";
+"Nothing to chart yet" = "还没有可统计的数据";
+"Plan a few things and come back — you'll see where your time goes." = "先安排几件事再回来,就能看到时间都去哪了。";
+"AI analysis" = "AI 分析";
+"Analyze with AI" = "用 AI 分析";
+"Get a quick read of where your time goes — and a couple of gentle suggestions." = "快速看看你的时间都花在哪,顺便给两条温和的小建议。";
+"Reading your schedule…" = "正在分析你的日程…";
+
+/* Profile */
+"Planfect account" = "Planfect 账户";
+"Your routine" = "你的作息";
+"Add to routine" = "添加到作息";
+"Tap to edit times or days. You can also just tell the assistant in chat." = "点击编辑时间或星期,也可以直接在对话里告诉助手。";
+"Places" = "地点";
+"Planfect uses these to estimate real travel time to places you schedule." = "Planfect 用这些来估算去各地的真实通勤时间。";
+"Planfect has learned" = "Planfect 已学到";
+"Habits Planfect applies to every plan. Swipe to forget any, or add your own." = "Planfect 每次安排都会参考这些习惯。左滑可忘掉,也能自己添加。";
+"Nothing yet — as you plan, Planfect notes your habits here (e.g. \"workouts in the morning\") and applies them." = "暂时还没有 —— 你安排东西时,Planfect 会把你的习惯记在这里(比如「健身放早上」)并应用。";
+"Forget" = "忘掉";
+"Add a preference" = "添加一条偏好";
+"e.g. Workouts in the morning" = "例如:健身放在早上";
+"Planfect will apply this to your future plans." = "Planfect 会在以后的安排里应用这条。";
+"Reminders" = "提醒";
+"A nudge when it's time to head out, and before each task begins." = "该出发时、以及每件事开始前提醒你一下。";
+"Voice input" = "语音输入";
+"Language" = "语言";
+"Auto (device)" = "自动(跟随设备)";
+"Sync with Apple Calendar" = "同步 Apple 日历";
+"Plan around your real calendar events, and add Planfect's plans to your calendar." = "围绕你日历里的真实事件来安排,并把 Planfect 的计划加进你的日历。";
+"Settings" = "设置";
+"Timezone" = "时区";
+"Locations & maps — coming soon" = "地点与地图 — 即将推出";
+"Sign out" = "退出登录";
+
+/* Routine editor */
+"Home" = "家";
+"Work" = "公司";
+"Add" = "添加";
+
+/* Address fields */
+"Start typing and pick a suggestion so Planfect resolves the exact place for travel-time estimates." = "开始输入并选择候选地址,Planfect 才能精确定位用于通勤估算。";
+
+/* Category labels (shown on schedule pills + insights legend) */
+"Work" = "工作";
+"Focus" = "专注";
+"Fitness" = "健身";
+"Meal" = "用餐";
+"Social" = "社交";
+"Errand" = "杂事";
+"Leisure" = "休闲";
+"Health" = "健康";
+"Learning" = "学习";
+"Chore" = "家务";
+"Travel" = "出行";
+"Task" = "任务";
+"Commute" = "通勤";
+"Buffer" = "缓冲";
+"Routine" = "作息";
+
+/* Routine labels (from onboarding data) */
+"Sleep" = "睡眠";
+"Breakfast" = "早餐";
+"Lunch" = "午餐";
+"Dinner" = "晚餐";
+"Commute to work" = "通勤(去)";
+"Commute home" = "通勤(回)";
+
+/* Day-of-week summaries */
+"Every day" = "每天";
+"Weekdays" = "工作日";
+"Weekends" = "周末";
+
+/* Auth */
+"Sign in" = "登录";
+"Create account" = "注册";
+"Email" = "邮箱";
+"Password" = "密码";
+"Tell it your plans. It builds your day." = "告诉它你的计划,它帮你安排好一天。";

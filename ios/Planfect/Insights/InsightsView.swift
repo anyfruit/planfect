@@ -56,7 +56,7 @@ struct InsightsView: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("Scope", selection: $scope) {
-                ForEach(ScheduleScope.allCases) { Text($0.rawValue).tag($0) }
+                ForEach(ScheduleScope.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
             }
             .pickerStyle(.segmented).padding([.horizontal, .top])
 
@@ -125,7 +125,7 @@ struct InsightsView: View {
                 }
             }
             if analyzing {
-                HStack(spacing: 8) { ProgressView(); Text("Reading your \(scope.rawValue.lowercased())…").font(.callout).foregroundStyle(.secondary) }
+                HStack(spacing: 8) { ProgressView(); Text("Reading your schedule…").font(.callout).foregroundStyle(.secondary) }
             } else if let analysis, !analysis.isEmpty {
                 Text(analysis).font(.callout).textSelection(.enabled)
             } else {
@@ -194,7 +194,7 @@ struct InsightsView: View {
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
     }
 
-    private func metric(value: String, label: String, system: String, tint: Color) -> some View {
+    private func metric(value: String, label: LocalizedStringKey, system: String, tint: Color) -> some View {
         VStack(spacing: 3) {
             Image(systemName: system).foregroundStyle(tint).font(.subheadline)
             Text(value).font(.callout.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
@@ -223,7 +223,7 @@ struct InsightsView: View {
                 ForEach(stats) { s in
                     HStack(spacing: 6) {
                         Circle().fill(s.color).frame(width: 9, height: 9)
-                        Text(s.label).font(.caption).lineLimit(1)
+                        Text(LocalizedStringKey(s.label)).font(.caption).lineLimit(1)
                         Spacer(minLength: 4)
                         Text(hm(s.minutes)).font(.caption.weight(.medium)).foregroundStyle(.secondary)
                     }
@@ -315,7 +315,7 @@ struct InsightsView: View {
     private var totalMinutes: Int { stats.reduce(0) { $0 + $1.minutes } }
     private var taskCount: Int { rangeBlocks.filter { $0.kind == "task" }.count }
     private var doneCount: Int { rangeBlocks.filter { $0.kind == "task" && $0.isDone }.count }
-    private var topLabel: String { stats.first?.label ?? "—" }
+    private var topLabel: String { stats.first.map { NSLocalizedString($0.label, comment: "") } ?? "—" }
 
     // MARK: - Period nav
 

@@ -1,0 +1,2 @@
+/* Base English strings live inline in the views (the keys ARE the English text);
+   this file declares English as a supported localization. */

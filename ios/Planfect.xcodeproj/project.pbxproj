@@ -16,6 +16,7 @@
 		50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */; };
 		6579D9C67852BFF7A690D3EA /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0016DA3561DE72EB9D6B20CA /* Models.swift */; };
 		7CEE3FE1F23691C11D2EDC57 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C211D8C7BE8AE1B0523629AD /* Assets.xcassets */; };
+		861E9736F45EDE9BDA117AAB /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = F52D82E7FBC6225B9446F7B2 /* Localizable.strings */; };
 		8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */; };
 		9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */; };
 		970AD175F28E222FCBC2B8BA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 0E4FF856D84138F0AC98C741 /* Supabase */; };
@@ -39,6 +40,7 @@
 /* Begin PBXFileReference section */
 		0016DA3561DE72EB9D6B20CA /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		00FD91C910A6A8E14E0D4148 /* CalendarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarManager.swift; sourceTree = "<group>"; };
+		0E22D74302E20B73680756E3 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressEditView.swift; sourceTree = "<group>"; };
 		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
 		54521C45A418BBBD81C4174E /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
@@ -46,7 +48,7 @@
 		63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDetailView.swift; sourceTree = "<group>"; };
 		6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptCardView.swift; sourceTree = "<group>"; };
-		6FCB597B22B7D9B63127A986 /* Planfect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Planfect.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6FCB597B22B7D9B63127A986 /* Planfect.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Planfect.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		70C02298574E621578D70481 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanfectApp.swift; sourceTree = "<group>"; };
 		730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SupabaseManager+Data.swift"; sourceTree = "<group>"; };
@@ -62,6 +64,7 @@
 		D07C79F5E50489C2AFF73A95 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		D5D3F42E7102085C0772E633 /* RoutineEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutineEditView.swift; sourceTree = "<group>"; };
 		D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
+		D9FFF281F388CD334A609B27 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
 		FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -128,6 +131,7 @@
 				CA4CA4385930BC7B69644F79 /* Chat */,
 				56EAA38340066614DC7CFAF5 /* Config */,
 				6BF3221DBB463B927ECE0F3B /* Insights */,
+				F52D82E7FBC6225B9446F7B2 /* Localizable.strings */,
 				8AB02D0E40C697C9F765A83E /* Models */,
 				AE1D94631E9CD7B3F31B2D90 /* Onboarding */,
 				F658456C2F8464443D81E877 /* Profile */,
@@ -250,6 +254,7 @@
 			knownRegions = (
 				Base,
 				en,
+				"zh-Hans",
 			);
 			mainGroup = ACCC200A2BACFFEA9A8C6FA2;
 			minimizedProjectReferenceProxies = 1;
@@ -272,6 +277,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7CEE3FE1F23691C11D2EDC57 /* Assets.xcassets in Resources */,
+				861E9736F45EDE9BDA117AAB /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -312,6 +318,18 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXVariantGroup section */
+		F52D82E7FBC6225B9446F7B2 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				0E22D74302E20B73680756E3 /* en */,
+				D9FFF281F388CD334A609B27 /* zh-Hans */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
 		0871C853165B752FF20F2511 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -319,7 +337,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9K59GFVLS5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Planfect reads your calendar to schedule around real events, and adds the plans it makes back to your calendar.";
@@ -405,7 +422,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 9K59GFVLS5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Planfect reads your calendar to schedule around real events, and adds the plans it makes back to your calendar.";

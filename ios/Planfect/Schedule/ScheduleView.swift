@@ -49,7 +49,7 @@ struct ScheduleView: View {
     var body: some View {
         VStack(spacing: 0) {
             Picker("Scope", selection: $scope) {
-                ForEach(ScheduleScope.allCases) { Text($0.rawValue).tag($0) }
+                ForEach(ScheduleScope.allCases) { Text(LocalizedStringKey($0.rawValue)).tag($0) }
             }
             .pickerStyle(.segmented).padding([.horizontal, .top])
 
@@ -203,7 +203,7 @@ private struct BlockRow: View {
             Spacer()
             HStack(spacing: 3) {
                 Image(systemName: cat.icon)
-                Text(cat.label)
+                Text(LocalizedStringKey(cat.label))
             }
             .font(.caption2).foregroundStyle(cat.color)
             .padding(.horizontal, 7).padding(.vertical, 3)

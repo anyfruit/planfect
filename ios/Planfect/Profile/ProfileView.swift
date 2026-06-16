@@ -40,8 +40,8 @@ struct ProfileView: View {
                             HStack(spacing: 10) {
                                 Image(systemName: icon(r.kind)).foregroundStyle(.secondary).frame(width: 22)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(r.label).foregroundStyle(.primary)
-                                    Text(daysLabel(r.days_of_week)).font(.caption).foregroundStyle(.secondary)
+                                    Text(LocalizedStringKey(r.label)).foregroundStyle(.primary)
+                                    Text(LocalizedStringKey(daysLabel(r.days_of_week))).font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer()
                                 Text("\(hhmm(r.start_time))–\(hhmm(r.end_time))")
@@ -185,13 +185,13 @@ struct ProfileView: View {
     }
 
     @ViewBuilder
-    private func placeRow(_ label: String, systemImage: String, value: String, action: @escaping () -> Void) -> some View {
+    private func placeRow(_ label: LocalizedStringKey, systemImage: String, value: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: systemImage).foregroundStyle(.secondary).frame(width: 22)
                 Text(label).foregroundStyle(.primary)
                 Spacer()
-                Text(value.isEmpty ? "Add" : value)
+                (value.isEmpty ? Text("Add") : Text(value))
                     .foregroundStyle(value.isEmpty ? Color.accentColor : .secondary)
                     .lineLimit(1).truncationMode(.tail).frame(maxWidth: 170, alignment: .trailing)
                 Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
