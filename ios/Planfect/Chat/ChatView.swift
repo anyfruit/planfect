@@ -230,25 +230,44 @@ struct ChatView: View {
     }
 
     private var inputBar: some View {
-        HStack(spacing: 10) {
-            Button { speech.toggle() } label: {
-                Image(systemName: speech.isRecording ? "stop.circle.fill" : "mic.fill")
-                    .font(.title2).foregroundStyle(speech.isRecording ? Color.red : Color.accentColor)
+        let canSend = !vm.input.trimmingCharacters(in: .whitespaces).isEmpty && !vm.sending
+        return HStack(spacing: 9) {
+            HStack(spacing: 8) {
+                Button { speech.toggle() } label: {
+                    Image(systemName: speech.isRecording ? "stop.circle.fill" : "mic.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(speech.isRecording ? Color.red : Color.secondary)
+                        .symbolEffect(.bounce, value: speech.isRecording)
+                }
+                TextField("Tell me a plan…", text: $vm.input, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .lineLimit(1...4)
+                    .focused($inputFocused)
             }
-            TextField("Tell me a plan…", text: $vm.input, axis: .vertical)
-                .lineLimit(1...4)
-                .textFieldStyle(.roundedBorder)
-                .focused($inputFocused)
+            .padding(.leading, 14).padding(.trailing, 12).padding(.vertical, 9)
+            .background(Color(.secondarySystemBackground), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
+
             Button {
                 inputFocused = false
                 if speech.isRecording { speech.stop() }
                 vm.send()
             } label: {
-                Image(systemName: "arrow.up.circle.fill").font(.title)
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(
+                        canSend
+                            ? AnyShapeStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .top, endPoint: .bottom))
+                            : AnyShapeStyle(Color(.systemGray4)),
+                        in: Circle()
+                    )
             }
-            .disabled(vm.input.trimmingCharacters(in: .whitespaces).isEmpty || vm.sending)
+            .disabled(!canSend)
+            .animation(.easeInOut(duration: 0.15), value: canSend)
         }
-        .padding(.horizontal).padding(.vertical, 8)
+        .padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 6)
         .background(.bar)
     }
 }

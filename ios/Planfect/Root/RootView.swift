@@ -21,5 +21,7 @@ struct RootView: View {
         .animation(.default, value: supa.session?.user.id)
         .animation(.default, value: supa.needsOnboarding)
         .animation(.default, value: supa.bootstrapping)
+        .fontDesign(.rounded)   // one brand typeface across the whole app
+        .tint(.accentColor)
     }
 }
