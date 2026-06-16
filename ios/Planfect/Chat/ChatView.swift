@@ -176,7 +176,15 @@ struct ChatView: View {
                             ChatRow(item: item, onAnswer: vm.answer)
                         }
                         if vm.sending {
-                            HStack(spacing: 8) { ProgressView(); Text("Planning…").foregroundStyle(.secondary).font(.footnote) }
+                            HStack(alignment: .top, spacing: 8) {
+                                BotAvatar()
+                                HStack(spacing: 8) {
+                                    ProgressView().controlSize(.small)
+                                    Text("Planning…").foregroundStyle(.secondary).font(.system(.footnote, design: .rounded))
+                                }
+                                .padding(.horizontal, 14).padding(.vertical, 10)
+                                .background(Color(.secondarySystemBackground), in: Capsule())
+                            }
                         }
                         Color.clear.frame(height: 1).id("bottom")
                     }
@@ -189,6 +197,15 @@ struct ChatView: View {
         }
         .navigationTitle("Planfect")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                HStack(spacing: 5) {
+                    Image(systemName: "sparkles").font(.footnote.weight(.bold))
+                    Text("Planfect").font(.system(.headline, design: .rounded).weight(.heavy))
+                }
+                .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .leading, endPoint: .trailing))
+            }
+        }
         .onAppear {
             vm.bind(supa)
             #if DEBUG
@@ -239,8 +256,9 @@ struct ChatView: View {
 private struct EmptyChat: View {
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(.tint)
-            Text("What's on your plate?").font(.headline)
+            Image(systemName: "sparkles").font(.largeTitle)
+                .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .top, endPoint: .bottom))
+            Text("What's on your plate?").font(.system(.headline, design: .rounded).weight(.semibold))
             Text("“Dentist Friday afternoon, groceries this weekend, finish the report this week.”\nI'll fit it around your routine and travel time — and ask if I'm unsure.")
                 .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }
@@ -287,13 +305,32 @@ private struct Bubble: View {
     let mine: Bool
     var body: some View {
         HStack {
-            if mine { Spacer(minLength: 40) }
-            Text(text)
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(mine ? Color.accentColor : Color(.secondarySystemBackground),
-                            in: RoundedRectangle(cornerRadius: 18))
-                .foregroundStyle(mine ? Color.white : Color.primary)
-            if !mine { Spacer(minLength: 40) }
+            if mine { Spacer(minLength: 44) }
+            Text(Self.markdown(text))
+                .font(.system(.body, design: .rounded))
+                .lineSpacing(3.5)
+                .tint(mine ? .white : .accentColor)   // links/inline accents legible on the gradient
+                .padding(.horizontal, 15).padding(.vertical, 11)
+                .foregroundStyle(mine ? .white : .primary)
+                .background {
+                    if mine {
+                        LinearGradient(colors: [.accentColor, .purple],
+                                       startPoint: .topLeading, endPoint: .bottomTrailing)
+                    } else {
+                        Color(.secondarySystemBackground)
+                    }
+                }
+                .clipShape(.rect(topLeadingRadius: 20, bottomLeadingRadius: mine ? 20 : 7,
+                                 bottomTrailingRadius: mine ? 7 : 20, topTrailingRadius: 20))
+                .shadow(color: .black.opacity(mine ? 0.14 : 0.05), radius: 5, y: 2)
+            if !mine { Spacer(minLength: 44) }
         }
+    }
+
+    /// Render the assistant's markdown (**bold**, *italic*, lists) — a runtime String otherwise
+    /// shows the literal asterisks. Preserve newlines so bullet lists keep their layout.
+    static func markdown(_ s: String) -> AttributedString {
+        (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+            ?? AttributedString(s)
     }
 }
