@@ -2,39 +2,51 @@ import SwiftUI
 
 struct AuthView: View {
     @EnvironmentObject var supa: SupabaseManager
-    @State private var email = "test@planfect.dev"
+    @State private var email = ""
     @State private var password = ""
     @State private var isSignUp = false
     @State private var error: String?
     @State private var loading = false
 
-    var body: some View {
-        VStack(spacing: 22) {
-            Spacer()
-            VStack(spacing: 8) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 52)).foregroundStyle(.tint)
-                Text("Planfect").font(.largeTitle.bold())
-                Text("Tell it your plans. It builds your day.")
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
+    private var brand: LinearGradient {
+        LinearGradient(colors: [.accentColor, .purple], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+    private var canSubmit: Bool { !loading && !email.isEmpty && password.count >= 6 }
 
-            Picker("", selection: $isSignUp) {
+    var body: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            VStack(spacing: 14) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 34, weight: .bold)).foregroundStyle(.white)
+                    .frame(width: 84, height: 84)
+                    .background(brand, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .shadow(color: .accentColor.opacity(0.3), radius: 16, y: 8)
+                Text("Planfect")
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
+                    .foregroundStyle(brand)
+                Text("Tell it your plans. It builds your day.")
+                    .font(.system(.subheadline, design: .rounded)).foregroundStyle(.secondary)
+            }
+            .padding(.bottom, 6)
+
+            Picker("", selection: $isSignUp.animation()) {
                 Text("Sign in").tag(false)
                 Text("Create account").tag(true)
             }
             .pickerStyle(.segmented)
 
             VStack(spacing: 12) {
-                TextField("Email", text: $email)
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                SecureField("Password", text: $password)
-                    .textContentType(isSignUp ? .newPassword : .password)
+                field {
+                    TextField("Email", text: $email)
+                        .textContentType(.emailAddress).keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                }
+                field {
+                    SecureField("Password", text: $password)
+                        .textContentType(isSignUp ? .newPassword : .password)
+                }
             }
-            .textFieldStyle(.roundedBorder)
 
             if let error {
                 Text(error).font(.footnote).foregroundStyle(.red)
@@ -43,17 +55,26 @@ struct AuthView: View {
 
             Button(action: submit) {
                 Group {
-                    if loading { ProgressView() }
+                    if loading { ProgressView().tint(.white) }
                     else { Text(isSignUp ? "Create account" : "Sign in").bold() }
                 }
-                .frame(maxWidth: .infinity).frame(height: 24)
+                .frame(maxWidth: .infinity).frame(height: 26)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(loading || email.isEmpty || password.count < 6)
+            .foregroundStyle(.white).padding(.vertical, 6)
+            .background(canSubmit ? AnyShapeStyle(brand) : AnyShapeStyle(Color(.systemGray4)), in: Capsule())
+            .disabled(!canSubmit)
+            .animation(.easeInOut(duration: 0.15), value: canSubmit)
 
-            Spacer()
+            Spacer(); Spacer()
         }
         .padding(28)
+        .fontDesign(.rounded)
+    }
+
+    private func field<V: View>(@ViewBuilder _ content: () -> V) -> some View {
+        content()
+            .padding(.horizontal, 14).padding(.vertical, 13)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private func submit() {

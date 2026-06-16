@@ -264,7 +264,8 @@ struct InsightsView: View {
     private var emptyState: some View {
         VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "chart.pie").font(.largeTitle).foregroundStyle(.secondary)
+            Image(systemName: "chart.pie").font(.largeTitle)
+                .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .top, endPoint: .bottom))
             Text("Nothing to chart yet").font(.headline)
             Text("Plan a few things and come back — you'll see where your time goes.")
                 .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)

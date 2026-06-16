@@ -132,7 +132,8 @@ struct ScheduleView: View {
     private var emptyDay: some View {
         VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "calendar.day.timeline.left").font(.largeTitle).foregroundStyle(.secondary)
+            Image(systemName: "calendar.day.timeline.left").font(.largeTitle)
+                .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .top, endPoint: .bottom))
             Text("Nothing scheduled").font(.headline)
             Text("Tell Planfect a plan in Chat and it'll show up here.")
                 .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
