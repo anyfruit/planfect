@@ -123,6 +123,27 @@
 "Weekdays" = "工作日";
 "Weekends" = "周末";
 
+/* Routine editor */
+"Label (e.g. Work, Gym, Lunch)" = "名称(如 工作、健身、午餐)";
+"Type" = "类型";
+"Days" = "星期";
+"Ends" = "结束";
+"Custom" = "自定义";
+"Add routine" = "添加作息";
+"Edit routine" = "编辑作息";
+
+/* Notifications */
+"Mark done" = "标记完成";
+"Snooze 10 min" = "延后 10 分钟";
+"Snooze" = "延后";
+"🚗 Time to head out" = "🚗 该出发了";
+"Your commute starts now." = "现在该出发了。";
+"⏰ Up next" = "⏰ 接下来";
+"🎯 %@ time" = "🎯 %@ 时间";
+
+/* Receipt commute line */
+"Leave %@ · %@, %lld min" = "%1$@ 出发 · %2$@,%lld 分钟";
+
 /* Auth */
 "Sign in" = "登录";
 "Create account" = "注册";

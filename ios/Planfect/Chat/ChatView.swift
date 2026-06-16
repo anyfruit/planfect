@@ -368,7 +368,6 @@ private struct Bubble: View {
                 }
                 .clipShape(.rect(topLeadingRadius: 20, bottomLeadingRadius: mine ? 20 : 7,
                                  bottomTrailingRadius: mine ? 7 : 20, topTrailingRadius: 20))
-                .shadow(color: .black.opacity(mine ? 0.14 : 0.05), radius: 5, y: 2)
             if !mine { Spacer(minLength: 44) }
         }
     }

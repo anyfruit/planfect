@@ -3,12 +3,12 @@ import SwiftUI
 /// Tiny sheet for entering a Home/Work address. The planner uses it as the origin for
 /// real travel-time estimates (Google Maps) when scheduling a task at a place.
 struct AddressEditView: View {
-    let title: String
+    let title: LocalizedStringKey
     @State private var text: String
     let onSave: (String) -> Void
     @Environment(\.dismiss) private var dismiss
 
-    init(title: String, initial: String, onSave: @escaping (String) -> Void) {
+    init(title: LocalizedStringKey, initial: String, onSave: @escaping (String) -> Void) {
         self.title = title
         self._text = State(initialValue: initial)
         self.onSave = onSave

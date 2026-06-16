@@ -35,7 +35,7 @@ struct RoutineEditView: View {
                 Section {
                     TextField("Label (e.g. Work, Gym, Lunch)", text: $label)
                     Picker("Type", selection: $kind) {
-                        ForEach(Self.kinds, id: \.self) { Text($0.capitalized).tag($0) }
+                        ForEach(Self.kinds, id: \.self) { Text(LocalizedStringKey($0.capitalized)).tag($0) }
                     }
                 }
                 Section("Days") { WeekdayChips(selection: $days) }

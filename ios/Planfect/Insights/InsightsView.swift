@@ -52,6 +52,7 @@ struct InsightsView: View {
     @State private var analysis: String?
     @State private var analyzing = false
     @State private var analysisError: String?
+    @State private var agg = Aggregate()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -101,14 +102,15 @@ struct InsightsView: View {
             #endif
             Task {
                 await vm.load()
+                recomputeAgg()
                 #if DEBUG
                 if ProcessInfo.processInfo.environment["PLANFECT_INSIGHTS_AUTORUN"] == "1" { runAnalysis() }
                 #endif
             }
         }
-        .refreshable { await vm.load() }
-        .onChange(of: scope) { _, _ in analysis = nil; analysisError = nil }
-        .onChange(of: anchor) { _, _ in analysis = nil; analysisError = nil }
+        .refreshable { await vm.load(); recomputeAgg() }
+        .onChange(of: scope) { _, _ in analysis = nil; analysisError = nil; recomputeAgg() }
+        .onChange(of: anchor) { _, _ in analysis = nil; analysisError = nil; recomputeAgg() }
     }
 
     // MARK: - AI analysis
@@ -274,48 +276,49 @@ struct InsightsView: View {
         .padding()
     }
 
-    // MARK: - Aggregation
+    // MARK: - Aggregation (computed ONCE into `agg` on data/scope change, not repeatedly per render)
 
-    private var rangeBlocks: [TimeBlock] {
-        let (start, end) = ScheduleView.range(scope, anchor)
-        return vm.blocks.filter { $0.start >= start && $0.start < end && $0.kind != "buffer" }
+    private struct Aggregate {
+        var stats: [CategoryStat] = []
+        var dailyStats: [DayCategoryStat] = []
+        var totalMinutes = 0
+        var taskCount = 0
+        var doneCount = 0
+        var topLabel = "—"
     }
 
-    private var stats: [CategoryStat] {
-        var acc: [String: (label: String, color: Color, min: Int)] = [:]
-        for b in rangeBlocks {
+    private var stats: [CategoryStat] { agg.stats }
+    private var dailyStats: [DayCategoryStat] { agg.dailyStats }
+    private var totalMinutes: Int { agg.totalMinutes }
+    private var taskCount: Int { agg.taskCount }
+    private var doneCount: Int { agg.doneCount }
+    private var topLabel: String { agg.topLabel }
+
+    private func recomputeAgg() {
+        let (start, end) = ScheduleView.range(scope, anchor)
+        let range = vm.blocks.filter { $0.start >= start && $0.start < end && $0.kind != "buffer" }
+        let cal = Calendar.current
+
+        var byCat: [String: (label: String, color: Color, min: Int)] = [:]
+        var byDay: [Date: [String: (label: String, color: Color, min: Int)]] = [:]
+        for b in range {                                  // single pass builds both groupings
             let k = TaskCategory.bucketKey(b)
             let style = TaskCategory.of(b)
-            var cur = acc[k] ?? (style.label, style.color, 0)
-            cur.min += b.durationMin
-            acc[k] = cur
+            var c = byCat[k] ?? (style.label, style.color, 0); c.min += b.durationMin; byCat[k] = c
+            let day = cal.startOfDay(for: b.start)
+            var d = byDay[day] ?? [:]
+            var dc = d[k] ?? (style.label, style.color, 0); dc.min += b.durationMin; d[k] = dc; byDay[day] = d
         }
-        return acc.map { CategoryStat(key: $0.key, label: $0.value.label, color: $0.value.color, minutes: $0.value.min) }
-            .filter { $0.minutes > 0 }
-            .sorted { $0.minutes > $1.minutes }
+        let stats = byCat.map { CategoryStat(key: $0.key, label: $0.value.label, color: $0.value.color, minutes: $0.value.min) }
+            .filter { $0.minutes > 0 }.sorted { $0.minutes > $1.minutes }
+        var daily: [DayCategoryStat] = []
+        for (day, cats) in byDay { for (_, v) in cats { daily.append(DayCategoryStat(day: day, label: v.label, color: v.color, minutes: v.min)) } }
+        let tasks = range.filter { $0.kind == "task" }
+        agg = Aggregate(stats: stats, dailyStats: daily,
+                        totalMinutes: stats.reduce(0) { $0 + $1.minutes },
+                        taskCount: tasks.count, doneCount: tasks.filter { $0.isDone }.count,
+                        topLabel: stats.first.map { NSLocalizedString($0.label, comment: "") } ?? "—")
     }
-
-    private var dailyStats: [DayCategoryStat] {
-        let cal = Calendar.current
-        var out: [DayCategoryStat] = []
-        for (day, bs) in Dictionary(grouping: rangeBlocks, by: { cal.startOfDay(for: $0.start) }) {
-            var acc: [String: (label: String, color: Color, min: Int)] = [:]
-            for b in bs {
-                let k = TaskCategory.bucketKey(b)
-                let style = TaskCategory.of(b)
-                var cur = acc[k] ?? (style.label, style.color, 0)
-                cur.min += b.durationMin
-                acc[k] = cur
-            }
-            for (_, v) in acc { out.append(DayCategoryStat(day: day, label: v.label, color: v.color, minutes: v.min)) }
-        }
-        return out
-    }
-
-    private var totalMinutes: Int { stats.reduce(0) { $0 + $1.minutes } }
-    private var taskCount: Int { rangeBlocks.filter { $0.kind == "task" }.count }
-    private var doneCount: Int { rangeBlocks.filter { $0.kind == "task" && $0.isDone }.count }
-    private var topLabel: String { stats.first.map { NSLocalizedString($0.label, comment: "") } ?? "—" }
 
     // MARK: - Period nav
 

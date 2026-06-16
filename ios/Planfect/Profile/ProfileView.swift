@@ -147,7 +147,7 @@ struct ProfileView: View {
             .sheet(item: $editing) { r in RoutineEditView(existing: r) { Task { await reload() } } }
             .sheet(isPresented: $addingNew) { RoutineEditView(existing: nil) { Task { await reload() } } }
             .sheet(item: $editingPlace) { kind in
-                AddressEditView(title: kind == .home ? "Home" : "Work",
+                AddressEditView(title: LocalizedStringKey(kind == .home ? "Home" : "Work"),
                                 initial: kind == .home ? homeAddr : workAddr) { newVal in
                     Task {
                         try? await supa.saveHomeWork(home: kind == .home ? newVal : nil,

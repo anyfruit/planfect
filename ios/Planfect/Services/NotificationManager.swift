@@ -20,8 +20,8 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     private static let commuteCategory = "PLANFECT_COMMUTE" // Snooze only
 
     private func registerCategories() {
-        let done = UNNotificationAction(identifier: "DONE", title: "Mark done", options: [])
-        let snooze = UNNotificationAction(identifier: "SNOOZE", title: "Snooze 10 min", options: [])
+        let done = UNNotificationAction(identifier: "DONE", title: NSLocalizedString("Mark done", comment: ""), options: [])
+        let snooze = UNNotificationAction(identifier: "SNOOZE", title: NSLocalizedString("Snooze 10 min", comment: ""), options: [])
         center.setNotificationCategories([
             UNNotificationCategory(identifier: Self.taskCategory, actions: [done, snooze], intentIdentifiers: [], options: []),
             UNNotificationCategory(identifier: Self.commuteCategory, actions: [snooze], intentIdentifiers: [], options: []),
@@ -113,8 +113,8 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             // The commute block's start IS the moment to leave.
             guard b.start > now else { return nil }
             fire = b.start
-            content.title = "🚗 Time to head out"
-            content.body = b.title.isEmpty ? "Your commute starts now." : b.title
+            content.title = NSLocalizedString("🚗 Time to head out", comment: "")
+            content.body = b.title.isEmpty ? NSLocalizedString("Your commute starts now.", comment: "") : b.title
             content.categoryIdentifier = Self.commuteCategory
 
         case "task":
@@ -123,7 +123,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             // Deep-work-ish categories get a "time to focus" framing; everything else "up next".
             let key = TaskCategory.key(b)
             let focusStyle = ["work", "focus", "learning"].contains(key)
-            content.title = focusStyle ? "🎯 \(TaskCategory.of(b).label) time" : "⏰ Up next"
+            content.title = focusStyle
+                ? String(format: NSLocalizedString("🎯 %@ time", comment: ""), NSLocalizedString(TaskCategory.of(b).label, comment: ""))
+                : NSLocalizedString("⏰ Up next", comment: "")
             content.body = "\(b.title) · \(b.start.formatted(date: .omitted, time: .shortened))"
             content.categoryIdentifier = Self.taskCategory
 
