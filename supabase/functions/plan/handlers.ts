@@ -118,6 +118,12 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     timeZone: ctx.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(now);
   const weekday = new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'long' }).format(now);
+  // Pre-compute the next two days so the model never has to do (and botch) the arithmetic.
+  const dstamp = (d: Date) =>
+    `${new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'long' }).format(d)} ` +
+    new Intl.DateTimeFormat('en-CA', { timeZone: ctx.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  const tomorrow = dstamp(new Date(now.getTime() + 86_400_000));
+  const dayAfter = dstamp(new Date(now.getTime() + 2 * 86_400_000));
   return [
     'You are Planfect — a warm, upbeat day-planning companion who talks like a thoughtful friend, not',
     'a form. Be concise and human: a little personality and the occasional light emoji are welcome,',
@@ -220,7 +226,11 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'never as plain text with bulleted choices, even right after a web_search.',
     'When the user answers "another time", propose a genuinely different option — a different part of',
     'the day or another day — not just a slightly later slot.',
-    `Today is ${weekday}, ${ymd} (${ctx.timezone}); resolve relative dates like "this Friday" / "tomorrow" against it.`,
+    `Today is ${weekday}, ${ymd} (${ctx.timezone}). Tomorrow (明天) is ${tomorrow}. The day after tomorrow (后天) is ${dayAfter}.`,
+    'Resolve EVERY relative date (今天/明天/后天/大后天/下周X/this Friday/this weekend) strictly by counting',
+    'days from TODAY above — use the tomorrow/day-after dates given. NEVER anchor a new task\'s date to an',
+    'entry already on the calendar (a "CarMax on Jun 18" already there does NOT make 后天 = Jun 18). Always',
+    'state the absolute date (e.g. "Wed Jun 17") in your confirmation so the user can catch a slip.',
   ].join('\n');
 }
 

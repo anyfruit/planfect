@@ -4,6 +4,7 @@
 // Auth is the caller's JWT (RLS); the LLM call uses the OPENAI_API_KEY secret.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { estimateCostUsd } from '../../../server/usage.ts';
 
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Promise<Response>): void };
 
@@ -39,6 +40,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!apiKey) return json({ error: 'analysis is not configured' }, 500);
     const model = Deno.env.get('INSIGHTS_MODEL') ?? 'gpt-5.3';
 
+    const t0 = Date.now();
     const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
@@ -49,8 +51,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
         max_output_tokens: 650,
       }),
     });
-    const j = (await res.json()) as { output?: Array<Record<string, unknown>>; error?: { message?: string } };
+    const j = (await res.json()) as {
+      output?: Array<Record<string, unknown>>;
+      error?: { message?: string };
+      usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } };
+    };
     if (j.error) return json({ error: j.error.message ?? 'analysis failed' }, 502);
+
+    // Log usage so this model shows up on the dashboard (service-role bypasses the admin-only RLS).
+    try {
+      const sr = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      if (sr && j.usage) {
+        const inputTokens = j.usage.input_tokens ?? 0;
+        const outputTokens = j.usage.output_tokens ?? 0;
+        const cachedInputTokens = j.usage.input_tokens_details?.cached_tokens ?? 0;
+        await createClient(url, sr, { auth: { persistSession: false } }).from('usage_events').insert({
+          user_id: user.id, provider: 'openai', model, action: 'insights',
+          input_tokens: inputTokens, output_tokens: outputTokens, cached_input_tokens: cachedInputTokens,
+          cost_usd: estimateCostUsd('openai', model, { inputTokens, outputTokens, cachedInputTokens }),
+          latency_ms: Date.now() - t0, success: true,
+        });
+      }
+    } catch (_) { /* analytics is best-effort — never fail the request on it */ }
     const text = (j.output ?? [])
       .filter((o) => o.type === 'message')
       .flatMap((o) => ((o.content as Array<Record<string, unknown>>) ?? [])
