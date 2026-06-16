@@ -15,6 +15,7 @@ struct ProfileView: View {
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
+    @AppStorage(CalendarManager.syncKey) private var calendarSync = false
 
     private enum PlaceKind: String, Identifiable { case home, work; var id: String { rawValue } }
 
@@ -122,6 +123,12 @@ struct ProfileView: View {
                     Text("Language the mic uses for speech-to-text. \"Auto\" follows your device language.")
                 }
 
+                Section {
+                    Toggle("Sync with Apple Calendar", isOn: $calendarSync.animation())
+                } footer: {
+                    Text("Plan around your real calendar events, and add Planfect's plans to your calendar.")
+                }
+
                 Section("Settings") {
                     LabeledContent("Timezone", value: TimeZone.current.identifier)
                     Text("Locations & maps — coming soon")
@@ -156,6 +163,7 @@ struct ProfileView: View {
                 }
             }
             .onChange(of: leadMin) { _, _ in Task { await resyncReminders() } }
+            .onChange(of: calendarSync) { _, on in if on { Task { _ = await CalendarManager.shared.ensureAccess() } } }
             .alert("Add a preference", isPresented: $addingPref) {
                 TextField("e.g. Workouts in the morning", text: $newPref)
                 Button("Cancel", role: .cancel) { newPref = "" }

@@ -54,6 +54,7 @@ struct PlanRequest: Encodable {
     var text: String? = nil
     var messages: [JSONValue]? = nil
     var conversation_id: String? = nil
+    var calendar_busy: [CalendarBusy]? = nil   // real device-calendar events to schedule around
 }
 
 struct PlanResponse: Decodable {
@@ -113,6 +114,7 @@ enum APIDate {
     static func parse(_ s: String) -> Date? {
         plain.date(from: s) ?? withFractional.date(from: s)
     }
+    static func iso(_ d: Date) -> String { plain.string(from: d) }
 }
 
 // MARK: - Type-erased JSON (faithful round-trip of /plan `messages` for the resume flow)

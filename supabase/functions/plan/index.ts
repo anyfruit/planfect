@@ -41,6 +41,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const apiKey = Deno.env.get(providerKeyEnv(provider))!;
 
     const ctx = await loadContext(supabase, user.id);
+    // Real device-calendar events the app passes in, so the planner schedules around them.
+    ctx.calendarBusy = ((body.calendar_busy ?? []) as Array<{ start: string; end: string; title?: string }>)
+      .map((c) => ({ start: Date.parse(c.start), end: Date.parse(c.end), title: String(c.title ?? 'Busy') }))
+      .filter((c) => Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start);
     const result = await runPlanner(messages, {
       llm: createPlanner(provider, { apiKey }),
       model,

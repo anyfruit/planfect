@@ -78,6 +78,8 @@ final class ChatViewModel: ObservableObject {
     private func run(_ req: PlanRequest) async {
         guard let supa else { return }
         sending = true
+        var req = req
+        req.calendar_busy = await CalendarManager.shared.upcomingBusy()   // empty unless calendar sync is on
         do {
             let resp = try await supa.plan(req)
             if let m = resp.messages { history = m }
@@ -86,7 +88,10 @@ final class ChatViewModel: ObservableObject {
                 if let qs = resp.questions, !qs.isEmpty { items.append(.questions(qs)) }
                 else { items.append(.assistant("I had a question but it came through empty.")) }
             case "scheduled":
-                if let r = resp.receipt { items.append(.receipt(r)) } else { items.append(.assistant("Scheduled.")) }
+                if let r = resp.receipt {
+                    items.append(.receipt(r))
+                    await CalendarManager.shared.addPlans(r.items)   // mirror the plan into Apple Calendar (if synced)
+                } else { items.append(.assistant("Scheduled.")) }
                 // Refresh reminders so a just-scheduled plan nudges even if the user never opens Schedule.
                 if let blocks = try? await supa.fetchBlocks() { await NotificationManager.shared.reschedule(for: blocks) }
             default:

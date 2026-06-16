@@ -38,6 +38,7 @@ export interface PlanContext {
   preferredModes: string[];   // ordered: e.g. ['transit','walking','driving']
   preferences: { id: string; text: string }[];   // learned, durable preferences (habit memory)
   observedHabits: string;     // patterns mined from the user's past schedule (soft hints)
+  calendarBusy: { start: number; end: number; title: string }[];   // real device-calendar events (from the request)
 }
 
 interface LocationRow {
@@ -84,6 +85,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     preferredModes: (profile.data?.preferred_modes as string[] | undefined) ?? ['transit', 'walking', 'driving'],
     preferences: (prefs.data ?? []) as { id: string; text: string }[],
     observedHabits: summarizeHabits((past.data ?? []) as HabitRow[], timezone),
+    calendarBusy: [],   // populated from the request body in index.ts
   };
 }
 
@@ -135,6 +137,7 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     `Timezone: ${ctx.timezone}.`,
     `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
     `Already on the user's calendar (their CURRENT plans — never say a day is empty if any fall on it): ${formatBlocks(ctx.blocks, ctx.timezone)}`,
+    `The user's REAL device calendar (hard commitments — schedule AROUND these, never overlap them): ${formatCalBusy(ctx.calendarBusy, ctx.timezone)}`,
     `Saved locations: ${JSON.stringify(ctx.locations)}`,
     `LEARNED PREFERENCES — apply these every time; they reflect how THIS user likes things and override generic defaults: ${ctx.preferences.length ? ctx.preferences.map((p) => `- ${p.text} [pref:${p.id}]`).join(' ') : 'none yet'}`,
     `OBSERVED HABITS from their past schedule (soft hints, weaker than a stated preference or routine; use only when it fits): ${ctx.observedHabits}`,
@@ -483,7 +486,9 @@ export function buildHandlers(
           : availability;
         // allow_overlap = the user wants this concurrently with another activity (一边…一边…),
         // so don't treat existing tasks as conflicts — just drop it at the requested time.
-        const blocking = overlap ? [] : (overRoutine ? dayBusy : [...busy, ...dayBusy]);
+        // Real device-calendar events are hard commitments — block them even when over-routine.
+        const calBusy: Interval[] = ctx.calendarBusy.map((c) => ({ start: c.start, end: c.end }));
+        const blocking = overlap ? [] : (overRoutine ? [...dayBusy, ...calBusy] : [...busy, ...dayBusy, ...calBusy]);
 
         const placement = scheduleTask(window, blocking, {
           durationMin,
@@ -696,6 +701,18 @@ function formatBlocks(blocks: unknown[], tz: string): string {
       const id = b.task_id ? ` [task:${String(b.task_id)}]` : '';
       return `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}${id}`;
     })
+    .join('; ');
+}
+
+/** Real device-calendar events (passed from the app) formatted for the prompt. */
+function formatCalBusy(events: { start: number; end: number; title: string }[], tz: string): string {
+  if (!events.length) return 'none';
+  const span = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+  const endf = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+  return events.slice(0, 40)
+    .map((e) => `${span.format(new Date(e.start))}–${endf.format(new Date(e.end))} ${e.title}`)
     .join('; ');
 }
 
