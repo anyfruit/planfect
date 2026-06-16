@@ -13,6 +13,7 @@ struct ProfileView: View {
     @State private var addingPref = false
     @State private var newPref = ""
     @State private var recurring: [RecurringTask] = []
+    @State private var showPaywall = false
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
@@ -33,6 +34,18 @@ struct ProfileView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                }
+
+                Section {
+                    Button { showPaywall = true } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "sparkles").foregroundStyle(.tint).frame(width: 22)
+                            Text("Planfect Pro").foregroundStyle(.primary)
+                            Spacer()
+                            Text(supa.isPro ? "Active" : "Free").foregroundStyle(.secondary)
+                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                        }
+                    }
                 }
 
                 Section {
@@ -175,6 +188,7 @@ struct ProfileView: View {
             .task { await reload() }
             .sheet(item: $editing) { r in RoutineEditView(existing: r) { Task { await reload() } } }
             .sheet(isPresented: $addingNew) { RoutineEditView(existing: nil) { Task { await reload() } } }
+            .sheet(isPresented: $showPaywall) { PaywallView() }
             .sheet(item: $editingPlace) { kind in
                 AddressEditView(title: LocalizedStringKey(kind == .home ? "Home" : "Work"),
                                 initial: kind == .home ? homeAddr : workAddr) { newVal in
@@ -212,6 +226,7 @@ struct ProfileView: View {
         homeAddr = hw.home ?? ""; workAddr = hw.work ?? ""
         prefs = await supa.fetchPreferences()
         recurring = await supa.fetchRecurring()
+        await supa.refreshEntitlement()
     }
 
     @ViewBuilder

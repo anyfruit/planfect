@@ -24,6 +24,7 @@ final class ChatViewModel: ObservableObject {
     @Published var items: [ChatItem] = []
     @Published var input = ""
     @Published var sending = false
+    @Published var showPaywall = false
 
     private var supa: SupabaseManager?
     private var history: [JSONValue] = []   // full LLM thread, sent every turn so context persists
@@ -94,6 +95,9 @@ final class ChatViewModel: ObservableObject {
                 } else { items.append(.assistant("Scheduled.")) }
                 // Refresh reminders so a just-scheduled plan nudges even if the user never opens Schedule.
                 if let blocks = try? await supa.fetchBlocks() { await NotificationManager.shared.reschedule(for: blocks) }
+            case "upgrade":
+                items.append(.assistant(resp.text ?? "Upgrade to Planfect Pro to keep planning."))
+                showPaywall = true
             default:
                 items.append(.assistant(resp.text ?? "Done."))
             }
@@ -254,6 +258,7 @@ struct ChatView: View {
         } message: {
             Text(speech.errorMessage ?? "")
         }
+        .sheet(isPresented: $vm.showPaywall) { PaywallView() }
     }
 
     private var inputBar: some View {

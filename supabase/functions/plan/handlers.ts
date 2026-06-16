@@ -42,6 +42,7 @@ export interface PlanContext {
   observedHabits: string;     // patterns mined from the user's past schedule (soft hints)
   calendarBusy: { start: number; end: number; title: string }[];   // real device-calendar events (from the request)
   recurring: RecurringRow[];  // active recurring tasks/habits
+  isPro: boolean;             // active Planfect Pro subscription (gates paid features when billing is on)
 }
 
 interface RecurringRow {
@@ -70,7 +71,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
   const [routines, locations, profile, prefs, past, recurring] = await Promise.all([
     supabase.from('routines').select('*').eq('user_id', userId),
     supabase.from('locations').select('id,name,address,lat,lng,place_id').eq('user_id', userId),
-    supabase.from('profiles').select('timezone,home_location_id,work_location_id,preferred_modes').eq('id', userId).single(),
+    supabase.from('profiles').select('timezone,home_location_id,work_location_id,preferred_modes,is_pro').eq('id', userId).single(),
     supabase.from('preferences').select('id,text').eq('user_id', userId).order('created_at'),
     supabase.from('time_blocks').select('category,start_at,end_at').eq('user_id', userId)
       .eq('kind', 'task').lt('start_at', nowIso).gte('start_at', pastIso).order('start_at').limit(500),
@@ -106,6 +107,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     observedHabits: summarizeHabits((past.data ?? []) as HabitRow[], timezone),
     calendarBusy: [],   // populated from the request body in index.ts
     recurring: recurringRows,
+    isPro: profile.data?.is_pro ?? false,
   };
 }
 
@@ -309,9 +311,12 @@ export function buildHandlers(
   analytics?: SupabaseClient,
   searchApiKey?: string,
   mapsApiKey?: string,
+  billingEnforced = false,
 ): ToolHandlers {
   const routines = toRoutineInputs(ctx.routines);
   const tz = ctx.timezone;
+  // Paid features (each call costs real API money) are Pro-only once billing is enforced.
+  const proLocked = billingEnforced && !ctx.isPro;
 
   // Resolve a from/to argument (a location id, a "home"/"work" keyword, a saved place name, or a
   // raw address) to something Google Routes can take.
@@ -332,6 +337,7 @@ export function buildHandlers(
 
   return {
     [TOOL_WEB_SEARCH]: async (args) => {
+      if (proLocked) return JSON.stringify({ result: 'Looking up live event times is a Planfect Pro feature. Ask the user for the time, or suggest upgrading.' });
       const query = String(args.query ?? '').trim();
       if (!query || !searchApiKey) return JSON.stringify({ result: 'Web search is unavailable.' });
       try {
@@ -511,6 +517,7 @@ export function buildHandlers(
       const toArg = String(args.to_location_id ?? '').trim();
       const arriveBy = args.arrive_by ? String(args.arrive_by) : undefined;
       const mode = ctx.preferredModes[0] ?? 'transit';
+      if (proLocked) return JSON.stringify({ mode, durationMin: 25, note: 'Real travel time is a Planfect Pro feature — using a rough estimate.' });
       if (!mapsApiKey) return JSON.stringify({ mode, durationMin: 25, distanceM: 6000, note: 'maps not configured — rough estimate' });
       const from = resolvePlace(fromArg);
       const to = resolvePlace(toArg);

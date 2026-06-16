@@ -11,6 +11,7 @@ final class SupabaseManager: ObservableObject {
     @Published var session: Session?
     @Published var bootstrapping = true
     @Published var needsOnboarding: Bool?   // nil = unknown/checking
+    @Published var isPro = false             // active Planfect Pro subscription (entitlement)
 
     private init() {
         client = SupabaseClient(supabaseURL: SupabaseConfig.url, supabaseKey: SupabaseConfig.anonKey)
@@ -30,8 +31,10 @@ final class SupabaseManager: ObservableObject {
             bootstrapping = false
             if change.session != nil {
                 await refreshOnboardingState()
+                await refreshEntitlement()
             } else {
                 needsOnboarding = nil
+                isPro = false
             }
         }
     }

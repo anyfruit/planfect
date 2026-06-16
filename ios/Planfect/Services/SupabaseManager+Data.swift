@@ -205,6 +205,26 @@ extension SupabaseManager {
         _ = try await rest("DELETE", "recurring_tasks?id=eq.\(id.uuidString)")
     }
 
+    // MARK: - Subscription entitlement
+
+    private struct ProRow: Decodable { let is_pro: Bool? }
+
+    func refreshEntitlement() async {
+        guard let uid = userId?.uuidString,
+              let data = try? await rest("GET", "profiles?select=is_pro&id=eq.\(uid)"),
+              let row = try? JSONDecoder().decode([ProRow].self, from: data).first else { return }
+        isPro = row.is_pro ?? false
+    }
+
+    #if DEBUG
+    /// Dev-only: flip the entitlement to test the gated experience before payments are wired.
+    func setPro(_ pro: Bool) async {
+        guard let uid = userId?.uuidString else { return }
+        _ = try? await rest("PATCH", "profiles?id=eq.\(uid)", body: try? JSONEncoder().encode(["is_pro": pro]), prefer: "return=minimal")
+        isPro = pro
+    }
+    #endif
+
     /// First-run gate: a user with no routines yet should see onboarding.
     func refreshOnboardingState() async {
         #if DEBUG

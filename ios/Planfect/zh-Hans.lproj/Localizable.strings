@@ -148,6 +148,20 @@
 "Recurring" = "重复";
 "Habits Planfect repeats for you. Swipe to stop one." = "Planfect 帮你重复的习惯。左滑可停止。";
 
+/* Planfect Pro / paywall */
+"Active" = "已开通";
+"Free" = "免费";
+"Plan without limits." = "无限制地规划。";
+"Unlimited AI planning" = "无限 AI 规划";
+"Real travel times" = "真实通勤时间";
+"Live event & showtime lookups" = "比赛 / 影讯等实时查询";
+"AI time analysis" = "AI 时间分析";
+"Recurring habits" = "重复性习惯";
+"Apple Calendar sync" = "Apple 日历同步";
+"You're on Pro" = "你已开通 Pro";
+"Upgrade" = "升级";
+"Subscriptions launching soon." = "订阅即将上线。";
+
 /* Auth */
 "Sign in" = "登录";
 "Create account" = "注册";

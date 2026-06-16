@@ -45,12 +45,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ctx.calendarBusy = ((body.calendar_busy ?? []) as Array<{ start: string; end: string; title?: string }>)
       .map((c) => ({ start: Date.parse(c.start), end: Date.parse(c.end), title: String(c.title ?? 'Busy') }))
       .filter((c) => Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start);
+
+    // Freemium gate (dormant unless BILLING_ENFORCED=1): free users get a monthly AI-usage budget;
+    // over it, return an upsell instead of spending more on the model. Pro = unlimited.
+    const billingEnforced = Deno.env.get('BILLING_ENFORCED') === '1';
+    if (billingEnforced && !ctx.isPro) {
+      const used = await freeUsageThisMonth(admin, user.id);
+      const limit = Number(Deno.env.get('FREE_MONTHLY_AI_UNITS') ?? '150');
+      if (used >= limit) {
+        return json({ type: 'upgrade', text: 'You\'ve used up this month\'s free planning. Upgrade to Planfect Pro for unlimited planning, real travel times, event lookups, AI insights, recurring habits and calendar sync.' });
+      }
+    }
+
     const result = await runPlanner(messages, {
       llm: createPlanner(provider, { apiKey }),
       model,
       system: buildSystemPrompt(ctx),
       tools: PLANNER_TOOLS,
-      handlers: buildHandlers(supabase, user.id, ctx, admin, Deno.env.get('OPENAI_API_KEY'), Deno.env.get('GOOGLE_MAPS_API_KEY')),
+      handlers: buildHandlers(supabase, user.id, ctx, admin, Deno.env.get('OPENAI_API_KEY'), Deno.env.get('GOOGLE_MAPS_API_KEY'), billingEnforced),
       context: { userId: user.id, conversationId },
       usage: new SupabaseUsageSink(admin),
       maxSteps: 14,
@@ -63,6 +75,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: (e as Error).message }, 500);
   }
 });
+
+/** Count the user's AI-usage events this calendar month (the free-tier budget unit). */
+async function freeUsageThisMonth(admin: ReturnType<typeof createClient>, userId: string): Promise<number> {
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const { count } = await admin.from('usage_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId).gte('created_at', monthStart);
+  return count ?? 0;
+}
 
 function providerKeyEnv(p: LLMProvider): string {
   if (p === 'anthropic') return 'ANTHROPIC_API_KEY';

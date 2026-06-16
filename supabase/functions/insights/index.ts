@@ -36,6 +36,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const cats = (body.categories ?? []).filter((c) => c.minutes > 0);
     if (cats.length === 0) return json({ analysis: '' });
 
+    // AI analysis is a Pro feature once billing is enforced (dormant unless BILLING_ENFORCED=1).
+    if (Deno.env.get('BILLING_ENFORCED') === '1') {
+      const { data: prof } = await supabase.from('profiles').select('is_pro').eq('id', user.id).single();
+      if (!prof?.is_pro) return json({ analysis: '', upgrade: true });
+    }
+
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) return json({ error: 'analysis is not configured' }, 500);
     const model = Deno.env.get('INSIGHTS_MODEL') ?? 'gpt-5.3';
