@@ -86,6 +86,16 @@ extension SupabaseManager {
         }
     }
 
+    /// Rename a block (and its task, if any, so the name stays in sync everywhere).
+    func setBlockTitle(_ blockId: UUID, taskId: UUID?, _ title: String) async throws {
+        _ = try await rest("PATCH", "time_blocks?id=eq.\(blockId.uuidString)",
+                           body: try JSONEncoder().encode(["title": title]), prefer: "return=minimal")
+        if let taskId {
+            _ = try await rest("PATCH", "tasks?id=eq.\(taskId.uuidString)",
+                               body: try JSONEncoder().encode(["title": title]), prefer: "return=minimal")
+        }
+    }
+
     func setNotes(_ taskId: UUID, _ notes: String) async throws {
         _ = try await rest("PATCH", "tasks?id=eq.\(taskId.uuidString)",
                            body: try JSONEncoder().encode(["notes": notes]), prefer: "return=minimal")

@@ -9,6 +9,7 @@ struct BlockDetailView: View {
     let block: TimeBlock
     let onChange: () -> Void
 
+    @State private var title: String
     @State private var done: Bool
     @State private var start: Date
     @State private var durationMin: Int
@@ -19,6 +20,7 @@ struct BlockDetailView: View {
     init(block: TimeBlock, onChange: @escaping () -> Void) {
         self.block = block
         self.onChange = onChange
+        _title = State(initialValue: block.title)
         _done = State(initialValue: block.isDone)
         _start = State(initialValue: block.start)
         _durationMin = State(initialValue: block.durationMin)
@@ -29,9 +31,12 @@ struct BlockDetailView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text(block.title).font(.headline)
+                    TextField("Title", text: $title, axis: .vertical)
+                        .font(.headline).lineLimit(1...3)
                     Label(block.kind.capitalized, systemImage: kindIcon)
                         .font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Text("Title")
                 }
 
                 Section { Toggle("Done", isOn: $done) }
@@ -76,6 +81,10 @@ struct BlockDetailView: View {
         saving = true; error = nil
         Task {
             do {
+                let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty && trimmed != block.title {
+                    try await supa.setBlockTitle(block.id, taskId: block.task_id, trimmed)
+                }
                 if done != block.isDone { try await supa.setBlockDone(block.id, done) }
                 if start != block.start || durationMin != block.durationMin {
                     try await supa.rescheduleBlock(block.id, start: start,

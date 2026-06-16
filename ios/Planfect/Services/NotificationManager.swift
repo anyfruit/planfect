@@ -43,6 +43,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
     private let center = UNUserNotificationCenter.current()
     private let maxScheduled = 60   // iOS caps pending requests at 64
+    private var lastSignature = ""  // skip the (60+ syscall) reschedule when nothing changed
 
     /// Ask for permission if the user hasn't decided yet and reminders are on. Safe to call often.
     func ensureAuthorization() async {
@@ -54,7 +55,15 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// Clear all pending reminders and re-schedule from the current blocks. Idempotent.
+    /// Cheap no-op when the relevant inputs are unchanged (e.g. just switching back to the tab).
     func reschedule(for blocks: [TimeBlock]) async {
+        let sig = "\(enabled)|\(leadMinutes)|" + blocks.lazy
+            .filter { !$0.isDone }
+            .map { "\($0.id.uuidString):\(Int($0.start.timeIntervalSince1970))" }
+            .joined(separator: ",")
+        if sig == lastSignature { return }
+        lastSignature = sig
+
         center.removeAllPendingNotificationRequests()
         guard enabled else { return }
 
@@ -90,7 +99,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     #endif
 
     /// Drop everything (used when the user turns reminders off).
-    func cancelAll() { center.removeAllPendingNotificationRequests() }
+    func cancelAll() { center.removeAllPendingNotificationRequests(); lastSignature = "" }
 
     // MARK: - One block → one reminder
 

@@ -7,18 +7,35 @@ struct TimeBlock: Decodable, Identifiable {
     let title: String
     let kind: String            // task | routine | commute | buffer
     let status: String
-    let start_at: String
-    let end_at: String
     let transport_mode: String?
     let task_id: UUID?
     let category: String?
     let tasks: NoteRef?         // embedded task note (PostgREST: tasks(notes))
+    // Dates are parsed ONCE at decode time. (ISO8601DateFormatter is slow; the schedule/insights
+    // views read .start/.end hundreds of times per render when sorting/filtering/positioning.)
+    let start: Date
+    let end: Date
 
-    var start: Date { APIDate.parse(start_at) ?? .distantPast }
-    var end: Date { APIDate.parse(end_at) ?? .distantPast }
     var isDone: Bool { status == "done" }
     var notes: String { tasks?.notes ?? "" }
     var durationMin: Int { max(5, Int(end.timeIntervalSince(start) / 60)) }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, kind, status, start_at, end_at, transport_mode, task_id, category, tasks
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        kind = try c.decode(String.self, forKey: .kind)
+        status = try c.decode(String.self, forKey: .status)
+        transport_mode = try c.decodeIfPresent(String.self, forKey: .transport_mode)
+        task_id = try c.decodeIfPresent(UUID.self, forKey: .task_id)
+        category = try c.decodeIfPresent(String.self, forKey: .category)
+        tasks = try c.decodeIfPresent(NoteRef.self, forKey: .tasks)
+        start = APIDate.parse(try c.decode(String.self, forKey: .start_at)) ?? .distantPast
+        end = APIDate.parse(try c.decode(String.self, forKey: .end_at)) ?? .distantPast
+    }
 }
 
 struct NoteRef: Decodable { let notes: String? }

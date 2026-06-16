@@ -352,7 +352,7 @@ private struct Bubble: View {
     var body: some View {
         HStack {
             if mine { Spacer(minLength: 44) }
-            Text(Self.markdown(text))
+            Text(renderMarkdown(text))
                 .font(.system(.body, design: .rounded))
                 .lineSpacing(3.5)
                 .tint(mine ? .white : .accentColor)   // links/inline accents legible on the gradient
@@ -373,10 +373,15 @@ private struct Bubble: View {
         }
     }
 
-    /// Render the assistant's markdown (**bold**, *italic*, lists) — a runtime String otherwise
-    /// shows the literal asterisks. Preserve newlines so bullet lists keep their layout.
-    static func markdown(_ s: String) -> AttributedString {
-        (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
-            ?? AttributedString(s)
-    }
+}
+
+// Parse each message's markdown ONCE and cache it — a runtime String shows literal `**` otherwise,
+// and re-parsing on every scroll frame is a real cost for a long transcript.
+@MainActor private var markdownCache: [String: AttributedString] = [:]
+@MainActor private func renderMarkdown(_ s: String) -> AttributedString {
+    if let cached = markdownCache[s] { return cached }
+    let a = (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+        ?? AttributedString(s)
+    markdownCache[s] = a
+    return a
 }
