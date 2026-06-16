@@ -25,6 +25,7 @@ import {
   TOOL_UPDATE_TASK,
   TOOL_WEB_SEARCH,
   TOOL_SET_ROUTINE,
+  TOOL_REMEMBER_PREFERENCE,
 } from '../../../server/llm/tools.ts';
 
 export interface PlanContext {
@@ -35,6 +36,8 @@ export interface PlanContext {
   homeLocationId?: string;
   workLocationId?: string;
   preferredModes: string[];   // ordered: e.g. ['transit','walking','driving']
+  preferences: { id: string; text: string }[];   // learned, durable preferences (habit memory)
+  observedHabits: string;     // patterns mined from the user's past schedule (soft hints)
 }
 
 interface LocationRow {
@@ -47,10 +50,15 @@ interface LocationRow {
 }
 
 export async function loadContext(supabase: SupabaseClient, userId: string): Promise<PlanContext> {
-  const [routines, locations, profile] = await Promise.all([
+  const nowIso = new Date().toISOString();
+  const pastIso = new Date(Date.now() - 60 * 86_400_000).toISOString();   // ~8 weeks back for habit mining
+  const [routines, locations, profile, prefs, past] = await Promise.all([
     supabase.from('routines').select('*').eq('user_id', userId),
     supabase.from('locations').select('id,name,address,lat,lng,place_id').eq('user_id', userId),
     supabase.from('profiles').select('timezone,home_location_id,work_location_id,preferred_modes').eq('id', userId).single(),
+    supabase.from('preferences').select('id,text').eq('user_id', userId).order('created_at'),
+    supabase.from('time_blocks').select('category,start_at,end_at').eq('user_id', userId)
+      .eq('kind', 'task').lt('start_at', nowIso).gte('start_at', pastIso).order('start_at').limit(500),
   ]);
   const timezone = profile.data?.timezone ?? 'UTC';
   // Upcoming schedule from the start of today (user's tz) so the planner knows existing plans and
@@ -74,7 +82,32 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     homeLocationId: profile.data?.home_location_id ?? undefined,
     workLocationId: profile.data?.work_location_id ?? undefined,
     preferredModes: (profile.data?.preferred_modes as string[] | undefined) ?? ['transit', 'walking', 'driving'],
+    preferences: (prefs.data ?? []) as { id: string; text: string }[],
+    observedHabits: summarizeHabits((past.data ?? []) as HabitRow[], timezone),
   };
+}
+
+interface HabitRow { category?: string | null; start_at: string; end_at: string }
+
+/** Mine soft habits from past task blocks: per category, the typical local start time + duration. */
+function summarizeHabits(blocks: HabitRow[], tz: string): string {
+  const byCat: Record<string, { mins: number[]; durs: number[] }> = {};
+  for (const b of blocks) {
+    const cat = b.category || 'other';
+    const lp = localParts(Date.parse(b.start_at), tz);
+    const dur = Math.round((Date.parse(b.end_at) - Date.parse(b.start_at)) / 60_000);
+    (byCat[cat] ??= { mins: [], durs: [] });
+    byCat[cat].mins.push(lp.minutes);
+    byCat[cat].durs.push(dur);
+  }
+  const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
+  const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  const parts: string[] = [];
+  for (const [cat, d] of Object.entries(byCat)) {
+    if (d.mins.length < 3) continue;   // need a few samples before calling it a habit
+    parts.push(`${cat}: usually ~${hhmm(median(d.mins))}, ~${median(d.durs)}min (${d.mins.length}×)`);
+  }
+  return parts.length ? parts.join('; ') : 'not enough history yet';
 }
 
 export function buildSystemPrompt(ctx: PlanContext): string {
@@ -97,6 +130,14 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
     `Already on the user's calendar (their CURRENT plans — never say a day is empty if any fall on it): ${formatBlocks(ctx.blocks, ctx.timezone)}`,
     `Saved locations: ${JSON.stringify(ctx.locations)}`,
+    `LEARNED PREFERENCES — apply these every time; they reflect how THIS user likes things and override generic defaults: ${ctx.preferences.length ? ctx.preferences.map((p) => `- ${p.text} [pref:${p.id}]`).join(' ') : 'none yet'}`,
+    `OBSERVED HABITS from their past schedule (soft hints, weaker than a stated preference or routine; use only when it fits): ${ctx.observedHabits}`,
+    'LEARN over time: when the user states a lasting preference, or corrects the same kind of choice',
+    'again (e.g. keeps moving workouts to the morning, always wants 45-min grocery runs), call',
+    'remember_preference(add) with a short general statement — then keep going. Do not ask permission',
+    'to remember, and do not spam it for one-offs. If a preference no longer holds, remember_preference',
+    '(delete) it. Priority when choosing times: explicit user request > learned preference > routine /',
+    'observed habit > generic commonsense.',
     'CRITICAL — do this for EVERY task the user names, not just the examples below: first reason',
     'about when that activity naturally happens for most people, and prefer free time in THAT',
     'window. Never just grab the next open gap. Think it through — what the task involves, whether a',
@@ -322,6 +363,32 @@ export function buildHandlers(
           return JSON.stringify({ ok: true, action: 'rescheduled', start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString() });
         }
         return JSON.stringify({ ok: true, action: 'noop' });
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: (e as Error).message });
+      }
+    },
+
+    // Habit memory: add/remove a durable preference. Read back into the prompt on every turn.
+    [TOOL_REMEMBER_PREFERENCE]: async (args) => {
+      const action = String(args.action ?? '');
+      try {
+        if (action === 'delete') {
+          const id = args.id ? String(args.id) : '';
+          if (!id) return JSON.stringify({ ok: false, error: 'missing id' });
+          await supabase.from('preferences').delete().eq('id', id);
+          ctx.preferences = ctx.preferences.filter((p) => p.id !== id);
+          return JSON.stringify({ ok: true, action: 'deleted' });
+        }
+        const text = String(args.text ?? '').trim();
+        if (!text) return JSON.stringify({ ok: false, error: 'missing text' });
+        if (ctx.preferences.some((p) => p.text.toLowerCase() === text.toLowerCase())) {
+          return JSON.stringify({ ok: true, action: 'exists' });
+        }
+        const { data } = await supabase.from('preferences')
+          .insert({ user_id: userId, text, source: 'learned' }).select('id').single();
+        const id = (data as { id: string } | null)?.id;
+        if (id) ctx.preferences.push({ id, text });
+        return JSON.stringify({ ok: true, action: 'added', id });
       } catch (e) {
         return JSON.stringify({ ok: false, error: (e as Error).message });
       }

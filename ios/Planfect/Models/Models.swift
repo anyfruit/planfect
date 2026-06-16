@@ -23,6 +23,11 @@ struct TimeBlock: Decodable, Identifiable {
 
 struct NoteRef: Decodable { let notes: String? }
 
+struct Preference: Decodable, Identifiable {
+    let id: UUID
+    let text: String
+}
+
 struct Routine: Decodable, Identifiable {
     let id: UUID
     let label: String

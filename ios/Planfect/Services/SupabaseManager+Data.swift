@@ -1,6 +1,7 @@
 import Foundation
 import Supabase
 
+private struct PrefInsert: Encodable { let user_id: String; let text: String; let source: String }
 private struct ProfilePlaceIds: Decodable { let home_location_id: UUID?; let work_location_id: UUID? }
 private struct AddrRow: Decodable { let address: String? }
 private struct IdRow: Decodable { let id: UUID }
@@ -162,6 +163,24 @@ extension SupabaseManager {
         guard let id = try JSONDecoder().decode([IdRow].self, from: data).first?.id else { return }
         _ = try await rest("PATCH", "profiles?id=eq.\(uid)",
                            body: try JSONEncoder().encode([field: id.uuidString]), prefer: "return=minimal")
+    }
+
+    // MARK: - Learned preferences (habit memory)
+
+    func fetchPreferences() async -> [Preference] {
+        guard let data = try? await rest("GET", "preferences?select=id,text&order=created_at") else { return [] }
+        return (try? JSONDecoder().decode([Preference].self, from: data)) ?? []
+    }
+
+    func addPreference(_ text: String) async throws {
+        guard let uid = userId?.uuidString else { return }
+        _ = try await rest("POST", "preferences",
+                           body: try JSONEncoder().encode([PrefInsert(user_id: uid, text: text, source: "user")]),
+                           prefer: "return=minimal")
+    }
+
+    func deletePreference(_ id: UUID) async throws {
+        _ = try await rest("DELETE", "preferences?id=eq.\(id.uuidString)")
     }
 
     /// First-run gate: a user with no routines yet should see onboarding.

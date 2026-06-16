@@ -9,6 +9,9 @@ struct ProfileView: View {
     @State private var homeAddr = ""
     @State private var workAddr = ""
     @State private var editingPlace: PlaceKind?
+    @State private var prefs: [Preference] = []
+    @State private var addingPref = false
+    @State private var newPref = ""
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
@@ -67,6 +70,30 @@ struct ProfileView: View {
                     Text("Places")
                 } footer: {
                     Text("Planfect uses these to estimate real travel time to places you schedule.")
+                }
+
+                Section {
+                    if prefs.isEmpty {
+                        Text("Nothing yet — as you plan, Planfect notes your habits here (e.g. \"workouts in the morning\") and applies them.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    } else {
+                        ForEach(prefs) { p in
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles").font(.caption2).foregroundStyle(.tint)
+                                Text(p.text).font(.callout)
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    Task { try? await supa.deletePreference(p.id); await reload() }
+                                } label: { Label("Forget", systemImage: "trash") }
+                            }
+                        }
+                    }
+                    Button { addingPref = true } label: { Label("Add a preference", systemImage: "plus.circle.fill") }
+                } header: {
+                    Text("Planfect has learned")
+                } footer: {
+                    Text("Habits Planfect applies to every plan. Swipe to forget any, or add your own.")
                 }
 
                 Section {
@@ -129,6 +156,16 @@ struct ProfileView: View {
                 }
             }
             .onChange(of: leadMin) { _, _ in Task { await resyncReminders() } }
+            .alert("Add a preference", isPresented: $addingPref) {
+                TextField("e.g. Workouts in the morning", text: $newPref)
+                Button("Cancel", role: .cancel) { newPref = "" }
+                Button("Save") {
+                    let t = newPref.trimmingCharacters(in: .whitespaces); newPref = ""
+                    if !t.isEmpty { Task { try? await supa.addPreference(t); await reload() } }
+                }
+            } message: {
+                Text("Planfect will apply this to your future plans.")
+            }
         }
     }
 
@@ -136,6 +173,7 @@ struct ProfileView: View {
         routines = (try? await supa.fetchRoutines()) ?? []
         let hw = await supa.fetchHomeWork()
         homeAddr = hw.home ?? ""; workAddr = hw.work ?? ""
+        prefs = await supa.fetchPreferences()
     }
 
     @ViewBuilder

@@ -11,6 +11,7 @@ export const TOOL_SCHEDULE_TASKS = 'schedule_tasks';
 export const TOOL_UPDATE_TASK = 'update_task';
 export const TOOL_WEB_SEARCH = 'web_search';
 export const TOOL_SET_ROUTINE = 'set_routine';
+export const TOOL_REMEMBER_PREFERENCE = 'remember_preference';
 
 // The interrupt tool: when the model calls this, the loop returns the questions to the app
 // (rendered as multiple-choice cards + an "Other" affordance) instead of fulfilling it.
@@ -226,6 +227,27 @@ const setRoutine: ToolDef = {
   },
 };
 
+const rememberPreference: ToolDef = {
+  name: TOOL_REMEMBER_PREFERENCE,
+  description:
+    'Save or remove a DURABLE preference about how this user likes their days planned, so future ' +
+    'plans respect it across conversations. ADD one when the user states a lasting preference or ' +
+    'corrects the same kind of thing again — e.g. "I work out in the mornings", "groceries take me ' +
+    '45 min", "no meetings before 10", "I watch matches live even during work". Keep each short and ' +
+    'general (not a one-off task). DELETE one that is no longer true. Do not announce it at length — ' +
+    'just remember and carry on.',
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['action'],
+    properties: {
+      action: { type: 'string', enum: ['add', 'delete'] },
+      text: { type: 'string', description: 'The preference in plain language, e.g. "Workouts in the morning (7–9am)".' },
+      id: { type: ['string', 'null'], description: 'Preference id to delete (from the learned-preferences list).' },
+    },
+  },
+};
+
 export const PLANNER_TOOLS: ToolDef[] = [
   askUserQuestions,
   geocodePlace,
@@ -235,4 +257,5 @@ export const PLANNER_TOOLS: ToolDef[] = [
   updateTask,
   webSearch,
   setRoutine,
+  rememberPreference,
 ];
