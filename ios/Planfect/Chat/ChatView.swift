@@ -127,9 +127,31 @@ final class ChatViewModel: ObservableObject {
     /// Per-user file in Application Support so one account's chat never shows under another.
     private func storageURL() -> URL? {
         guard let uid = supa?.userId else { return nil }
-        let fm = FileManager.default
-        guard let dir = try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else { return nil }
+        return Self.chatFileURL(uid)
+    }
+
+    static func chatFileURL(_ uid: UUID) -> URL? {
+        guard let dir = try? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true) else { return nil }
         return dir.appendingPathComponent("planfect-chat-\(uid.uuidString).json")
+    }
+
+    /// Seed the chat with the onboarding conversation + a short how-to, so the setup chat isn't lost
+    /// and the user lands in Chat with guidance. Called once when onboarding finishes.
+    static func seedFromOnboarding(_ lines: [(bot: Bool, text: String)], userId: UUID) {
+        var chat = lines.map { ChatItem(content: .text($0.bot ? .assistant : .user, $0.text)) }
+        let guide = [
+            "全部记好啦 ✨ 接下来怎么用我:",
+            "• 直接说要做的事就行——「明天下午去健身」「周五看牙」「这周写完报告」。我会排到合适的时间,并绕开你的作息。",
+            "• 拿不准我会先问你一句,点选项确认就好。",
+            "• 想看安排去下面的「Schedule」,想看时间花在哪了去「Insights」。",
+            "• 作息、地址、提醒随时在右上角头像 ▸ Profile 里改。",
+            "试试看:跟我说一件你接下来要做的事 👇",
+        ].joined(separator: "\n")
+        chat.append(ChatItem(content: .text(.assistant, guide)))
+        let payload = PersistedChat(history: [], items: chat.map(PersistedItem.init))
+        if let url = chatFileURL(userId), let data = try? JSONEncoder().encode(payload) {
+            try? data.write(to: url)
+        }
     }
 }
 

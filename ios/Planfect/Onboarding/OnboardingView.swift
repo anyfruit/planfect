@@ -104,6 +104,10 @@ struct OnboardingView: View {
             try await supa.saveRoutines(r)
             try? await supa.saveHomeWork(home: homeAddress, work: workAddress)
             await NotificationManager.shared.ensureAuthorization()
+            // Keep the setup conversation as chat history + leave a how-to as the first chat message.
+            if let uid = supa.userId {
+                ChatViewModel.seedFromOnboarding(msgs.map { (bot: $0.bot, text: $0.text) }, userId: uid)
+            }
             supa.needsOnboarding = false
         } catch {
             saveFailed = true
@@ -144,8 +148,8 @@ struct OnboardingView: View {
             }
         case .places:
             VStack(spacing: 10) {
-                addrField("家庭住址", $homeAddress)
-                addrField("公司 / 学校(可选)", $workAddress)
+                AddressAutocompleteField(placeholder: "家庭住址", text: $homeAddress)
+                AddressAutocompleteField(placeholder: "公司 / 学校(可选)", text: $workAddress)
                 HStack(spacing: 10) {
                     chip("先跳过") { mySay("地址先不填"); finishFlow() }
                     confirm("完成设定") { mySay(placeSummary); finishFlow() }
@@ -216,13 +220,6 @@ struct OnboardingView: View {
             Spacer()
             DatePicker("", selection: b, displayedComponents: .hourAndMinute).labelsHidden()
         }
-    }
-
-    private func addrField(_ p: String, _ b: Binding<String>) -> some View {
-        TextField(p, text: b, axis: .vertical)
-            .lineLimit(1...2)
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 
     @ViewBuilder private func mealRow(_ name: String, _ on: Binding<Bool>, _ time: Binding<Date>) -> some View {

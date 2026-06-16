@@ -18,10 +18,10 @@ struct AddressEditView: View {
         NavigationStack {
             Form {
                 Section(title) {
-                    TextField("Street, city", text: $text, axis: .vertical).lineLimit(1...3)
+                    AddressAutocompleteField(placeholder: "Street, city", text: $text)
                 }
                 Section {
-                    Text("Used to estimate real travel time to places you schedule.")
+                    Text("Start typing and pick a suggestion so Planfect resolves the exact place for travel-time estimates.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
