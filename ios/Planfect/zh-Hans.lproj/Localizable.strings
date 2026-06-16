@@ -144,6 +144,10 @@
 /* Receipt commute line */
 "Leave %@ · %@, %lld min" = "%1$@ 出发 · %2$@,%lld 分钟";
 
+/* Recurring (Profile) */
+"Recurring" = "重复";
+"Habits Planfect repeats for you. Swipe to stop one." = "Planfect 帮你重复的习惯。左滑可停止。";
+
 /* Auth */
 "Sign in" = "登录";
 "Create account" = "注册";

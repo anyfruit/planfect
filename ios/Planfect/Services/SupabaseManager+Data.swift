@@ -193,6 +193,18 @@ extension SupabaseManager {
         _ = try await rest("DELETE", "preferences?id=eq.\(id.uuidString)")
     }
 
+    // MARK: - Recurring tasks / habits
+
+    func fetchRecurring() async -> [RecurringTask] {
+        guard let data = try? await rest("GET", "recurring_tasks?select=id,title,days_of_week,start_local,duration_min&active=eq.true&order=created_at") else { return [] }
+        return (try? JSONDecoder().decode([RecurringTask].self, from: data)) ?? []
+    }
+
+    /// Delete a recurring rule — cascades its future occurrences (time_blocks.recurring_id).
+    func deleteRecurring(_ id: UUID) async throws {
+        _ = try await rest("DELETE", "recurring_tasks?id=eq.\(id.uuidString)")
+    }
+
     /// First-run gate: a user with no routines yet should see onboarding.
     func refreshOnboardingState() async {
         #if DEBUG

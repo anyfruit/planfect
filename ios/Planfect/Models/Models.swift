@@ -45,6 +45,14 @@ struct Preference: Decodable, Identifiable {
     let text: String
 }
 
+struct RecurringTask: Decodable, Identifiable {
+    let id: UUID
+    let title: String
+    let days_of_week: [Int]
+    let start_local: String      // "HH:MM[:SS]"
+    let duration_min: Int
+}
+
 struct Routine: Decodable, Identifiable {
     let id: UUID
     let label: String

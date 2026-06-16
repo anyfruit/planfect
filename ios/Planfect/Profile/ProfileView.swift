@@ -12,6 +12,7 @@ struct ProfileView: View {
     @State private var prefs: [Preference] = []
     @State private var addingPref = false
     @State private var newPref = ""
+    @State private var recurring: [RecurringTask] = []
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
@@ -71,6 +72,34 @@ struct ProfileView: View {
                     Text("Places")
                 } footer: {
                     Text("Planfect uses these to estimate real travel time to places you schedule.")
+                }
+
+                if !recurring.isEmpty {
+                    Section {
+                        ForEach(recurring) { r in
+                            HStack(spacing: 10) {
+                                Image(systemName: "repeat").foregroundStyle(.secondary).frame(width: 22)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(r.title)
+                                    HStack(spacing: 4) {
+                                        Text(LocalizedStringKey(daysLabel(r.days_of_week)))
+                                        Text("· \(String(r.start_local.prefix(5)))")
+                                    }
+                                    .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button(role: .destructive) {
+                                    Task { try? await supa.deleteRecurring(r.id); await reload() }
+                                } label: { Label("Delete", systemImage: "trash") }
+                            }
+                        }
+                    } header: {
+                        Text("Recurring")
+                    } footer: {
+                        Text("Habits Planfect repeats for you. Swipe to stop one.")
+                    }
                 }
 
                 Section {
@@ -182,6 +211,7 @@ struct ProfileView: View {
         let hw = await supa.fetchHomeWork()
         homeAddr = hw.home ?? ""; workAddr = hw.work ?? ""
         prefs = await supa.fetchPreferences()
+        recurring = await supa.fetchRecurring()
     }
 
     @ViewBuilder
