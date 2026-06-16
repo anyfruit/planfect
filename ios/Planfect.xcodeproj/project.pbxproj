@@ -48,7 +48,7 @@
 		63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDetailView.swift; sourceTree = "<group>"; };
 		6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptCardView.swift; sourceTree = "<group>"; };
-		6FCB597B22B7D9B63127A986 /* Planfect.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Planfect.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6FCB597B22B7D9B63127A986 /* Planfect.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Planfect.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		70C02298574E621578D70481 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanfectApp.swift; sourceTree = "<group>"; };
 		730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SupabaseManager+Data.swift"; sourceTree = "<group>"; };
@@ -337,6 +337,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9K59GFVLS5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Planfect reads your calendar to schedule around real events, and adds the plans it makes back to your calendar.";
@@ -422,6 +423,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 9K59GFVLS5;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Planfect reads your calendar to schedule around real events, and adds the plans it makes back to your calendar.";

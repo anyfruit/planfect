@@ -12,6 +12,7 @@ import { scheduleTask, type PlacedBlock } from '../../../server/scheduling/sched
 import {
   planningWindowsForDate,
   zonedToUtc,
+  weekdayInTz,
   type RoutineInput,
   type CalendarDate,
 } from '../../../server/scheduling/routines.ts';
@@ -26,6 +27,7 @@ import {
   TOOL_WEB_SEARCH,
   TOOL_SET_ROUTINE,
   TOOL_REMEMBER_PREFERENCE,
+  TOOL_SET_RECURRING,
 } from '../../../server/llm/tools.ts';
 
 export interface PlanContext {
@@ -39,6 +41,18 @@ export interface PlanContext {
   preferences: { id: string; text: string }[];   // learned, durable preferences (habit memory)
   observedHabits: string;     // patterns mined from the user's past schedule (soft hints)
   calendarBusy: { start: number; end: number; title: string }[];   // real device-calendar events (from the request)
+  recurring: RecurringRow[];  // active recurring tasks/habits
+}
+
+interface RecurringRow {
+  id: string;
+  title: string;
+  category?: string | null;
+  days_of_week: number[];
+  start_local: string;
+  duration_min: number;
+  active: boolean;
+  materialized_until?: string | null;
 }
 
 interface LocationRow {
@@ -53,15 +67,20 @@ interface LocationRow {
 export async function loadContext(supabase: SupabaseClient, userId: string): Promise<PlanContext> {
   const nowIso = new Date().toISOString();
   const pastIso = new Date(Date.now() - 60 * 86_400_000).toISOString();   // ~8 weeks back for habit mining
-  const [routines, locations, profile, prefs, past] = await Promise.all([
+  const [routines, locations, profile, prefs, past, recurring] = await Promise.all([
     supabase.from('routines').select('*').eq('user_id', userId),
     supabase.from('locations').select('id,name,address,lat,lng,place_id').eq('user_id', userId),
     supabase.from('profiles').select('timezone,home_location_id,work_location_id,preferred_modes').eq('id', userId).single(),
     supabase.from('preferences').select('id,text').eq('user_id', userId).order('created_at'),
     supabase.from('time_blocks').select('category,start_at,end_at').eq('user_id', userId)
       .eq('kind', 'task').lt('start_at', nowIso).gte('start_at', pastIso).order('start_at').limit(500),
+    supabase.from('recurring_tasks').select('*').eq('user_id', userId).eq('active', true),
   ]);
   const timezone = profile.data?.timezone ?? 'UTC';
+
+  // Keep recurring habits' occurrences filled in for the rolling horizon before reading the schedule.
+  const recurringRows = (recurring.data ?? []) as RecurringRow[];
+  for (const rt of recurringRows) await materializeRecurring(supabase, userId, rt, timezone);
   // Upcoming schedule from the start of today (user's tz) so the planner knows existing plans and
   // never claims the day is empty when it isn't.
   const ymd = new Intl.DateTimeFormat('en-CA', {
@@ -86,7 +105,47 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     preferences: (prefs.data ?? []) as { id: string; text: string }[],
     observedHabits: summarizeHabits((past.data ?? []) as HabitRow[], timezone),
     calendarBusy: [],   // populated from the request body in index.ts
+    recurring: recurringRows,
   };
+}
+
+// --- recurring-task materialization -----------------------------------------------------
+
+function addDays(d: CalendarDate, n: number): CalendarDate {
+  const t = new Date(Date.UTC(d.year, d.month - 1, d.day) + n * 86_400_000);
+  return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() };
+}
+function cmpDate(a: CalendarDate, b: CalendarDate): number {
+  return (a.year - b.year) || (a.month - b.month) || (a.day - b.day);
+}
+function dateStr(d: CalendarDate): string {
+  return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
+}
+
+/** Create a recurring task's occurrences as time_blocks through a rolling horizon (idempotent via
+ *  `materialized_until`, so a deleted occurrence is never resurrected). */
+async function materializeRecurring(supabase: SupabaseClient, userId: string, rt: RecurringRow, tz: string): Promise<void> {
+  if (!rt.active || !rt.days_of_week?.length) return;
+  const today = localParts(Date.now(), tz).date;
+  const horizon = addDays(today, 21);
+  const lastDone = rt.materialized_until ? parseDate(rt.materialized_until) : null;
+  let from = lastDone ? addDays(lastDone, 1) : today;
+  if (cmpDate(from, today) < 0) from = today;
+  if (cmpDate(from, horizon) > 0) return;   // already filled through the horizon
+
+  const rows: Record<string, unknown>[] = [];
+  for (let d = from; cmpDate(d, horizon) <= 0; d = addDays(d, 1)) {
+    if (rt.days_of_week.includes(weekdayInTz(d, tz))) {
+      const s = zonedToUtc(d, timeToMin(rt.start_local), tz);
+      rows.push({
+        user_id: userId, title: rt.title, kind: 'task', status: 'planned',
+        start_at: new Date(s).toISOString(), end_at: new Date(s + (rt.duration_min ?? 60) * 60_000).toISOString(),
+        category: rt.category ?? null, recurring_id: rt.id,
+      });
+    }
+  }
+  if (rows.length) await supabase.from('time_blocks').insert(rows);
+  await supabase.from('recurring_tasks').update({ materialized_until: dateStr(horizon) }).eq('id', rt.id);
 }
 
 interface HabitRow { category?: string | null; start_at: string; end_at: string }
@@ -141,6 +200,12 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     `Saved locations: ${JSON.stringify(ctx.locations)}`,
     `LEARNED PREFERENCES — apply these every time; they reflect how THIS user likes things and override generic defaults: ${ctx.preferences.length ? ctx.preferences.map((p) => `- ${p.text} [pref:${p.id}]`).join(' ') : 'none yet'}`,
     `OBSERVED HABITS from their past schedule (soft hints, weaker than a stated preference or routine; use only when it fits): ${ctx.observedHabits}`,
+    `Recurring tasks already set up (reference by id to change/stop): ${formatRecurring(ctx.recurring)}`,
+    'RECURRING: when the user wants to do something REPEATEDLY on a schedule (每周一三五健身 / 每天背单词 /',
+    'every Tuesday night), call set_recurring with days_of_week + start_local — do NOT create a separate',
+    'one-off for each, and do NOT use set_routine (that is for work/sleep/meal background to avoid). To',
+    'stop or change one, set_recurring delete by its [recurring:id]. A recurring task auto-fills the',
+    'coming weeks, so just confirm it briefly.',
     'LEARN over time: when the user states a lasting preference, or corrects the same kind of choice',
     'again (e.g. keeps moving workouts to the morning, always wants 45-min grocery runs), call',
     'remember_preference(add) with a short general statement — then keep going. Do not ask permission',
@@ -402,6 +467,40 @@ export function buildHandlers(
         const id = (data as { id: string } | null)?.id;
         if (id) ctx.preferences.push({ id, text });
         return JSON.stringify({ ok: true, action: 'added', id });
+      } catch (e) {
+        return JSON.stringify({ ok: false, error: (e as Error).message });
+      }
+    },
+
+    // Recurring tasks/habits. add → create the rule + place upcoming occurrences now; delete → drop
+    // the rule (cascade-removes its future occurrences).
+    [TOOL_SET_RECURRING]: async (args) => {
+      const action = String(args.action ?? '');
+      try {
+        if (action === 'delete') {
+          const id = args.id ? String(args.id) : '';
+          if (!id) return JSON.stringify({ ok: false, error: 'missing id' });
+          await supabase.from('recurring_tasks').delete().eq('id', id);
+          ctx.recurring = ctx.recurring.filter((r) => r.id !== id);
+          return JSON.stringify({ ok: true, action: 'deleted' });
+        }
+        const title = String(args.title ?? '').trim();
+        const days = Array.isArray(args.days_of_week) ? (args.days_of_week as number[]) : [];
+        const startLocal = String(args.start_local ?? '').trim();
+        if (!title || !days.length || !startLocal) {
+          return JSON.stringify({ ok: false, error: 'need title, days_of_week, and start_local' });
+        }
+        const dur = args.estimated_duration_min ? Number(args.estimated_duration_min) : 60;
+        const { data } = await supabase.from('recurring_tasks').insert({
+          user_id: userId, title, category: args.category ? String(args.category) : null,
+          days_of_week: days, start_local: startLocal, duration_min: dur, active: true,
+        }).select('*').single();
+        const row = data as RecurringRow | null;
+        if (row) {
+          await materializeRecurring(supabase, userId, row, tz);
+          ctx.recurring.push(row);
+        }
+        return JSON.stringify({ ok: true, action: 'added' });
       } catch (e) {
         return JSON.stringify({ ok: false, error: (e as Error).message });
       }
@@ -701,6 +800,15 @@ function formatBlocks(blocks: unknown[], tz: string): string {
       const id = b.task_id ? ` [task:${String(b.task_id)}]` : '';
       return `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}${id}`;
     })
+    .join('; ');
+}
+
+/** Active recurring tasks formatted for the prompt (with ids so the model can change/stop them). */
+function formatRecurring(rows: RecurringRow[]): string {
+  if (!rows.length) return 'none';
+  const names = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return rows
+    .map((r) => `${r.title} (${r.days_of_week.map((d) => names[d]).join('/')} ${r.start_local}) [recurring:${r.id}]`)
     .join('; ');
 }
 

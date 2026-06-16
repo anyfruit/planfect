@@ -12,6 +12,7 @@ export const TOOL_UPDATE_TASK = 'update_task';
 export const TOOL_WEB_SEARCH = 'web_search';
 export const TOOL_SET_ROUTINE = 'set_routine';
 export const TOOL_REMEMBER_PREFERENCE = 'remember_preference';
+export const TOOL_SET_RECURRING = 'set_recurring';
 
 // The interrupt tool: when the model calls this, the loop returns the questions to the app
 // (rendered as multiple-choice cards + an "Other" affordance) instead of fulfilling it.
@@ -248,6 +249,33 @@ const rememberPreference: ToolDef = {
   },
 };
 
+const setRecurring: ToolDef = {
+  name: TOOL_SET_RECURRING,
+  description:
+    'Create or remove a RECURRING task/habit the user wants to do repeatedly — "gym every Mon/Wed/Fri ' +
+    'at 7am", "study 30 min daily", "writing every Tuesday night". This is for things to DO on a repeat; ' +
+    'NOT background like work/sleep/meals (use set_routine) and NOT a one-off (use schedule_tasks). ' +
+    'Occurrences are auto-placed on the calendar for the coming weeks and extend over time. DELETE one ' +
+    '(by the id from the recurring list) when the user wants to stop it.',
+  parameters: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['action'],
+    properties: {
+      action: { type: 'string', enum: ['add', 'delete'] },
+      id: { type: ['string', 'null'], description: 'recurring id to delete (from the recurring list).' },
+      title: { type: 'string' },
+      days_of_week: { type: 'array', items: { type: 'integer' }, description: '0=Sun … 6=Sat' },
+      start_local: { type: 'string', description: 'HH:MM (24h), local time' },
+      estimated_duration_min: { type: 'integer', description: 'minutes; defaults to 60' },
+      category: {
+        type: 'string',
+        enum: ['work', 'focus', 'fitness', 'meal', 'social', 'errand', 'leisure', 'health', 'learning', 'chore', 'travel', 'other'],
+      },
+    },
+  },
+};
+
 export const PLANNER_TOOLS: ToolDef[] = [
   askUserQuestions,
   geocodePlace,
@@ -258,4 +286,5 @@ export const PLANNER_TOOLS: ToolDef[] = [
   webSearch,
   setRoutine,
   rememberPreference,
+  setRecurring,
 ];
