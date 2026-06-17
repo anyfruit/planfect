@@ -348,6 +348,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Planfect reads your calendar to schedule around real events, and adds the plans it makes back to your calendar.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Planfect uses the microphone so you can dictate your plans.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Planfect transcribes your voice on-device to capture your plans.";
@@ -434,6 +435,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Planfect;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Planfect reads your calendar to schedule around real events, and adds the plans it makes back to your calendar.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Planfect uses the microphone so you can dictate your plans.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Planfect transcribes your voice on-device to capture your plans.";
