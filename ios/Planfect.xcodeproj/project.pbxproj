@@ -24,6 +24,7 @@
 		99D653613F32DF3DAF9EB60D /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */; };
 		A2DA1AE753300328BC310D12 /* AddressEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */; };
 		A7C09B5495743B1F03E9F368 /* AppRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2B68EB2FABB371E417D0387 /* AppRouter.swift */; };
+		B13D7A26836FA48EE215C3A5 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D5BABC304FF3DC8A6517433 /* ShareSheet.swift */; };
 		B3CDEA4CF3DEC41ABBD75F15 /* PlanfectApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */; };
 		BE52F96CBFB53D468DC29F89 /* RoutineEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D3F42E7102085C0772E633 /* RoutineEditView.swift */; };
 		C0B0DAEFD017BADCBE2FA70A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C02298574E621578D70481 /* RootView.swift */; };
@@ -45,6 +46,7 @@
 		2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressEditView.swift; sourceTree = "<group>"; };
 		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
 		54521C45A418BBBD81C4174E /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
+		5D5BABC304FF3DC8A6517433 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		6265160A353BD5092527B6F7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDetailView.swift; sourceTree = "<group>"; };
 		6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
@@ -89,6 +91,7 @@
 				8165D8429962B74C0CA0527D /* AddressAutocompleteField.swift */,
 				00FD91C910A6A8E14E0D4148 /* CalendarManager.swift */,
 				6265160A353BD5092527B6F7 /* NotificationManager.swift */,
+				5D5BABC304FF3DC8A6517433 /* ShareSheet.swift */,
 				54521C45A418BBBD81C4174E /* SupabaseManager.swift */,
 				730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */,
 			);
@@ -311,6 +314,7 @@
 				C0B0DAEFD017BADCBE2FA70A /* RootView.swift in Sources */,
 				BE52F96CBFB53D468DC29F89 /* RoutineEditView.swift in Sources */,
 				02CBD4F151FA45EFA99F3299 /* ScheduleView.swift in Sources */,
+				B13D7A26836FA48EE215C3A5 /* ShareSheet.swift in Sources */,
 				50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */,
 				C58AC76843AEE44BA888CF52 /* SupabaseConfig.swift in Sources */,
 				8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */,

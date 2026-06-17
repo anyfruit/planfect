@@ -85,6 +85,12 @@
 "Locations & maps — coming soon" = "地点与地图 — 即将推出";
 "Sign out" = "退出登录";
 
+/* Export */
+"Export" = "导出";
+"Export schedule (.ics)" = "导出日程(.ics)";
+"Back up everything (.json)" = "备份全部(.json)";
+"Send your schedule to any calendar app, or save a full backup of your routines, plans, and learned habits." = "把日程发送到任意日历 App,或保存包含作息、计划和已学习习惯的完整备份。";
+
 /* Routine editor */
 "Home" = "家";
 "Work" = "公司";

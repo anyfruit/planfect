@@ -14,6 +14,8 @@ struct ProfileView: View {
     @State private var newPref = ""
     @State private var recurring: [RecurringTask] = []
     @State private var showPaywall = false
+    @State private var shareItem: ShareItem?
+    @State private var exporting = false
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
@@ -171,6 +173,23 @@ struct ProfileView: View {
                     Text("Plan around your real calendar events, and add Planfect's plans to your calendar.")
                 }
 
+                Section {
+                    Button { export { try await supa.exportICS() } } label: {
+                        HStack {
+                            Label("Export schedule (.ics)", systemImage: "calendar.badge.plus")
+                            if exporting { Spacer(); ProgressView() }
+                        }
+                    }
+                    Button { export { try await supa.exportJSON() } } label: {
+                        Label("Back up everything (.json)", systemImage: "arrow.down.doc")
+                    }
+                } header: {
+                    Text("Export")
+                } footer: {
+                    Text("Send your schedule to any calendar app, or save a full backup of your routines, plans, and learned habits.")
+                }
+                .disabled(exporting)
+
                 Section("Settings") {
                     LabeledContent("Timezone", value: TimeZone.current.identifier)
                     Text("Locations & maps — coming soon")
@@ -189,6 +208,7 @@ struct ProfileView: View {
             .sheet(item: $editing) { r in RoutineEditView(existing: r) { Task { await reload() } } }
             .sheet(isPresented: $addingNew) { RoutineEditView(existing: nil) { Task { await reload() } } }
             .sheet(isPresented: $showPaywall) { PaywallView() }
+            .sheet(item: $shareItem) { item in ShareSheet(items: [item.url]) }
             .sheet(item: $editingPlace) { kind in
                 AddressEditView(title: LocalizedStringKey(kind == .home ? "Home" : "Work"),
                                 initial: kind == .home ? homeAddr : workAddr) { newVal in
@@ -241,6 +261,16 @@ struct ProfileView: View {
                     .lineLimit(1).truncationMode(.tail).frame(maxWidth: 170, alignment: .trailing)
                 Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
             }
+        }
+    }
+
+    /// Run an export builder off the main actor, then hand the file to the share sheet.
+    private func export(_ build: @escaping () async throws -> URL) {
+        guard !exporting else { return }
+        exporting = true
+        Task {
+            defer { exporting = false }
+            if let url = try? await build() { shareItem = ShareItem(url: url) }
         }
     }
 

@@ -7,6 +7,48 @@ private struct AddrRow: Decodable { let address: String? }
 private struct IdRow: Decodable { let id: UUID }
 private struct LocationInsert: Encodable { let user_id: String; let name: String; let address: String }
 
+/// iCalendar (RFC 5545) formatting helpers for the schedule export.
+private enum ICS {
+    /// UTC instant in iCalendar form, e.g. 20260616T133000Z.
+    static let stamp: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "yyyyMMdd'T'HHmmss'Z'"
+        return f
+    }()
+    /// Local date for filenames, e.g. 2026-06-16.
+    static let fileDate: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+    /// Escape a TEXT value per RFC 5545 §3.3.11 (backslash, semicolon, comma, newline).
+    static func escape(_ s: String) -> String {
+        s.replacingOccurrences(of: "\\", with: "\\\\")
+         .replacingOccurrences(of: ";", with: "\\;")
+         .replacingOccurrences(of: ",", with: "\\,")
+         .replacingOccurrences(of: "\r\n", with: "\\n")
+         .replacingOccurrences(of: "\n", with: "\\n")
+         .replacingOccurrences(of: "\r", with: "\\n")
+    }
+    /// Fold a content line to ≤75 octets (§3.1). Breaks on character boundaries so multi-byte
+    /// text (e.g. Chinese titles) is never split; continuation lines begin with a single space.
+    static func fold(_ line: String) -> String {
+        guard line.utf8.count > 75 else { return line }
+        var out = ""
+        var lineBytes = 0
+        for ch in line {
+            let n = String(ch).utf8.count
+            if lineBytes + n > 75 { out += "\r\n "; lineBytes = 1 }
+            out.append(ch)
+            lineBytes += n
+        }
+        return out
+    }
+}
+
 // Data access. The `/plan` agent call goes through the Supabase SDK (Functions attaches the JWT
 // correctly). The PostgREST reads/writes go through URLSession with the session's access token
 // set explicitly — this is reliable for RLS, whereas the SDK's PostgREST client did not reliably
@@ -235,6 +277,73 @@ extension SupabaseManager {
         } catch {
             needsOnboarding = false   // fail open to the main app rather than trapping the user
         }
+    }
+
+    // MARK: - Export (share schedule as .ics, full backup as .json)
+
+    /// Build an iCalendar (.ics) of every scheduled block and write it to a temp file. The result
+    /// imports into Apple Calendar, Google Calendar, Outlook — anything that reads iCalendar.
+    func exportICS() async throws -> URL {
+        let blocks = try await fetchBlocks()
+        let now = ICS.stamp.string(from: Date())
+        var lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//Planfect//Planfect iOS//EN",
+            "CALSCALE:GREGORIAN",
+            "METHOD:PUBLISH",
+            "X-WR-CALNAME:Planfect",
+        ]
+        for b in blocks where b.start != .distantPast && b.end != .distantPast {
+            lines += [
+                "BEGIN:VEVENT",
+                "UID:\(b.id.uuidString)@planfect.app",
+                "DTSTAMP:\(now)",
+                "DTSTART:\(ICS.stamp.string(from: b.start))",
+                "DTEND:\(ICS.stamp.string(from: b.end))",
+                "SUMMARY:\(ICS.escape(b.title))",
+            ]
+            if let cat = b.category, !cat.isEmpty { lines.append("CATEGORIES:\(ICS.escape(cat))") }
+            if !b.notes.isEmpty { lines.append("DESCRIPTION:\(ICS.escape(b.notes))") }
+            lines.append("STATUS:\(b.isDone ? "CONFIRMED" : "TENTATIVE")")
+            lines.append("END:VEVENT")
+        }
+        lines.append("END:VCALENDAR")
+        let text = lines.map(ICS.fold).joined(separator: "\r\n") + "\r\n"
+        return try writeTemp(Data(text.utf8), name: "Planfect-\(ICS.fileDate.string(from: Date())).ics")
+    }
+
+    /// Build a complete JSON backup of the user's planning data (routines, schedule, learned
+    /// preferences, recurring habits) and write it to a temp file for the share sheet.
+    func exportJSON() async throws -> URL {
+        async let routinesD = rest("GET", "routines?select=label,kind,days_of_week,start_time,end_time,is_flexible&order=start_time")
+        async let blocksD   = rest("GET", "time_blocks?select=title,kind,status,start_at,end_at,transport_mode,category,recurring_id&order=start_at")
+        async let prefsD    = rest("GET", "preferences?select=text,source,created_at&order=created_at")
+        async let recurD    = rest("GET", "recurring_tasks?select=title,days_of_week,start_local,duration_min,active&order=created_at")
+        let (rData, bData, pData, recData) = try await (routinesD, blocksD, prefsD, recurD)
+
+        let dec = JSONDecoder()
+        func rows(_ d: Data) -> JSONValue { .array((try? dec.decode([JSONValue].self, from: d)) ?? []) }
+        let root: [String: JSONValue] = [
+            "app": .string("Planfect"),
+            "exported_at": .string(APIDate.iso(Date())),
+            "schema_version": .number(1),
+            "routines": rows(rData),
+            "time_blocks": rows(bData),
+            "preferences": rows(pData),
+            "recurring_tasks": rows(recData),
+        ]
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        let data = try enc.encode(JSONValue.object(root))
+        return try writeTemp(data, name: "Planfect-backup-\(ICS.fileDate.string(from: Date())).json")
+    }
+
+    /// Write bytes to a uniquely-named temp file and return its URL (overwrites a same-day file).
+    private func writeTemp(_ data: Data, name: String) throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        try data.write(to: url, options: .atomic)
+        return url
     }
 
     // MARK: - PostgREST over URLSession with the user's JWT
