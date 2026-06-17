@@ -59,6 +59,14 @@ final class SupabaseManager: ObservableObject {
         try await client.auth.signUp(email: email, password: password)
     }
 
+    /// Exchange an Apple identity token (with the raw nonce used to request it) for a Supabase
+    /// session. The Apple provider must be enabled in Supabase with `com.planfect.app` listed as an
+    /// authorized client ID.
+    func signInWithApple(idToken: String, nonce: String) async throws {
+        try await client.auth.signInWithIdToken(
+            credentials: .init(provider: .apple, idToken: idToken, nonce: nonce))
+    }
+
     func signOut() async {
         try? await client.auth.signOut()
     }

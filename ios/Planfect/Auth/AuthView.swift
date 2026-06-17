@@ -65,6 +65,14 @@ struct AuthView: View {
             .disabled(!canSubmit)
             .animation(.easeInOut(duration: 0.15), value: canSubmit)
 
+            HStack(spacing: 10) {
+                Rectangle().fill(Color(.systemGray4)).frame(height: 1)
+                Text("or").font(.footnote).foregroundStyle(.secondary)
+                Rectangle().fill(Color(.systemGray4)).frame(height: 1)
+            }
+
+            AppleSignInButton { msg in error = msg }
+
             Spacer(); Spacer()
         }
         .padding(28)
