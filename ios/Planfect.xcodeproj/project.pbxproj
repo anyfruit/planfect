@@ -11,15 +11,21 @@
 		08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */; };
 		0A5C8DAC0FBFA5594A8266E9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07C79F5E50489C2AFF73A95 /* ProfileView.swift */; };
 		23A3E72400211ABBBAE89556 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97D82409A559BA08A144C75 /* PaywallView.swift */; };
+		2AE67964FCA94900030BE7B3 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E578E174CF9A1913F0BA58AD /* WidgetModel.swift */; };
 		2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */; };
 		3AA3CCBC58CFEF4BA471B50E /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6265160A353BD5092527B6F7 /* NotificationManager.swift */; };
+		3E052B0B02889D9551FA9FEC /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8196F83EE93AA52225BBD3B4 /* Localizable.strings */; };
+		44CC0A70B510F089C44D053A /* PlanfectWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8AD4441B7C166052676F36B9 /* PlanfectWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		4D6C451AADFA2AC95823B319 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E578E174CF9A1913F0BA58AD /* WidgetModel.swift */; };
 		5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6660911D238AB2DB9F54CE /* InsightsView.swift */; };
 		50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */; };
 		6579D9C67852BFF7A690D3EA /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0016DA3561DE72EB9D6B20CA /* Models.swift */; };
 		7CEE3FE1F23691C11D2EDC57 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C211D8C7BE8AE1B0523629AD /* Assets.xcassets */; };
+		82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */; };
 		861E9736F45EDE9BDA117AAB /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = F52D82E7FBC6225B9446F7B2 /* Localizable.strings */; };
 		8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */; };
 		9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */; };
+		9291AE3AEBA6BF925BA6E1B5 /* PlanfectWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621776B04C4F2726894FCEB9 /* PlanfectWidget.swift */; };
 		970AD175F28E222FCBC2B8BA /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 0E4FF856D84138F0AC98C741 /* Supabase */; };
 		99D653613F32DF3DAF9EB60D /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */; };
 		A2DA1AE753300328BC310D12 /* AddressEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */; };
@@ -29,7 +35,9 @@
 		BE52F96CBFB53D468DC29F89 /* RoutineEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5D3F42E7102085C0772E633 /* RoutineEditView.swift */; };
 		C0B0DAEFD017BADCBE2FA70A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C02298574E621578D70481 /* RootView.swift */; };
 		C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B266EB035034732CCE00FD /* ChatView.swift */; };
+		C16AB4C190180035275F8B23 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2922E43C5BEDE6AB2C73D0 /* WidgetBridge.swift */; };
 		C58AC76843AEE44BA888CF52 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */; };
+		CF5D067CFABE1F792684331B /* CategoryStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */; };
 		D0DF87CB04A9A4713EFFF1E3 /* AddressAutocompleteField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8165D8429962B74C0CA0527D /* AddressAutocompleteField.swift */; };
 		D347F1657CA06B0BF94D5B1A /* CalendarManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00FD91C910A6A8E14E0D4148 /* CalendarManager.swift */; };
 		D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80448107C701A74A60580C71 /* AuthView.swift */; };
@@ -39,14 +47,41 @@
 		FF56E5C6E2F4A899DDF5CBA6 /* TaskCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83C57028392E6CFC13CFF701 /* TaskCategory.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		D16DB6F618ED9D05A0E3139E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 77728F3C47C2096B6F56FAA0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 610B162BE12604C560F42DAD;
+			remoteInfo = PlanfectWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5ADF9D0D1FE0D1E788654DE1 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				44CC0A70B510F089C44D053A /* PlanfectWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		0016DA3561DE72EB9D6B20CA /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		00FD91C910A6A8E14E0D4148 /* CalendarManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarManager.swift; sourceTree = "<group>"; };
 		0E22D74302E20B73680756E3 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressEditView.swift; sourceTree = "<group>"; };
+		41327E533766185C31A72594 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
+		53231E7C6831A414F46B4E6B /* PlanfectWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlanfectWidget.entitlements; sourceTree = "<group>"; };
 		54521C45A418BBBD81C4174E /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		5D5BABC304FF3DC8A6517433 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
+		621776B04C4F2726894FCEB9 /* PlanfectWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanfectWidget.swift; sourceTree = "<group>"; };
 		6265160A353BD5092527B6F7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDetailView.swift; sourceTree = "<group>"; };
 		6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
@@ -59,17 +94,24 @@
 		80448107C701A74A60580C71 /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		8165D8429962B74C0CA0527D /* AddressAutocompleteField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressAutocompleteField.swift; sourceTree = "<group>"; };
 		83C57028392E6CFC13CFF701 /* TaskCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCategory.swift; sourceTree = "<group>"; };
+		8AD4441B7C166052676F36B9 /* PlanfectWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PlanfectWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		9A978E8C5E8D3AE671B38647 /* Planfect.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Planfect.entitlements; sourceTree = "<group>"; };
 		A7B266EB035034732CCE00FD /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		A7DCD96ACADCB82289EE9026 /* TimelineViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViews.swift; sourceTree = "<group>"; };
+		A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStyle.swift; sourceTree = "<group>"; };
+		ACA8068B297C7CFC518B2C1E /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseConfig.swift; sourceTree = "<group>"; };
 		C211D8C7BE8AE1B0523629AD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C2B68EB2FABB371E417D0387 /* AppRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRouter.swift; sourceTree = "<group>"; };
+		C545A4B04B35AB91540ACA60 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		D07C79F5E50489C2AFF73A95 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		D5D3F42E7102085C0772E633 /* RoutineEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutineEditView.swift; sourceTree = "<group>"; };
 		D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		D9FFF281F388CD334A609B27 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognizer.swift; sourceTree = "<group>"; };
+		E578E174CF9A1913F0BA58AD /* WidgetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetModel.swift; sourceTree = "<group>"; };
 		E97D82409A559BA08A144C75 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
+		EB2922E43C5BEDE6AB2C73D0 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
 		FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -94,6 +136,7 @@
 				5D5BABC304FF3DC8A6517433 /* ShareSheet.swift */,
 				54521C45A418BBBD81C4174E /* SupabaseManager.swift */,
 				730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */,
+				EB2922E43C5BEDE6AB2C73D0 /* WidgetBridge.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -119,6 +162,17 @@
 			path = Schedule;
 			sourceTree = "<group>";
 		};
+		53E81895CD6E8691C855E594 /* PlanfectWidget */ = {
+			isa = PBXGroup;
+			children = (
+				C545A4B04B35AB91540ACA60 /* Info.plist */,
+				53231E7C6831A414F46B4E6B /* PlanfectWidget.entitlements */,
+				621776B04C4F2726894FCEB9 /* PlanfectWidget.swift */,
+				8196F83EE93AA52225BBD3B4 /* Localizable.strings */,
+			);
+			path = PlanfectWidget;
+			sourceTree = "<group>";
+		};
 		56EAA38340066614DC7CFAF5 /* Config */ = {
 			isa = PBXGroup;
 			children = (
@@ -131,6 +185,7 @@
 			isa = PBXGroup;
 			children = (
 				C211D8C7BE8AE1B0523629AD /* Assets.xcassets */,
+				9A978E8C5E8D3AE671B38647 /* Planfect.entitlements */,
 				71E11D91E3F4400DDEF63590 /* PlanfectApp.swift */,
 				7A65A8D2769A5EC3F87E06EC /* Auth */,
 				CA4CA4385930BC7B69644F79 /* Chat */,
@@ -143,6 +198,7 @@
 				0A2D2A42BE17F876A3493B2A /* Root */,
 				3E747E2FFC2ED066BBECC301 /* Schedule */,
 				02A87C1D112EE0B5B434EF4B /* Services */,
+				9FB3F28F7EBB8F5BD0E414E1 /* Shared */,
 			);
 			path = Planfect;
 			sourceTree = "<group>";
@@ -167,6 +223,7 @@
 			isa = PBXGroup;
 			children = (
 				6FCB597B22B7D9B63127A986 /* Planfect.app */,
+				8AD4441B7C166052676F36B9 /* PlanfectWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -179,10 +236,20 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		9FB3F28F7EBB8F5BD0E414E1 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */,
+				E578E174CF9A1913F0BA58AD /* WidgetModel.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		ACCC200A2BACFFEA9A8C6FA2 = {
 			isa = PBXGroup;
 			children = (
 				6391CDF8CF648A8CE0C2CDDE /* Planfect */,
+				53E81895CD6E8691C855E594 /* PlanfectWidget */,
 				8047E0CC2FD1008F7F350A45 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -227,10 +294,12 @@
 				DFA8C98F10D0F32B776AFB18 /* Sources */,
 				E82F7AD43D20DB66585431F8 /* Resources */,
 				7016690267B9E578ABFDBDA1 /* Frameworks */,
+				5ADF9D0D1FE0D1E788654DE1 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				CEBED7CB63D9CE47ED2A1690 /* PBXTargetDependency */,
 			);
 			name = Planfect;
 			packageProductDependencies = (
@@ -239,6 +308,24 @@
 			productName = Planfect;
 			productReference = 6FCB597B22B7D9B63127A986 /* Planfect.app */;
 			productType = "com.apple.product-type.application";
+		};
+		610B162BE12604C560F42DAD /* PlanfectWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 40DA886FF76BC1B5EAF2A1EF /* Build configuration list for PBXNativeTarget "PlanfectWidget" */;
+			buildPhases = (
+				51B8254E6DF83681FEE5850C /* Sources */,
+				CB7C94F724AA46477AEE05DE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PlanfectWidget;
+			packageProductDependencies = (
+			);
+			productName = PlanfectWidget;
+			productReference = 8AD4441B7C166052676F36B9 /* PlanfectWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -250,6 +337,10 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					08AE59E820A71603769963B9 = {
+						DevelopmentTeam = 9K59GFVLS5;
+						ProvisioningStyle = Automatic;
+					};
+					610B162BE12604C560F42DAD = {
 						DevelopmentTeam = 9K59GFVLS5;
 						ProvisioningStyle = Automatic;
 					};
@@ -274,11 +365,20 @@
 			projectRoot = "";
 			targets = (
 				08AE59E820A71603769963B9 /* Planfect */,
+				610B162BE12604C560F42DAD /* PlanfectWidget */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		CB7C94F724AA46477AEE05DE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3E052B0B02889D9551FA9FEC /* Localizable.strings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E82F7AD43D20DB66585431F8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -291,6 +391,16 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		51B8254E6DF83681FEE5850C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CF5D067CFABE1F792684331B /* CategoryStyle.swift in Sources */,
+				9291AE3AEBA6BF925BA6E1B5 /* PlanfectWidget.swift in Sources */,
+				4D6C451AADFA2AC95823B319 /* WidgetModel.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		DFA8C98F10D0F32B776AFB18 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -301,6 +411,7 @@
 				D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */,
 				08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */,
 				D347F1657CA06B0BF94D5B1A /* CalendarManager.swift in Sources */,
+				82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */,
 				C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */,
 				5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */,
 				9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */,
@@ -322,12 +433,31 @@
 				FC43EB3A10CA1A76FC72C0B6 /* SupabaseManager.swift in Sources */,
 				FF56E5C6E2F4A899DDF5CBA6 /* TaskCategory.swift in Sources */,
 				DD29AF440E60FE00EDD74544 /* TimelineViews.swift in Sources */,
+				C16AB4C190180035275F8B23 /* WidgetBridge.swift in Sources */,
+				2AE67964FCA94900030BE7B3 /* WidgetModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		CEBED7CB63D9CE47ED2A1690 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 610B162BE12604C560F42DAD /* PlanfectWidget */;
+			targetProxy = D16DB6F618ED9D05A0E3139E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin PBXVariantGroup section */
+		8196F83EE93AA52225BBD3B4 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				ACA8068B297C7CFC518B2C1E /* en */,
+				41327E533766185C31A72594 /* zh-Hans */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
 		F52D82E7FBC6225B9446F7B2 /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -344,6 +474,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Planfect/Planfect.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -431,6 +562,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Planfect/Planfect.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -450,6 +582,42 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		C179602A15C1A5D19D065841 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PlanfectWidget/PlanfectWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = PlanfectWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.planfect.app.PlanfectWidget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D512F06A57B26D548E20A1F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = PlanfectWidget/PlanfectWidget.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = PlanfectWidget/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.planfect.app.PlanfectWidget;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -524,6 +692,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		40DA886FF76BC1B5EAF2A1EF /* Build configuration list for PBXNativeTarget "PlanfectWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C179602A15C1A5D19D065841 /* Debug */,
+				D512F06A57B26D548E20A1F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		A1DDB74A1327981F0BA5C19C /* Build configuration list for PBXProject "Planfect" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

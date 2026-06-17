@@ -28,9 +28,11 @@ targets:
     dependencies:
       - package: Supabase
         product: Supabase
+      - target: PlanfectWidget       # embed the widget extension
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.planfect.app
+        CODE_SIGN_ENTITLEMENTS: Planfect/Planfect.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
@@ -48,3 +50,22 @@ targets:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
         Release:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: ""
+
+  PlanfectWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PlanfectWidget
+      - path: Planfect/Shared        # CategoryStyle + WidgetTask/store, shared with the app
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.planfect.app.PlanfectWidget
+        CODE_SIGN_ENTITLEMENTS: PlanfectWidget/PlanfectWidget.entitlements
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    info:
+      path: PlanfectWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Planfect
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension

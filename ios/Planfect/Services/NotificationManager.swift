@@ -57,6 +57,8 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     /// Clear all pending reminders and re-schedule from the current blocks. Idempotent.
     /// Cheap no-op when the relevant inputs are unchanged (e.g. just switching back to the tab).
     func reschedule(for blocks: [TimeBlock]) async {
+        WidgetBridge.publish(blocks)   // keep the home/lock-screen widget in sync with every load
+
         let sig = "\(enabled)|\(leadMinutes)|" + blocks.lazy
             .filter { !$0.isDone }
             .map { "\($0.id.uuidString):\(Int($0.start.timeIntervalSince1970))" }

@@ -1,0 +1,10 @@
+/* Planfect widget — Simplified Chinese */
+"Now" = "正在进行";
+"Next" = "接下来";
+"Nothing planned" = "暂无安排";
+"No plans yet" = "还没有安排";
+"All clear" = "都安排完啦";
+"Open Planfect to plan your day." = "打开 Planfect 安排你的一天。";
+"Your next plans, at a glance." = "一眼看到接下来的安排。";
+"+%lld more" = "还有 %lld 项";
+"%lld left today" = "今天还剩 %lld 项";
