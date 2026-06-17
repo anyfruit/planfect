@@ -8,8 +8,9 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
-    # Device builds use automatic signing (pick your Apple ID team in Xcode).
+    # Device builds use automatic signing under the paid individual team (闫可菁 / 9K59GFVLS5).
     CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: "9K59GFVLS5"
     # Signing stays OFF for the Simulator only, so simulator/CI builds need no identity.
     "CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]": "NO"
     "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": "NO"
