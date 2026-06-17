@@ -254,11 +254,13 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'original to drop those days, then ADD a new routine for them — do not change all days at once.',
     'If the user names an external event whose real time you do not know — a match / tournament,',
     'movie showtime, concert, show, livestream, TV broadcast, store hours — call web_search to find',
-    'the actual time(s), then schedule the watching/attending AT those exact times: pass start_local',
-    'set to the event start time, and allow_over_routine=true whenever that time overlaps a routine',
-    '(work / meal / commute) — the user has chosen to watch it then, so a fixed event time wins over',
-    'work. Never say you cannot look things up. If the search is inconclusive, say what you found and',
-    'ask the user for the time.',
+    'the actual time(s), then schedule the watching/attending AT those exact times. The event may be',
+    'in another timezone (e.g. a London match watched from the US): the search gives the start time',
+    'BOTH in the event\'s own timezone and converted to the user\'s timezone — set start_local to the',
+    'CONVERTED user-timezone time (start_local is always the user\'s local clock), NOT the event\'s home',
+    'clock. Set allow_over_routine=true whenever that time overlaps a routine (work / meal / commute) —',
+    'the user has chosen to watch it then, so a fixed event time wins over work. Never say you cannot',
+    'look things up. If the search is inconclusive, say what you found and ask the user for the time.',
     'Be efficient: infer free days from the routine directly (a weekday job means weekends are open) —',
     'call get_schedule at most once, for the day you intend to propose. Do not keep exploring; decide',
     'and ask within a couple of tool calls.',
@@ -341,13 +343,28 @@ export function buildHandlers(
       const query = String(args.query ?? '').trim();
       if (!query || !searchApiKey) return JSON.stringify({ result: 'Web search is unavailable.' });
       try {
+        const now = new Date();
+        const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+        const weekday = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'long' }).format(now);
+        const input = [
+          query,
+          '',
+          `Context: today is ${weekday}, ${todayStr}, and the user lives in the ${tz} timezone. Resolve any relative dates ("tonight", "this Saturday", "下周六") against today, in ${tz}.`,
+          '',
+          'Use authoritative, current sources (the event\'s official schedule page or a well-known listing). Report, concisely:',
+          '- the concrete calendar date;',
+          `- the exact start time in the event's own local timezone;`,
+          `- that SAME start time converted to the user's timezone (${tz}) — schedule it in ${tz}, so always include this even when the event is elsewhere;`,
+          '- the source you used.',
+          'If sources disagree or you cannot verify the time, say so plainly — do not guess.',
+        ].join('\n');
         const res = await fetch('https://api.openai.com/v1/responses', {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: `Bearer ${searchApiKey}` },
           body: JSON.stringify({
             model: 'gpt-4.1',
             tools: [{ type: 'web_search' }],
-            input: `${query}\n\nUse authoritative, current sources (the event's official schedule page, well-known listings). Give the concrete date and exact start time(s) in the event's local timezone AND name the source. If sources disagree or you can't verify the time, say so plainly — do not guess.`,
+            input,
             max_output_tokens: 600,
           }),
         });
