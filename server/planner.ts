@@ -89,6 +89,16 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
       }
       msgs.push({ role: 'tool', toolCallId: call.id, content: result });
     }
+
+    // Once tasks actually land on the calendar, the structured receipt IS the reply — return now
+    // instead of spending another LLM round-trip on a summary the receipt card never displays.
+    // (If nothing placed, fall through so the model can recover or explain on the next step.)
+    if (scheduled) {
+      const placed = scheduledItems.filter((it) => it && it.start != null);
+      if (placed.length > 0) {
+        return { type: 'scheduled', receipt: { summary: '', items: placed, assumptions }, messages: msgs };
+      }
+    }
   }
 
   return { type: 'message', text: '(reached max planning steps)', messages: msgs };

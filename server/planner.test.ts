@@ -38,13 +38,12 @@ test('planner asks a clarifying question, then schedules on resume; usage is rec
         },
       }],
     }),
-    // 2. after the answer, model commits the schedule
+    // 2. after the answer, the model commits the schedule — the planner returns the receipt right
+    //    here, with no extra "summary" round-trip (the card renders structured items, not prose).
     step({
       finishReason: 'tool_calls',
       toolCalls: [{ id: 'c2', name: TOOL_SCHEDULE_TASKS, arguments: { tasks: [{ title: 'Dentist' }] } }],
     }),
-    // 3. final receipt text
-    step({ text: 'Scheduled the dentist for Friday 3-4pm.', finishReason: 'stop' }),
   ];
 
   const llm = new MockPlanner(script);
@@ -84,11 +83,12 @@ test('planner asks a clarifying question, then schedules on resume; usage is rec
     assert.equal(r2.receipt.items.length, 1);
     assert.equal(r2.receipt.items[0].title, 'Dentist');
     assert.deepEqual(r2.receipt.assumptions, ['Assumed a 1-hour visit.']);
-    assert.match(r2.receipt.summary, /dentist/i);
+    assert.equal(r2.receipt.summary, '');   // no prose summary — the card shows structured items
   }
 
-  // A usage event per model step: 1 (ask) + 2 (schedule + final) = 3.
-  assert.equal(usage.events.length, 3);
+  // One usage event per model step: 1 (ask) + 1 (schedule) = 2. The schedule short-circuits
+  // straight to the receipt, so there's no third "summary" round-trip.
+  assert.equal(usage.events.length, 2);
   assert.ok(usage.totalTokens() > 0);
   assert.equal(usage.events[0].provider, 'openai');
   assert.equal(usage.events[0].action, 'plan_step');
