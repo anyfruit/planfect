@@ -16,7 +16,9 @@ export interface PlacedBlock {
 
 export interface ScheduleTaskRequest {
   durationMin: number;
-  earliestStart?: number;   // epoch ms
+  earliestStart?: number;   // epoch ms — don't start before this (soft lower bound for auto placement)
+  pinnedStart?: number;     // epoch ms — the TASK itself must start exactly here (an explicit/agreed
+                            // time); any commute is placed BEFORE it (you leave early to arrive on time)
   deadline?: number;        // epoch ms (task must end by this)
   sessionMin?: number;      // if set and < durationMin → multi-session (no commute)
   commuteMin?: number;      // travel time to insert as a commute block before the task
@@ -52,7 +54,11 @@ export function scheduleTask(
   const commuteMs = (req.commuteMin ?? 0) * 60_000;
   const bufferMs = (req.bufferMin ?? 0) * 60_000;
   const need = commuteMs + durationMs + bufferMs;
-  const slot = findSlot(free, need, opts);
+  // A pinned start is the TASK's start time (arrival/appointment). The commute precedes it, so the
+  // whole block (commute + task + buffer) must begin commuteMs EARLIER — leave early, arrive on time.
+  // Without a pin, fall back to the soft earliestStart (commute then task both after it).
+  const searchEarliest = req.pinnedStart != null ? req.pinnedStart - commuteMs : req.earliestStart;
+  const slot = findSlot(free, need, { earliestStart: searchEarliest, deadline: req.deadline });
   if (!slot) return { ok: false, reason: 'no_slot' };
 
   const blocks: PlacedBlock[] = [];

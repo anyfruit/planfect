@@ -36,6 +36,19 @@ test('inserts a commute block before a task at a location', () => {
   assert.equal(min(p.blocks[1].end), 17 * 60 + 25 + 60);
 });
 
+test('a pinned start puts the commute BEFORE it — the task lands exactly at the pinned time', () => {
+  // User: "dinner at 18:00" at a place, 25-min commute. They should LEAVE at 17:35 and the meal
+  // must start at 18:00 — not have the commute eat into 18:00 and push dinner to 18:25.
+  const p = scheduleTask(availability, busy, { durationMin: 60, commuteMin: 25, pinnedStart: at(18 * 60) });
+  assert.equal(p.ok, true);
+  if (!p.ok) return;
+  assert.deepEqual(p.blocks.map((b: PlacedBlock) => b.kind), ['commute', 'task']);
+  assert.equal(min(p.blocks[0].start), 17 * 60 + 35);   // leave at 17:35
+  assert.equal(min(p.blocks[0].end), 18 * 60);          // commute ends at 18:00
+  assert.equal(min(p.blocks[1].start), 18 * 60);        // task STARTS at the pinned 18:00
+  assert.equal(min(p.blocks[1].end), 19 * 60);
+});
+
 test('respects a deadline by failing when nothing fits in time', () => {
   // Only the morning gap (07:00–09:00) is before the deadline; a 3h task cannot fit.
   const p = scheduleTask(availability, busy, { durationMin: 180, deadline: at(9 * 60) });

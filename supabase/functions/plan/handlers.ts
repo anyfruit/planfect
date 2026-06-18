@@ -257,6 +257,12 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'returned durationMin as commute_min to schedule_tasks so a commute + buffer are blocked off. If',
     'there is no Home saved and you cannot tell where they\'re leaving from, ask once (or skip the',
     'commute). Skip commute for at-home / virtual tasks (calls, study, chores).',
+    'CRITICAL — start_local is when the ACTIVITY itself starts (arrival / appointment / showtime / the',
+    'meal), NEVER the departure time. Do NOT subtract travel yourself and do NOT pass the leave time:',
+    'pass the activity time as start_local AND commute_min, and the scheduler automatically lays the',
+    'commute BEFORE it, so the user leaves early and ARRIVES on time. Example: "eat at 7:30" with a',
+    '15-min drive → start_local 19:30, commute_min 15 → the meal stays at 19:30, leave at 19:15. Never',
+    'push the activity later than the time the user said.',
     'Routine blocks (sleep, work, meals, commute) are SOFT defaults to plan AROUND — NOT bans. Keep',
     'an AUTO / unspecified task out of them. But NEVER refuse a time the user EXPLICITLY wants just',
     'because a routine sits there — schedule it by passing start_local (the exact time) AND',
@@ -293,6 +299,11 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     '{start_local:"14:00"} or {date:"2026-06-17"} to move it, {status:"done"}, {delete:true}. To SWAP or',
     'reorder two items, call update_task once for each with its new start_local. Do not delete-and-recreate',
     'when a simple move works.',
+    'FIXING A MISTAKE — when the user says something you scheduled is wrong ("为什么排到X", "不对", "改到…",',
+    '"reschedule", "时间错了"): ACT immediately, do not make them re-type a command. If the correct slot is',
+    'clear, just call update_task to fix it and confirm in one line. If you genuinely need their call, offer',
+    'it as tappable options via ask_user_questions (e.g. "改到今天 14:00?" → [可以 / 换个时间]) — NEVER reply',
+    'with plain text that asks the user to say "好，重新排" or otherwise resend a message. Efficiency matters.',
     'NEVER expose internal mechanics to the user: do not mention tool names, task ids / task_id, UUIDs,',
     '"the system", "no task_id", JSON, or how scheduling works. Those [task:…] ids are for your tool calls',
     'ONLY. Talk like a friend about the plan itself (titles, times, days) — if something cannot be done,',
@@ -653,9 +664,11 @@ export function buildHandlers(
           commuteMin: t.commute_min != null ? clampCommuteMin(Number(t.commute_min)) : undefined,
           bufferMin: t.buffer_min,
           sessionMin: t.session_min,
-          earliestStart: t.start_local
-            ? zonedToUtc(date, timeToMin(t.start_local), tz)
-            : parseWhen(t.earliest_start, tz),
+          // An explicit start_local is the time the task itself should START (you arrive/begin then);
+          // pass it as pinnedStart so any commute is laid down BEFORE it. Otherwise it's just a soft
+          // "not before" bound.
+          pinnedStart: t.start_local ? zonedToUtc(date, timeToMin(t.start_local), tz) : undefined,
+          earliestStart: t.start_local ? undefined : parseWhen(t.earliest_start, tz),
           deadline: parseWhen(t.deadline, tz),
         });
         if (!placement.ok) {
