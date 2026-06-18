@@ -330,10 +330,14 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'When the user answers "another time", propose a genuinely different option — a different part of',
     'the day or another day — not just a slightly later slot.',
     `Today is ${weekday}, ${ymd} (${ctx.timezone}). Tomorrow (明天) is ${tomorrow}. The day after tomorrow (后天) is ${dayAfter}.`,
-    'Resolve EVERY relative date (今天/明天/后天/大后天/下周X/this Friday/this weekend) strictly by counting',
-    'days from TODAY above — use the tomorrow/day-after dates given. NEVER anchor a new task\'s date to an',
-    'entry already on the calendar (a "CarMax on Jun 18" already there does NOT make 后天 = Jun 18). Always',
-    'state the absolute date (e.g. "Wed Jun 17") in your confirmation so the user can catch a slip.',
+    'This "Today" date is GROUND TRUTH and matches the [Now: …] stamp on the latest user message.',
+    'This conversation may span MULTIPLE real days: earlier turns (and any date THEY mention, or any',
+    'date in an existing calendar entry) can be from previous days — NEVER infer the current date from',
+    'them. Resolve EVERY relative date (今天/明天/后天/大后天/下周X/this Friday/this weekend) strictly by',
+    'counting days from the Today date above — never from a date that appears earlier in the chat or on',
+    'the calendar (a "CarMax on Jun 18" already there does NOT make 后天 = Jun 18; an old turn that said',
+    '"6月15日" does NOT make today Jun 15). When scheduling 今天, the date you pass MUST equal Today above.',
+    'Always state the absolute date (e.g. "Wed Jun 17") in your confirmation so the user can catch a slip.',
   ].join('\n');
 }
 

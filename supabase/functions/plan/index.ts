@@ -46,6 +46,29 @@ Deno.serve(async (req: Request): Promise<Response> => {
       .map((c) => ({ start: Date.parse(c.start), end: Date.parse(c.end), title: String(c.title ?? 'Busy') }))
       .filter((c) => Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start);
 
+    // Anchor "today" with maximum recency. The app sends the FULL chat thread every turn and it
+    // persists across days, so a long multi-day history can drag the model's sense of "today"
+    // backward (e.g. resolving 今天 to a date from an old turn). Stamp the CURRENT date/time onto the
+    // latest user turn — the most recent, most salient signal — and strip any prior stamp so stale
+    // dates never accumulate or reach the model.
+    const nowTag = /^\[Now: .*?\]\n/;
+    const nowStamp = new Intl.DateTimeFormat('en-US', {
+      timeZone: ctx.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+    }).format(new Date());
+    let stampedLatest = false;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m.role !== 'user' || typeof m.content !== 'string') continue;
+      const base = m.content.replace(nowTag, '');
+      messages[i] = {
+        ...m,
+        content: stampedLatest ? base
+          : `[Now: ${nowStamp} ${ctx.timezone}. Resolve 今天/明天/后天/这周/dates from THIS; ignore any dates mentioned earlier in this chat — they may be from previous days.]\n${base}`,
+      };
+      stampedLatest = true;
+    }
+
     // Freemium gate (dormant unless BILLING_ENFORCED=1): free users get a monthly AI-usage budget;
     // over it, return an upsell instead of spending more on the model. Pro = unlimited.
     const billingEnforced = Deno.env.get('BILLING_ENFORCED') === '1';
