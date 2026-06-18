@@ -650,7 +650,7 @@ export function buildHandlers(
 
         const placement = scheduleTask(window, blocking, {
           durationMin,
-          commuteMin: t.commute_min,
+          commuteMin: t.commute_min != null ? clampCommuteMin(Number(t.commute_min)) : undefined,
           bufferMin: t.buffer_min,
           sessionMin: t.session_min,
           earliestStart: t.start_local
@@ -972,6 +972,13 @@ function routesWaypoint(p: ResolvedPlace): Record<string, unknown> {
   return { address: p.address };
 }
 
+/** Keep a commute duration sane (1 min … 10 h); a non-finite value falls back to a rough 25 min.
+ * Guards against a malformed route duration or a hallucinated commute_min becoming an absurd block. */
+function clampCommuteMin(min: number): number {
+  if (!Number.isFinite(min)) return 25;
+  return Math.min(600, Math.max(1, Math.round(min)));
+}
+
 async function googleRoute(
   key: string,
   from: ResolvedPlace,
@@ -1007,5 +1014,6 @@ async function googleRoute(
   const route = j.routes?.[0];
   if (!route?.duration) return null;
   const secs = parseInt(String(route.duration), 10) || 0;   // "123s" / "123.4s" -> 123 (parseInt stops at non-digit)
-  return { durationMin: Math.max(1, Math.round(secs / 60)), distanceM: route.distanceMeters ?? 0 };
+  // Clamp to a sane bound (1 min … 10 h) so a malformed duration never becomes an absurd commute.
+  return { durationMin: clampCommuteMin(Math.round(secs / 60)), distanceM: route.distanceMeters ?? 0 };
 }
