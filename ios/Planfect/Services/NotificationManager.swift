@@ -48,6 +48,10 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
     /// Ask for permission if the user hasn't decided yet and reminders are on. Safe to call often.
     func ensureAuthorization() async {
         guard enabled else { return }
+        #if DEBUG
+        // Screenshot/automation runs: skip the OS permission prompt so it never covers the UI.
+        if ProcessInfo.processInfo.environment["PLANFECT_NO_NOTIF_PROMPT"] == "1" { return }
+        #endif
         let settings = await center.notificationSettings()
         if settings.authorizationStatus == .notDetermined {
             _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
