@@ -1,0 +1,9 @@
+{
+  "name": "planfect-support",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Public support page for Planfect (App Store support URL).",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

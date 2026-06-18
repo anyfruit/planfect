@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planfect — 支持 / Support</title>
+<style>
+  :root { --brand: #6E54F0; --ink: #1c1c1e; --muted: #6b6b73; --bg: #f7f7fb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.6 -apple-system, "PingFang SC", "Segoe UI", Roboto, sans-serif;
+         color: var(--ink); background: var(--bg); }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 56px 22px 80px; }
+  .logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 26px;
+          color: var(--brand); letter-spacing: -.5px; }
+  .logo .dot { width: 30px; height: 30px; border-radius: 9px;
+               background: linear-gradient(135deg, var(--brand), #b15ff0); }
+  h1 { font-size: 22px; margin: 36px 0 8px; }
+  h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 34px 0 10px; }
+  p { margin: 8px 0; }
+  a { color: var(--brand); }
+  .card { background: #fff; border-radius: 16px; padding: 22px 24px; margin-top: 16px;
+          box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .btn { display: inline-block; margin-top: 8px; padding: 12px 20px; border-radius: 999px;
+         background: var(--brand); color: #fff; text-decoration: none; font-weight: 600; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .sep { height: 1px; background: #ececf2; margin: 40px 0; }
+  ul { padding-left: 20px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo"><span class="dot"></span> Planfect</div>
+
+    <!-- 中文 -->
+    <h1>需要帮助?</h1>
+    <p>Planfect 是一款 AI 日程助手——用打字或语音说出你的计划,它就按你的作息、通勤和习惯帮你排好一天。</p>
+    <div class="card">
+      <h2>联系我们</h2>
+      <p>有任何问题、建议或反馈,欢迎邮件联系,我们会尽快回复。</p>
+      <a class="btn" href="mailto:__SUPPORT_EMAIL__">发邮件给我们</a>
+      <p class="muted">__SUPPORT_EMAIL__</p>
+    </div>
+    <h2>常见问题</h2>
+    <ul>
+      <li>排程不对? 在对话里直接说「把 X 改到下午三点」就能调整。</li>
+      <li>想删除某项? 在「日程」里左滑即可删除。</li>
+      <li>通勤时间需要先在「我的 → 地点」里设置家/公司地址。</li>
+    </ul>
+
+    <div class="sep"></div>
+
+    <!-- English -->
+    <h1>Need help?</h1>
+    <p>Planfect is an AI day planner — tell it your plans by text or voice and it builds your day
+       around your routine, commute, and habits.</p>
+    <div class="card">
+      <h2>Contact</h2>
+      <p>Questions, suggestions, or feedback? Email us and we'll get back to you.</p>
+      <a class="btn" href="mailto:__SUPPORT_EMAIL__">Email support</a>
+      <p class="muted">__SUPPORT_EMAIL__</p>
+    </div>
+    <h2>FAQ</h2>
+    <ul>
+      <li>Wrong time? Just say "move X to 3pm" in chat to adjust.</li>
+      <li>Remove something? Swipe left on it in Schedule.</li>
+      <li>Travel times need your Home/Work address set in Profile → Places.</li>
+    </ul>
+
+    <p class="muted" style="margin-top:44px">© Planfect</p>
+  </div>
+</body>
+</html>
