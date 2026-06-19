@@ -78,6 +78,19 @@ function demoContext(tz: string): PlanContext {
   };
 }
 
+// Appended to the system prompt in demo mode only. A guest has no account and no saved places, so
+// the agent must NOT pester them for profile info — it should assume sensible defaults and just plan,
+// since the whole point is to show a smooth result in one shot.
+const DEMO_ADDENDUM = [
+  '',
+  'DEMO MODE — this is a no-account public demo. The user has NO saved home/work location and you',
+  'CANNOT ask for one. Never ask the user for their address, home, starting point, or to sign in,',
+  'and never ask which branch of a named place — assume a representative one. If a commute would need',
+  "an origin you don't have, just schedule the activities themselves (skip the commute block) rather",
+  'than asking where they live. When the user gives a day-part or a couple of stops, make sensible',
+  'assumptions and return ONE scheduled result (or one short confirmation) — do not interrogate.',
+].join('\n');
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   try {
@@ -150,7 +163,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const result = await runPlanner(messages, {
       llm: createPlanner(provider, { apiKey }),
       model,
-      system: buildSystemPrompt(ctx),
+      system: buildSystemPrompt(ctx) + DEMO_ADDENDUM,
       tools: PLANNER_TOOLS,
       // demo=true (last arg): real placement + web search + commutes, but no DB writes.
       handlers: buildHandlers(
