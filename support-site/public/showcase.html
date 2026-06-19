@@ -137,6 +137,111 @@
   </div>
 </div></section>
 
+<!-- INTERACTIVE DEMO -->
+<style>
+  .demo{max-width:440px;margin:8px auto 0;background:#f2f2f7;border:1px solid var(--line);border-radius:24px;padding:16px;box-shadow:0 12px 44px rgba(20,20,40,.12)}
+  .demo .dhead{display:flex;align-items:center;gap:7px;justify-content:center;font-weight:800;color:var(--brand);font-size:15px;margin-bottom:12px}
+  .demo .thread{min-height:64px;display:flex;flex-direction:column;gap:10px;padding:0 2px 8px}
+  .demo .ubub{align-self:flex-end;max-width:80%;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:9px 14px;border-radius:18px 18px 4px 18px;font-size:14.5px;line-height:1.4}
+  .demo .typing{align-self:flex-start;display:flex;gap:4px;padding:11px 14px;background:#fff;border-radius:16px}
+  .demo .typing i{width:7px;height:7px;border-radius:50%;background:#bcbcc9;animation:bl 1s infinite}
+  .demo .typing i:nth-child(2){animation-delay:.15s}.demo .typing i:nth-child(3){animation-delay:.3s}
+  @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  .demo .recpt{align-self:flex-start;width:92%;background:#fff;border:1px solid #cdeccd;border-radius:16px;padding:13px 15px;animation:pop .25s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .demo .recpt .s{display:flex;align-items:center;gap:6px;color:#34a853;font-weight:800;font-size:14px;margin-bottom:8px}
+  .demo .row{display:flex;align-items:center;gap:9px;padding:5px 0}
+  .demo .row .barC{width:4px;height:34px;border-radius:3px;flex:none}
+  .demo .row .ti{flex:1;min-width:0}
+  .demo .row .ti b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .demo .row .ti span{font-size:12px;color:var(--muted)}
+  .demo .row .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;flex:none}
+  .demo .recpt .tap{margin-top:7px;font-size:11px;color:var(--brand)}
+  .demo .chips{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
+  .demo .chips button{background:#fff;border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:12.5px;color:#444;cursor:pointer;font-family:inherit;text-align:left}
+  .demo .chips button:hover{border-color:var(--brand);color:var(--brand)}
+  .demo .bar2{display:flex;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 5px 5px 16px}
+  .demo .bar2 input{flex:1;border:0;outline:0;font:inherit;font-size:14.5px;background:transparent}
+  .demo .bar2 .snd{border:0;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;flex:none;line-height:1}
+  .demo .note{text-align:center;color:var(--muted);font-size:12.5px;margin-top:12px}
+</style>
+<section><div class="wrap">
+  <div class="en"><h2>Try it</h2><h3>A tiny live demo</h3><p class="lead" style="margin-bottom:14px">No backend — just the core idea. Type a plan (or tap an example) and watch it schedule.</p></div>
+  <div class="zh"><h2>试一下</h2><h3>页面内小 demo</h3><p class="lead" style="margin-bottom:14px">没有后端,只演示核心想法。打一句安排(或点个例子),看它怎么排好。</p></div>
+  <div class="demo">
+    <div class="dhead">✨ Planfect</div>
+    <div class="thread" id="dThread"></div>
+    <div class="chips" id="dChips"></div>
+    <div class="bar2">
+      <input id="dInput" />
+      <button class="snd" onclick="demoGo()">↑</button>
+    </div>
+  </div>
+  <p class="note"><span class="en">Illustrative only — no real calendar behind this demo.</span><span class="zh">仅为演示——这个 demo 背后没有真实日历。</span></p>
+</div></section>
+
+<script>
+(function(){
+  var T={
+    en:{ph:'Tell me a plan…',sched:'Scheduled',tap:'Tap to view & edit in your schedule',
+        chips:['meeting at 10am, gym at 2pm, movie at 8pm','dentist at 3pm, groceries, finish the report']},
+    zh:{ph:'说个安排吧…',sched:'已安排',tap:'点这里在日程里查看和编辑',
+        chips:['明天上午10点开会，下午2点健身，晚上8点看电影','下午3点看牙，买菜，写完报告']}
+  };
+  var CATS=[
+    {k:['开会','会议','meeting','work','报告','report','email','邮件'],en:'Work',zh:'工作',c:'#3478f6'},
+    {k:['健身','gym','跑步','run','workout','运动','yoga','瑜伽'],en:'Fitness',zh:'健身',c:'#34c759'},
+    {k:['吃饭','午餐','晚餐','lunch','dinner','coffee','咖啡','饭','breakfast','早餐'],en:'Meal',zh:'用餐',c:'#ff9500'},
+    {k:['电影','movie','看','比赛','game','剧','concert','演唱会','relax','放松'],en:'Leisure',zh:'休闲',c:'#af52de'},
+    {k:['买菜','购物','grocer','shopping','买','取','快递'],en:'Errand',zh:'杂事',c:'#30b0c7'},
+    {k:['看牙','牙','dentist','doctor','医','体检'],en:'Health',zh:'健康',c:'#ff3b30'},
+    {k:['学','study','复习','read','读','作业','homework','课'],en:'Learning',zh:'学习',c:'#a2845e'},
+    {k:['朋友','friend','聚','party','约','call','打电话','妈妈','mom'],en:'Social',zh:'社交',c:'#ff2d55'}
+  ];
+  function lang(){return document.body.classList.contains('lang-zh')?'zh':'en';}
+  function cat(t){t=t.toLowerCase();for(var i=0;i<CATS.length;i++){var c=CATS[i];for(var j=0;j<c.k.length;j++)if(t.indexOf(c.k[j].toLowerCase())>=0)return c;}return{en:'Task',zh:'任务',c:'#6E54F0'};}
+  function parseTime(t){
+    var m=t.match(/(上午|早上|中午|下午|晚上|傍晚)?\s*(\d{1,2})\s*点\s*(半)?/);
+    if(m){var h=+m[2],md=m[1];if((md==='下午'||md==='晚上'||md==='傍晚')&&h<12)h+=12;if(md==='中午')h=12;return{h:h,min:m[3]?30:0};}
+    m=t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+    if(m){var hh=+m[1];if(/pm/i.test(m[3])&&hh<12)hh+=12;if(/am/i.test(m[3])&&hh===12)hh=0;return{h:hh,min:m[2]?+m[2]:0};}
+    return null;
+  }
+  function fmt(h,mi){var ap=h<12?'AM':'PM';var hh=h%12;if(hh===0)hh=12;return hh+':'+('0'+mi).slice(-2)+' '+ap;}
+  function clean(s){return s.replace(/明天|今天|tomorrow|today/ig,'').replace(/(上午|早上|中午|下午|晚上|傍晚)?\s*\d{1,2}\s*点\s*半?/g,'').replace(/(at\s*)?\d{1,2}(?::\d{2})?\s*(am|pm)/ig,'').replace(/^(去|在|to\s+)/i,'').replace(/\s{2,}/g,' ').trim();}
+  function esc(s){return s.replace(/[&<>]/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[m];});}
+  function go(){
+    var inp=document.getElementById('dInput'),txt=(inp.value||'').trim();if(!txt)return;
+    var L=lang(),tr=T[L],th=document.getElementById('dThread');
+    th.innerHTML='';
+    var u=document.createElement('div');u.className='ubub';u.textContent=txt;th.appendChild(u);inp.value='';
+    var ty=document.createElement('div');ty.className='typing';ty.innerHTML='<i></i><i></i><i></i>';th.appendChild(ty);
+    setTimeout(function(){
+      ty.remove();
+      var items=txt.split(/[,，、;；。\n]|(?:\s+(?:then|and|还有|然后)\s+)/i);
+      var out=[];for(var i=0;i<items.length;i++){var x=items[i].trim();if(x)out.push(x);}out=out.slice(0,5);
+      var defs=[9,11,14,16,19,21],L2=lang(),tr2=T[L2];
+      var html='<div class="s">✓ '+tr2.sched+'</div>';
+      out.forEach(function(it,i){var tm=parseTime(it)||{h:defs[i%6],min:0};var c=cat(it);var title=clean(it)||it;
+        html+='<div class="row"><div class="barC" style="background:'+c.c+'"></div>'+
+          '<div class="ti"><b>'+esc(title)+'</b><span>'+fmt(tm.h,tm.min)+' – '+fmt((tm.h+1)%24,tm.min)+'</span></div>'+
+          '<div class="pill" style="background:'+c.c+'22;color:'+c.c+'">'+c[L2]+'</div></div>';});
+      html+='<div class="tap">📅 '+tr2.tap+'</div>';
+      var card=document.createElement('div');card.className='recpt';card.innerHTML=html;th.appendChild(card);
+    },950);
+  }
+  window.demoGo=go;
+  window.demoFill=function(b){document.getElementById('dInput').value=b.textContent.trim();go();};
+  window.demoSetLang=function(){var L=lang(),tr=T[L];
+    document.getElementById('dInput').placeholder=tr.ph;
+    var ch=document.getElementById('dChips');ch.innerHTML='';
+    tr.chips.forEach(function(c){var b=document.createElement('button');b.textContent=c;b.onclick=function(){demoFill(b);};ch.appendChild(b);});
+  };
+  document.getElementById('dInput').addEventListener('keydown',function(e){if(e.key==='Enter')go();});
+  demoSetLang();
+})();
+</script>
+
 <!-- ARCHITECTURE -->
 <section><div class="wrap">
   <div class="en"><h2>How it's built</h2><h3>Architecture</h3><p class="lead" style="margin-bottom:18px">A native iOS client, a serverless TypeScript backend, and an LLM <em>agent</em> that doesn't just chat — it reasons about your schedule, calls tools, and commits real database writes.</p></div>
@@ -235,6 +340,7 @@
     document.getElementById('btn-en').classList.toggle('on', l === 'en');
     document.getElementById('btn-zh').classList.toggle('on', l === 'zh');
     try{ localStorage.setItem('planfect-lang', l); }catch(e){}
+    if(window.demoSetLang) window.demoSetLang();
   }
   (function(){
     var saved; try{ saved = localStorage.getItem('planfect-lang'); }catch(e){}
