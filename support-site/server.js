@@ -11,6 +11,7 @@ const page = (file) =>
   fs.readFileSync(path.join(__dirname, 'public', file), 'utf8').replace(/__SUPPORT_EMAIL__/g, EMAIL);
 const support = page('index.html');
 const privacy = page('privacy.html');
+const showcase = page('showcase.html');
 
 http
   .createServer((req, res) => {
@@ -20,6 +21,6 @@ http
       return res.end('ok');
     }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    res.end(url === '/privacy' ? privacy : support);
+    res.end(url === '/privacy' ? privacy : url === '/showcase' ? showcase : support);
   })
   .listen(PORT, () => console.log(`Planfect support site listening on ${PORT}`));
