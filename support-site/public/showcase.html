@@ -191,9 +191,13 @@
   var T={
     en:{ph:'Tell me a plan…',sched:'Scheduled',tap:'Tap to view & edit in your schedule',
         leave:'leave',min:'min',oops:'Hmm, the demo hit a snag — give it a moment and try again.',
+        usedph:'Demo limit reached',
+        usednote:"✨ That's the demo limit (5 turns). <b>Download Planfect</b> for unlimited planning — live web lookups, real travel times, and your whole day handled.",
         chips:['morning run, standup at 10, lunch with my advisor, write my thesis, movie at 8pm','remind me to watch the World Cup final','meeting at MIT 2pm tomorrow, leaving from Brown University in Providence']},
     zh:{ph:'说个安排吧…',sched:'已安排',tap:'点这里在日程里查看和编辑',
         leave:'出发',min:'分钟',oops:'诶,demo 卡了一下——稍等片刻再试试。',
+        usedph:'体验回合已用完',
+        usednote:'✨ Demo 体验到这就够啦(5 回合)。<b>下载 Planfect</b> 解锁无限规划——真·联网查时间、算通勤,一整天都帮你排好。',
         chips:['明天早上跑步，10点开组会，中午和导师吃饭，下午写论文，晚上8点看电影','提醒我看世界杯决赛','明天下午2点去剑桥的MIT开会，从普罗维登斯的布朗大学出发']}
   };
   var CATS=[
@@ -221,6 +225,22 @@
 
   var convo=[];   // running {role,content} thread, so answering a clarifying question works
   var busy=false;
+
+  // Per-device turn cap. Each call hits real LLM/Maps/web-search money, so a guest gets a small,
+  // friendly allowance (persisted in localStorage); the server also rate-limits per IP as a backstop.
+  var MAX_TURNS=5;
+  function turnsUsed(){try{return parseInt(localStorage.getItem('pf_demo_used')||'0',10)||0;}catch(e){return 0;}}
+  function bumpTurns(){try{localStorage.setItem('pf_demo_used',String(turnsUsed()+1));}catch(e){}}
+  function demoLocked(){return turnsUsed()>=MAX_TURNS;}
+  function lockDemo(){
+    var tr=T[lang()],inp=document.getElementById('dInput');
+    if(inp){inp.disabled=true;inp.value='';inp.placeholder=tr.usedph;}
+    var snd=document.querySelector('.demo .snd');if(snd){snd.disabled=true;snd.style.opacity='.4';snd.style.cursor='default';}
+    [].forEach.call(document.querySelectorAll('#dChips button, #dThread .chips button'),function(b){b.disabled=true;b.style.opacity='.5';b.style.cursor='default';});
+    var n=document.getElementById('dLock');
+    if(!n){n=document.createElement('div');n.id='dLock';n.className='bbub';th().appendChild(n);scroll();}
+    n.innerHTML=tr.usednote;   // always reflect the current language (notice persists across lang toggles)
+  }
 
   function addUser(t){var d=document.createElement('div');d.className='ubub';d.textContent=t;th().appendChild(d);scroll();}
   function addBot(t){var d=document.createElement('div');d.className='bbub';d.textContent=t;th().appendChild(d);scroll();}
@@ -262,6 +282,7 @@
 
   function send(txt,fresh){
     txt=(txt||'').trim();if(!txt||busy)return;
+    if(demoLocked()){lockDemo();return;}
     if(fresh){convo=[];th().innerHTML='';}
     addUser(txt);convo.push({role:'user',content:txt});if(convo.length>12)convo=convo.slice(-12);
     var ty=typing();busy=true;
@@ -284,6 +305,7 @@
         } else {
           var t=d.text||'';convo.push({role:'assistant',content:t});if(t)addBot(t);
         }
+        bumpTurns();if(demoLocked())lockDemo();   // count a turn only on a real reply, never on error
       })
       .catch(function(){clearTimeout(to);ty.remove();busy=false;addBot(T[lang()].oops);});
   }
@@ -294,9 +316,11 @@
     document.getElementById('dInput').placeholder=tr.ph;
     var ch=document.getElementById('dChips');ch.innerHTML='';
     tr.chips.forEach(function(c){var b=document.createElement('button');b.textContent=c;b.onclick=function(){demoFill(b);};ch.appendChild(b);});
+    if(demoLocked())lockDemo();   // re-apply the lock (and localized notice) after a language switch
   };
   document.getElementById('dInput').addEventListener('keydown',function(e){if(e.key==='Enter')window.demoGo();});
   demoSetLang();
+  if(demoLocked())lockDemo();   // returning visitor who already used their turns
 })();
 </script>
 

@@ -27,11 +27,17 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Best-effort per-IP soft rate limit. Module-level, so it resets when the isolate recycles — that's
-// fine: it's a cost guardrail for the public demo, not a security boundary.
+// Best-effort per-IP guardrails. Module-level, so they reset when the isolate recycles — that's
+// fine: this is a cost guardrail for the public demo, not a security boundary. Two layers:
+//   • a sliding-window RATE limit (≤8/min) so nobody can hammer it fast, and
+//   • a cumulative per-IP CAP that backstops the precise per-device cap the client enforces in
+//     localStorage — so clearing localStorage and retrying can't trivially re-roll the allowance.
+// The cap is generous (a shared IP — campus/office — has many legit guests behind it).
 const HITS = new Map<string, number[]>();
+const TOTAL = new Map<string, number>();
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 8;
+const MAX_PER_IP = 25;
 function rateLimited(ip: string): boolean {
   const now = Date.now();
   const recent = (HITS.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
@@ -39,6 +45,12 @@ function rateLimited(ip: string): boolean {
   HITS.set(ip, recent);
   if (HITS.size > 5000) for (const [k, v] of HITS) if (v.every((t) => now - t >= WINDOW_MS)) HITS.delete(k);
   return recent.length > MAX_PER_WINDOW;
+}
+function overIpCap(ip: string): boolean {
+  const n = (TOTAL.get(ip) ?? 0) + 1;
+  TOTAL.set(ip, n);
+  if (TOTAL.size > 20_000) TOTAL.clear();   // crude unbounded-growth guard for a long-lived isolate
+  return n > MAX_PER_IP;
 }
 
 // A generic, believable starting point — what a brand-new user looks like before they teach the app
@@ -75,6 +87,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       || req.headers.get('cf-connecting-ip') || 'anon';
     if (rateLimited(ip)) {
       return json({ type: 'message', text: "Demo's catching its breath — give it a few seconds and try again. 🙂" }, 429);
+    }
+    if (overIpCap(ip)) {
+      return json({ type: 'message', text: "You've reached the demo limit for now. Download Planfect to keep planning — no limits. 🙂" }, 429);
     }
 
     const body = await req.json().catch(() => ({} as Record<string, unknown>));
