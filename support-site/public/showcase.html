@@ -13,26 +13,32 @@
   html{scroll-behavior:smooth}
   body{margin:0;font:16px/1.65 -apple-system,"Segoe UI","PingFang SC",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
   .wrap{max-width:980px;margin:0 auto;padding:0 22px}
-  a{color:var(--brand);text-decoration:none}
-  a:hover{text-decoration:underline}
+  a{color:var(--brand);text-decoration:none} a:hover{text-decoration:underline}
 
-  /* hero */
+  /* language toggle */
+  .langbar{position:fixed;top:16px;right:16px;z-index:50;display:flex;background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:999px;padding:3px;box-shadow:0 4px 16px rgba(20,20,40,.12);backdrop-filter:blur(6px)}
+  .langbar button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:13px;padding:6px 14px;border-radius:999px;cursor:pointer}
+  .langbar button.on{background:var(--brand);color:#fff}
+
+  /* show/hide by language */
+  body.lang-en .zh{display:none} body.lang-zh .en{display:none}
+
   .hero{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:64px 0 56px;text-align:center}
   .hero .logo{width:74px;height:74px;border-radius:20px;background:rgba(255,255,255,.16);display:inline-flex;align-items:center;justify-content:center;font-size:38px;margin-bottom:18px}
   .hero h1{margin:0;font-size:46px;letter-spacing:-1px;font-weight:850}
   .hero .tag{font-size:20px;opacity:.95;margin-top:6px;font-weight:600}
-  .hero p{max-width:640px;margin:16px auto 0;opacity:.92;font-size:17px}
+  .hero p{max-width:660px;margin:16px auto 0;opacity:.92;font-size:17px}
   .hero .links{margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-  .hero .links a{background:rgba(255,255,255,.16);color:#fff;padding:9px 18px;border-radius:999px;font-weight:600;backdrop-filter:blur(4px)}
+  .hero .links a{background:rgba(255,255,255,.16);color:#fff;padding:9px 18px;border-radius:999px;font-weight:600}
   .hero .links a:hover{background:rgba(255,255,255,.28);text-decoration:none}
 
   section{padding:52px 0;border-bottom:1px solid var(--line)}
   h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin:0 0 6px;font-weight:800}
   h3{font-size:27px;margin:0 0 18px;letter-spacing:-.4px}
-  .lead{font-size:18px;color:#34343c;max-width:760px}
+  .lead{font-size:18px;color:#34343c;max-width:780px}
 
   .grid{display:grid;gap:16px}
-  .g2{grid-template-columns:repeat(2,1fr)} .g3{grid-template-columns:repeat(3,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)} .g2{grid-template-columns:repeat(2,1fr)}
   @media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
   .card .ic{font-size:22px}
@@ -55,65 +61,87 @@
   .tl .it b{display:block;font-size:16px}
   .tl .it span{color:var(--muted);font-size:14.5px}
 
-  .stat{display:flex;gap:26px;flex-wrap:wrap;margin-top:6px}
-  .stat div{flex:1;min-width:150px}
-  .stat .n{font-size:30px;font-weight:850;color:var(--brand);letter-spacing:-1px}
-  .stat .l{color:var(--muted);font-size:14px}
-
   footer{padding:40px 0;text-align:center;color:var(--muted);font-size:14px}
 </style>
 </head>
-<body>
+<body class="lang-en">
+
+<div class="langbar">
+  <button id="btn-en" class="on" onclick="setLang('en')">EN</button>
+  <button id="btn-zh" onclick="setLang('zh')">中文</button>
+</div>
 
 <div class="hero">
   <div class="wrap">
     <div class="logo">✨</div>
     <h1>Planfect</h1>
-    <div class="tag">An AI day planner you talk to.</div>
-    <p>Tell it your plans by text or voice — “dentist Friday afternoon, groceries this weekend, finish the report this week” — and it builds your day around your routine, commute, and habits. Designed, built, and shipped end-to-end.</p>
+    <div class="tag"><span class="en">An AI day planner you talk to.</span><span class="zh">会聊天的 AI 日程助手</span></div>
+    <p>
+      <span class="en">Tell it your plans by text or voice — “dentist Friday afternoon, groceries this weekend, finish the report this week” — and it builds your day around your routine, commute, and habits. Designed, built, and shipped end-to-end.</span>
+      <span class="zh">用打字或语音说出你的计划——「周五下午看牙、周末买菜、这周写完报告」——它就按你的作息、通勤和习惯把这一天排好。从设计、开发到上架,全程独立完成。</span>
+    </p>
     <div class="links">
-      <a href="https://github.com/anyfruit/planfect">GitHub repo →</a>
-      <a href="https://verypogsite.vercel.app/">Portfolio</a>
+      <a href="https://github.com/anyfruit/planfect"><span class="en">GitHub repo →</span><span class="zh">GitHub 仓库 →</span></a>
+      <a href="https://verypogsite.vercel.app/"><span class="en">Portfolio</span><span class="zh">作品集</span></a>
       <a href="https://linkedin.com/in/kejing-yan">LinkedIn</a>
     </div>
   </div>
 </div>
 
+<!-- THE IDEA -->
 <section><div class="wrap">
-  <h2>The idea</h2>
-  <h3>Planning apps make you do the planning.</h3>
-  <p class="lead">Every to-do app hands you an empty grid and makes you figure out <em>when</em> to do everything, drag blocks around, and remember to leave on time. People don't think in calendars — they think in quick fragments: a thought on the walk, a reminder fired off mid-meeting.</p>
-  <p class="lead" style="margin-top:14px"><b>Planfect's bet:</b> you should be able to say one casual sentence — even a whole afternoon at once, by voice — and get a realistic, scheduled day back in seconds. The app does the <em>when</em>: it fits things around your work and sleep, adds real travel time so you arrive on time, learns your habits, and only asks when it's genuinely unsure.</p>
+  <div class="en">
+    <h2>The idea</h2>
+    <h3>Planning apps make you do the planning.</h3>
+    <p class="lead">Every to-do app hands you an empty grid and makes you figure out <em>when</em> to do everything, drag blocks around, and remember to leave on time. People don't think in calendars — they think in quick fragments: a thought on the walk, a reminder fired off mid-meeting.</p>
+    <p class="lead" style="margin-top:14px"><b>Planfect's bet:</b> you should be able to say one casual sentence — even a whole afternoon at once, by voice — and get a realistic, scheduled day back in seconds. The app does the <em>when</em>: it fits things around your work and sleep, adds real travel time so you arrive on time, learns your habits, and only asks when it's genuinely unsure.</p>
+  </div>
+  <div class="zh">
+    <h2>想法</h2>
+    <h3>市面上的日程 app,都得你自己来规划。</h3>
+    <p class="lead">每个待办 app 都丢给你一个空白格子,让你自己想<em>什么时候</em>做、拖来拖去、还得记着几点出门。可人不是按日历思考的——人是冒出碎片想法:走路时想起一件事、开会间隙顺手记一笔。</p>
+    <p class="lead" style="margin-top:14px"><b>Planfect 的核心赌注:</b>你只要随口说一句——甚至语音一口气说一下午的安排——几秒钟就能换回排好的一天。"什么时候做"交给 app:它绕开你的工作和睡觉时间、算上真实路程让你准点到、学你的习惯,只有真的拿不准才问你一句。</p>
+  </div>
 </div></section>
 
+<!-- WHAT IT DOES -->
 <section><div class="wrap">
-  <h2>What it does</h2>
-  <h3>Say it. It plans your day.</h3>
-  <div class="grid g3">
+  <div class="en"><h2>What it does</h2><h3>Say it. It plans your day.</h3></div>
+  <div class="zh"><h2>功能</h2><h3>说一句,排好一整天。</h3></div>
+  <div class="grid g3 en">
     <div class="card"><div class="ic">🗣️</div><h4>Plan by voice or text</h4><p>Fire off a quick thought — or a brain-dump of the whole day — and get it all scheduled in one shot.</p></div>
     <div class="card"><div class="ic">🧠</div><h4>Smart scheduling</h4><p>Places each task in its natural time-of-day window, around your routine, sleep, and real calendar — never just the next open gap.</p></div>
     <div class="card"><div class="ic">🚗</div><h4>Real travel times</h4><p>Looks up live commute time via Google Maps and schedules it <em>before</em> the task, so a 2:00 appointment means leaving at the right minute.</p></div>
     <div class="card"><div class="ic">🔁</div><h4>Recurring habits &amp; learning</h4><p>Sets up repeating habits and quietly learns your preferences (“workouts in the morning”) to apply to every plan.</p></div>
     <div class="card"><div class="ic">📊</div><h4>Insights &amp; reminders</h4><p>Day / week / month timetable, charts of where your time goes with an AI read, plus “time to head out” nudges.</p></div>
-    <div class="card"><div class="ic">📱</div><h4>Widgets &amp; sync</h4><p>Home- &amp; lock-screen widgets for what's next, Apple Calendar two-way sync, Sign in with Apple, data export — fully bilingual (EN / 中文).</p></div>
+    <div class="card"><div class="ic">📱</div><h4>Widgets &amp; sync</h4><p>Home- &amp; lock-screen widgets, Apple Calendar two-way sync, Sign in with Apple, data export — fully bilingual.</p></div>
+  </div>
+  <div class="grid g3 zh">
+    <div class="card"><div class="ic">🗣️</div><h4>语音或打字规划</h4><p>丢一句话进去,或者语音把一整天的事一口气说完,一次性全排好。</p></div>
+    <div class="card"><div class="ic">🧠</div><h4>智能排程</h4><p>把每件事放进它"自然该做"的时段,绕开作息、睡眠和真实日历——绝不只是塞进下一个空档。</p></div>
+    <div class="card"><div class="ic">🚗</div><h4>真实通勤时间</h4><p>用 Google Maps 查实时路程,并把通勤排在任务<em>之前</em>——两点的约会会让你提前出门、准点到。</p></div>
+    <div class="card"><div class="ic">🔁</div><h4>重复习惯 & 自我学习</h4><p>设置重复性习惯,并悄悄记住你的偏好(「健身放早上」),应用到之后每一次安排。</p></div>
+    <div class="card"><div class="ic">📊</div><h4>分析 & 提醒</h4><p>日/周/月时间表、时间去向图表 + AI 解读,还有"该出发了"的贴心提醒。</p></div>
+    <div class="card"><div class="ic">📱</div><h4>小组件 & 同步</h4><p>桌面/锁屏小组件、Apple 日历双向同步、Apple 登录、数据导出——完整中英双语。</p></div>
   </div>
 </div></section>
 
+<!-- SCREENSHOTS -->
 <section><div class="wrap">
-  <h2>See it</h2>
-  <h3>The product</h3>
+  <div class="en"><h2>See it</h2><h3>The product</h3></div>
+  <div class="zh"><h2>看看</h2><h3>产品界面</h3></div>
   <div class="shots">
-    <img src="https://raw.githubusercontent.com/anyfruit/planfect/main/docs/screenshots/en/1_chat.png" alt="Chat — say it, it plans" />
-    <img src="https://raw.githubusercontent.com/anyfruit/planfect/main/docs/screenshots/en/2_schedule.png" alt="Day schedule" />
-    <img src="https://raw.githubusercontent.com/anyfruit/planfect/main/docs/screenshots/en/4_week.png" alt="Week timetable" />
+    <img src="https://raw.githubusercontent.com/anyfruit/planfect/main/docs/screenshots/en/1_chat.png" alt="Chat" />
+    <img src="https://raw.githubusercontent.com/anyfruit/planfect/main/docs/screenshots/en/2_schedule.png" alt="Schedule" />
+    <img src="https://raw.githubusercontent.com/anyfruit/planfect/main/docs/screenshots/en/4_week.png" alt="Week" />
     <img src="https://raw.githubusercontent.com/anyfruit/planfect/main/docs/screenshots/en/3_insights.png" alt="Insights" />
   </div>
 </div></section>
 
+<!-- ARCHITECTURE -->
 <section><div class="wrap">
-  <h2>How it's built</h2>
-  <h3>Architecture</h3>
-  <p class="lead" style="margin-bottom:18px">A native iOS client, a serverless TypeScript backend, and an LLM <em>agent</em> that doesn't just chat — it reasons about your schedule, calls tools, and commits real database writes.</p>
+  <div class="en"><h2>How it's built</h2><h3>Architecture</h3><p class="lead" style="margin-bottom:18px">A native iOS client, a serverless TypeScript backend, and an LLM <em>agent</em> that doesn't just chat — it reasons about your schedule, calls tools, and commits real database writes.</p></div>
+  <div class="zh"><h2>怎么做的</h2><h3>技术架构</h3><p class="lead" style="margin-bottom:18px">一个原生 iOS 客户端、一个 Serverless 的 TypeScript 后端,加上一个会"干活"的 LLM <em>agent</em>——它不只是聊天,而是真的推理你的日程、调用工具、并写进数据库。</p></div>
   <div class="arch">
 <span class="c">// the planning round-trip</span>
 <b>iOS app</b> (SwiftUI)  ──HTTPS──▶  <b>/plan</b>  Supabase Edge Function (Deno · TypeScript)
@@ -123,44 +151,67 @@
                                        │             estimate_commute · web_search ·
                                        │             set_routine · remember_preference …
                                        │
-                                       ├─▶ <b>Google Maps</b>  (Routes + Geocoding — real travel time)
+                                       ├─▶ <b>Google Maps</b>  (Routes + Geocoding)
                                        │
                                        └─▶ <b>Postgres</b>  (Row-Level Security)
                                               tasks · time_blocks · routines · preferences
   </div>
-  <div class="grid g3" style="margin-top:18px">
-    <div class="card"><h4>iOS · SwiftUI</h4><p>Chat UI w/ markdown, day/week/month timetable, Swift Charts insights, WidgetKit (App Groups), EventKit, Speech, Sign in with Apple, local notifications.</p></div>
+  <div class="grid g3 en" style="margin-top:18px">
+    <div class="card"><h4>iOS · SwiftUI</h4><p>Chat UI w/ markdown, day/week/month timetable, Swift Charts insights, WidgetKit (App Groups), EventKit, Speech, Sign in with Apple, notifications.</p></div>
     <div class="card"><h4>Backend · Supabase</h4><p>Postgres + RLS, Edge Functions in Deno/TypeScript, auth, migrations. A timezone-aware scheduling engine (pure, unit-tested) places tasks into free slots.</p></div>
-    <div class="card"><h4>AI · agent loop</h4><p>Multi-step tool-calling over OpenAI: reads context, proposes, confirms, then writes. Pluggable provider/model; usage &amp; cost logged for analytics.</p></div>
+    <div class="card"><h4>AI · agent loop</h4><p>Multi-step tool-calling over OpenAI: reads context, proposes, confirms, then writes. Pluggable provider/model; usage &amp; cost logged.</p></div>
+  </div>
+  <div class="grid g3 zh" style="margin-top:18px">
+    <div class="card"><h4>iOS · SwiftUI</h4><p>带 Markdown 的聊天界面、日/周/月时间表、Swift Charts 分析图、WidgetKit 小组件(App Groups)、EventKit、语音识别、Apple 登录、本地通知。</p></div>
+    <div class="card"><h4>后端 · Supabase</h4><p>Postgres + 行级安全(RLS)、Deno/TypeScript 的 Edge Functions、鉴权、数据库迁移。一个时区感知的排程引擎(纯函数、有单元测试)把任务放进空闲时段。</p></div>
+    <div class="card"><h4>AI · agent 循环</h4><p>在 OpenAI 上做多步工具调用:读上下文 → 提议 → 确认 → 写库。模型/服务商可插拔;用量与成本都有记录。</p></div>
   </div>
 </div></section>
 
+<!-- ENGINEERING HIGHLIGHTS -->
 <section><div class="wrap">
-  <h2>Engineering highlights</h2>
-  <h3>The hard parts</h3>
-  <div class="grid g2">
-    <div class="card"><h4>🌍 Timezone-correct scheduling</h4><p>The planner schedules in the user's local time. It looks up cross-timezone events (a London match watched from the US) and converts to the user's clock. Fixed a class of bugs where “today” drifted to a past date in long, multi-day chats — by stamping the authoritative date onto the latest turn for recency.</p></div>
-    <div class="card"><h4>🧭 Product-minded placement</h4><p>Commute is scheduled <em>before</em> a pinned task (you leave early, arrive on time — not the activity pushed later). A voice brain-dump of several tasks is planned in a single batch; genuine conflicts are surfaced, never silently mis-scheduled.</p></div>
+  <div class="en"><h2>Engineering highlights</h2><h3>The hard parts</h3></div>
+  <div class="zh"><h2>工程亮点</h2><h3>难点都在哪</h3></div>
+  <div class="grid g2 en">
+    <div class="card"><h4>🌍 Timezone-correct scheduling</h4><p>The planner schedules in the user's local time, and looks up cross-timezone events (a London match watched from the US) and converts to their clock. Fixed a class of bugs where “today” drifted to a past date in long, multi-day chats — by stamping the authoritative date onto the latest turn for recency.</p></div>
+    <div class="card"><h4>🧭 Product-minded placement</h4><p>Commute is scheduled <em>before</em> a pinned task (you leave early, arrive on time — not the activity pushed later). A voice brain-dump of several tasks is planned in one batch; genuine conflicts are surfaced, never silently mis-scheduled.</p></div>
     <div class="card"><h4>⚡ Latency, halved</h4><p>Cut planner latency ~60% by short-circuiting a redundant LLM round-trip once tasks land on the calendar, skipping needless schedule lookups (the calendar is already in context), and parsing dates once at decode.</p></div>
     <div class="card"><h4>🔒 Shipping rigor</h4><p>RLS-secured data, App Groups for the widget, distribution signing → TestFlight → App Store pipeline (automated via API key), a password-gated analytics dashboard, CI, and prompt-level content guardrails.</p></div>
   </div>
-</div></section>
-
-<section><div class="wrap">
-  <h2>The journey</h2>
-  <h3>Built by iteration, on a real device</h3>
-  <div class="tl">
-    <div class="it"><b>Backend first</b><span>Postgres schema + RLS, and the agentic <code>/plan</code> loop — verified end-to-end against a live database before any UI.</span></div>
-    <div class="it"><b>The iOS app</b><span>Auth, a conversational (not form-based) onboarding, chat → planner, and day/week/month schedule views.</span></div>
-    <div class="it"><b>Feature waves</b><span>Reminders, real commute times, insights + AI analysis, recurring habits, habit learning, voice input, data export, widgets, Sign in with Apple — and full EN / 中文 localization.</span></div>
-    <div class="it"><b>Hardening from real use</b><span>Every round of device testing surfaced bugs: date arithmetic, late-sleeper scheduling, concurrent tasks, the multi-day “today” drift, commute direction, reply brevity. Fixed with unit tests where it counts.</span></div>
-    <div class="it"><b>Ship it</b><span>Distribution signing, export-compliance, a privacy policy, App Store metadata (bilingual), TestFlight for friends, and submission for review.</span></div>
+  <div class="grid g2 zh">
+    <div class="card"><h4>🌍 时区正确的排程</h4><p>排程一律按用户本地时间;查跨时区赛事(在美国看伦敦的比赛)会自动换算成你的钟点。还修掉了一类 bug:跨好几天的长对话里"今天"会漂到过去的日期——办法是把权威日期戳到最新一条消息上,靠"就近"压住旧日期。</p></div>
+    <div class="card"><h4>🧭 有产品思维的排法</h4><p>通勤排在定点任务<em>之前</em>(你提前出门、准点到,而不是把活动往后推)。语音一口气报好几件事会被一次性批量排好;真正的冲突会提示你,绝不偷偷排错。</p></div>
+    <div class="card"><h4>⚡ 延迟砍掉一半</h4><p>排程延迟降了约 60%:任务一落到日历就短路掉一次多余的 LLM 来回、省掉没必要的日程查询(日历本来就在上下文里)、日期只在解码时解析一次。</p></div>
+    <div class="card"><h4>🔒 上线工程的严谨度</h4><p>RLS 保护的数据、小组件用的 App Groups、发布签名 → TestFlight → App Store 全流程(用 API key 自动化)、带密码保护的分析后台、CI、以及提示词层面的内容护栏。</p></div>
   </div>
 </div></section>
 
+<!-- THE JOURNEY -->
 <section><div class="wrap">
-  <h2>Stack</h2>
-  <h3>Tech &amp; tools</h3>
+  <div class="en"><h2>The journey</h2><h3>Built by iteration, on a real device</h3>
+    <div class="tl">
+      <div class="it"><b>Backend first</b><span>Postgres schema + RLS, and the agentic <code>/plan</code> loop — verified end-to-end against a live database before any UI.</span></div>
+      <div class="it"><b>The iOS app</b><span>Auth, a conversational (not form-based) onboarding, chat → planner, and day/week/month schedule views.</span></div>
+      <div class="it"><b>Feature waves</b><span>Reminders, real commute times, insights + AI analysis, recurring habits, habit learning, voice input, data export, widgets, Sign in with Apple — and full EN / 中文 localization.</span></div>
+      <div class="it"><b>Hardening from real use</b><span>Every round of device testing surfaced bugs: date arithmetic, late-sleeper scheduling, concurrent tasks, the multi-day “today” drift, commute direction, reply brevity — fixed with unit tests where it counts.</span></div>
+      <div class="it"><b>Ship it</b><span>Distribution signing, export-compliance, a privacy policy, bilingual App Store metadata, TestFlight for friends, and submission for review.</span></div>
+    </div>
+  </div>
+  <div class="zh"><h2>迭代历程</h2><h3>在真机上一轮轮打磨出来的</h3>
+    <div class="tl">
+      <div class="it"><b>后端先行</b><span>Postgres 表结构 + RLS,以及 agent 化的 <code>/plan</code> 循环——在写任何界面之前,就对着线上数据库端到端验证通过。</span></div>
+      <div class="it"><b>iOS app</b><span>登录、对话式(而非填表)的引导、聊天 → 规划、日/周/月日程视图。</span></div>
+      <div class="it"><b>功能波次</b><span>提醒、真实通勤时间、分析 + AI 解读、重复习惯、习惯学习、语音输入、数据导出、小组件、Apple 登录——以及完整的中英双语。</span></div>
+      <div class="it"><b>真机用出来的加固</b><span>每一轮真机测试都暴露 bug:日期算错、晚睡作息排不进、并发任务、跨天"今天"漂移、通勤方向、回复啰嗦——该写单元测试的地方都补上了。</span></div>
+      <div class="it"><b>上架</b><span>发布签名、出口合规、隐私政策、中英双语的商店文案、给朋友的 TestFlight,以及提交审核。</span></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- STACK -->
+<section><div class="wrap">
+  <div class="en"><h2>Stack</h2><h3>Tech &amp; tools</h3></div>
+  <div class="zh"><h2>技术栈</h2><h3>用到的技术与工具</h3></div>
   <div class="chips">
     <span class="chip">Swift</span><span class="chip">SwiftUI</span><span class="chip">WidgetKit</span><span class="chip">EventKit</span>
     <span class="chip">TypeScript</span><span class="chip">Deno</span><span class="chip">Supabase</span><span class="chip">PostgreSQL</span>
@@ -171,11 +222,26 @@
 </div></section>
 
 <footer><div class="wrap">
-  Planfect — designed &amp; built by <b>Kejing Yan</b> ·
-  <a href="https://github.com/anyfruit/planfect">GitHub</a> ·
-  <a href="https://linkedin.com/in/kejing-yan">LinkedIn</a> ·
-  <a href="mailto:yankejing711@gmail.com">yankejing711@gmail.com</a>
+  <span class="en">Planfect — designed &amp; built by <b>Kejing Yan</b></span>
+  <span class="zh">Planfect —— 由 <b>闫可菁 (Kejing Yan)</b> 独立设计与开发</span>
+  &nbsp;·&nbsp; <a href="https://github.com/anyfruit/planfect">GitHub</a>
+  &nbsp;·&nbsp; <a href="https://linkedin.com/in/kejing-yan">LinkedIn</a>
+  &nbsp;·&nbsp; <a href="mailto:yankejing711@gmail.com">yankejing711@gmail.com</a>
 </div></footer>
 
+<script>
+  function setLang(l){
+    document.body.className = 'lang-' + l;
+    document.documentElement.lang = (l === 'zh' ? 'zh-Hans' : 'en');
+    document.getElementById('btn-en').classList.toggle('on', l === 'en');
+    document.getElementById('btn-zh').classList.toggle('on', l === 'zh');
+    try{ localStorage.setItem('planfect-lang', l); }catch(e){}
+  }
+  (function(){
+    var saved; try{ saved = localStorage.getItem('planfect-lang'); }catch(e){}
+    var l = saved || ((navigator.language||'').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en');
+    setLang(l);
+  })();
+</script>
 </body>
 </html>
