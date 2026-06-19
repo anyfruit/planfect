@@ -380,7 +380,7 @@ export function buildHandlers(
     if (byId) return placeFromRow(byId);
     const byName = ctx.locations.find((l) => l.name.toLowerCase() === low);
     if (byName) return placeFromRow(byName);
-    if (!isUuid(s)) return { address: s };   // let Routes geocode a free-text address
+    if (!isUuid(s)) return looksLikePlaceId(s) ? { placeId: s } : { address: s };   // placeId vs free-text address
     return null;
   };
 
@@ -973,15 +973,24 @@ function blockRow(
 // fall back to a rough estimate so the planner still works.
 // ============================================================================
 
-interface ResolvedPlace { address?: string; lat?: number; lng?: number }
+interface ResolvedPlace { address?: string; lat?: number; lng?: number; placeId?: string }
 
 function placeFromRow(l: LocationRow): ResolvedPlace {
   if (l.lat != null && l.lng != null) return { lat: l.lat, lng: l.lng };
+  if (l.place_id) return { placeId: l.place_id };
   return { address: l.address ?? l.name };
 }
 
 function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+/** A Google Place ID is a long, separator-free token (e.g. "ChIJ…"); a real free-text address has
+ * spaces/commas (and often non-ASCII). The agent often geocode_place's a spot and then passes the
+ * returned placeId straight into estimate_commute as a from/to — so route it to a placeId waypoint,
+ * NOT an address waypoint (Routes rejects a Place ID given as an address). */
+function looksLikePlaceId(s: string): boolean {
+  return /^[A-Za-z0-9_-]{15,}$/.test(s);
 }
 
 async function googleGeocode(
@@ -1005,6 +1014,7 @@ const ROUTES_TRAVEL_MODE: Record<string, string> = {
 
 function routesWaypoint(p: ResolvedPlace): Record<string, unknown> {
   if (p.lat != null && p.lng != null) return { location: { latLng: { latitude: p.lat, longitude: p.lng } } };
+  if (p.placeId) return { placeId: p.placeId };
   return { address: p.address };
 }
 
