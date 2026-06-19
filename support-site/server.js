@@ -7,17 +7,19 @@ const path = require('path');
 
 const PORT = process.env.PORT || 3000;
 const EMAIL = process.env.SUPPORT_EMAIL || 'support@planfect.app';
-const html = fs
-  .readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
-  .replace(/__SUPPORT_EMAIL__/g, EMAIL);
+const page = (file) =>
+  fs.readFileSync(path.join(__dirname, 'public', file), 'utf8').replace(/__SUPPORT_EMAIL__/g, EMAIL);
+const support = page('index.html');
+const privacy = page('privacy.html');
 
 http
   .createServer((req, res) => {
-    if (req.url === '/healthz') {
+    const url = (req.url || '/').split('?')[0];
+    if (url === '/healthz') {
       res.writeHead(200, { 'content-type': 'text/plain' });
       return res.end('ok');
     }
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-    res.end(html);
+    res.end(url === '/privacy' ? privacy : support);
   })
   .listen(PORT, () => console.log(`Planfect support site listening on ${PORT}`));
