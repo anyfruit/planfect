@@ -141,8 +141,9 @@
 <style>
   .demo{max-width:440px;margin:8px auto 0;background:#f2f2f7;border:1px solid var(--line);border-radius:24px;padding:16px;box-shadow:0 12px 44px rgba(20,20,40,.12)}
   .demo .dhead{display:flex;align-items:center;gap:7px;justify-content:center;font-weight:800;color:var(--brand);font-size:15px;margin-bottom:12px}
-  .demo .thread{min-height:64px;display:flex;flex-direction:column;gap:10px;padding:0 2px 8px}
+  .demo .thread{min-height:64px;max-height:360px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding:0 2px 8px}
   .demo .ubub{align-self:flex-end;max-width:80%;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:9px 14px;border-radius:18px 18px 4px 18px;font-size:14.5px;line-height:1.4}
+  .demo .bbub{align-self:flex-start;max-width:85%;background:#fff;border:1px solid var(--line);color:#1a1a25;padding:9px 14px;border-radius:18px 18px 18px 4px;font-size:14.5px;line-height:1.45;animation:pop .2s ease}
   .demo .typing{align-self:flex-start;display:flex;gap:4px;padding:11px 14px;background:#fff;border-radius:16px}
   .demo .typing i{width:7px;height:7px;border-radius:50%;background:#bcbcc9;animation:bl 1s infinite}
   .demo .typing i:nth-child(2){animation-delay:.15s}.demo .typing i:nth-child(3){animation-delay:.3s}
@@ -155,6 +156,7 @@
   .demo .row .ti{flex:1;min-width:0}
   .demo .row .ti b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .demo .row .ti span{font-size:12px;color:var(--muted)}
+  .demo .row .ti .cm{display:block;font-size:11px;color:var(--muted);margin-top:1px}
   .demo .row .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;flex:none}
   .demo .recpt .tap{margin-top:7px;font-size:11px;color:var(--brand)}
   .demo .chips{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0}
@@ -166,8 +168,8 @@
   .demo .note{text-align:center;color:var(--muted);font-size:12.5px;margin-top:12px}
 </style>
 <section><div class="wrap">
-  <div class="en"><h2>Try it</h2><h3>A tiny live demo</h3><p class="lead" style="margin-bottom:14px">No backend — just the core idea. Type a plan (or tap an example) and watch it schedule.</p></div>
-  <div class="zh"><h2>试一下</h2><h3>页面内小 demo</h3><p class="lead" style="margin-bottom:14px">没有后端,只演示核心想法。打一句安排(或点个例子),看它怎么排好。</p></div>
+  <div class="en"><h2>Try it</h2><h3>A live demo — the real planner</h3><p class="lead" style="margin-bottom:14px">This runs the <b>same AI the app uses</b>: it really looks up event times on the web, computes real travel times, and schedules in your timezone. Type a plan or tap an example. Nothing is saved and no account is needed.</p></div>
+  <div class="zh"><h2>试一下</h2><h3>真实规划器 · 在线 demo</h3><p class="lead" style="margin-bottom:14px">这里跑的就是 <b>app 里那个 AI</b>:会真的联网查活动时间、算真实通勤、按你所在时区来排。打一句安排或点个例子试试。不保存任何数据,也不用登录。</p></div>
   <div class="demo">
     <div class="dhead">✨ Planfect</div>
     <div class="thread" id="dThread"></div>
@@ -177,67 +179,123 @@
       <button class="snd" onclick="demoGo()">↑</button>
     </div>
   </div>
-  <p class="note"><span class="en">Illustrative only — no real calendar behind this demo.</span><span class="zh">仅为演示——这个 demo 背后没有真实日历。</span></p>
+  <p class="note"><span class="en">Real answers, live — but the demo writes to no calendar and saves nothing.</span><span class="zh">回答是真实、实时的——但 demo 不会写入任何日历,也不保存任何东西。</span></p>
 </div></section>
 
 <script>
 (function(){
+  // The REAL planner — a public, no-auth, no-DB demo of the same Edge Function the app calls.
+  // It writes nothing and needs no key (deployed --no-verify-jwt); cost is rate-limited server-side.
+  var ENDPOINT='https://piyfhwmrumbexofbjqyu.supabase.co/functions/v1/plan-demo';
+  var TZ=(function(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||'America/New_York';}catch(e){return 'America/New_York';}})();
   var T={
     en:{ph:'Tell me a plan…',sched:'Scheduled',tap:'Tap to view & edit in your schedule',
-        chips:['meeting at 10am, gym at 2pm, movie at 8pm','dentist at 3pm, groceries, finish the report']},
+        leave:'leave',min:'min',oops:'Hmm, the demo hit a snag — give it a moment and try again.',
+        chips:['gym 7am, team meeting 10am, movie at 8pm','remind me to watch the World Cup final']},
     zh:{ph:'说个安排吧…',sched:'已安排',tap:'点这里在日程里查看和编辑',
-        chips:['明天上午10点开会，下午2点健身，晚上8点看电影','下午3点看牙，买菜，写完报告']}
+        leave:'出发',min:'分钟',oops:'诶,demo 卡了一下——稍等片刻再试试。',
+        chips:['早上7点健身，10点开会，晚上8点看电影','提醒我看世界杯决赛']}
   };
   var CATS=[
     {k:['开会','会议','meeting','work','报告','report','email','邮件'],en:'Work',zh:'工作',c:'#3478f6'},
     {k:['健身','gym','跑步','run','workout','运动','yoga','瑜伽'],en:'Fitness',zh:'健身',c:'#34c759'},
     {k:['吃饭','午餐','晚餐','lunch','dinner','coffee','咖啡','饭','breakfast','早餐'],en:'Meal',zh:'用餐',c:'#ff9500'},
-    {k:['电影','movie','看','比赛','game','剧','concert','演唱会','relax','放松'],en:'Leisure',zh:'休闲',c:'#af52de'},
+    {k:['电影','movie','看','比赛','game','剧','concert','演唱会','世界杯','relax','放松'],en:'Leisure',zh:'休闲',c:'#af52de'},
     {k:['买菜','购物','grocer','shopping','买','取','快递'],en:'Errand',zh:'杂事',c:'#30b0c7'},
     {k:['看牙','牙','dentist','doctor','医','体检'],en:'Health',zh:'健康',c:'#ff3b30'},
     {k:['学','study','复习','read','读','作业','homework','课'],en:'Learning',zh:'学习',c:'#a2845e'},
     {k:['朋友','friend','聚','party','约','call','打电话','妈妈','mom'],en:'Social',zh:'社交',c:'#ff2d55'}
   ];
   function lang(){return document.body.classList.contains('lang-zh')?'zh':'en';}
-  function cat(t){t=t.toLowerCase();for(var i=0;i<CATS.length;i++){var c=CATS[i];for(var j=0;j<c.k.length;j++)if(t.indexOf(c.k[j].toLowerCase())>=0)return c;}return{en:'Task',zh:'任务',c:'#6E54F0'};}
-  function parseTime(t){
-    var m=t.match(/(上午|早上|中午|下午|晚上|傍晚)?\s*(\d{1,2})\s*点\s*(半)?/);
-    if(m){var h=+m[2],md=m[1];if((md==='下午'||md==='晚上'||md==='傍晚')&&h<12)h+=12;if(md==='中午')h=12;return{h:h,min:m[3]?30:0};}
-    m=t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
-    if(m){var hh=+m[1];if(/pm/i.test(m[3])&&hh<12)hh+=12;if(/am/i.test(m[3])&&hh===12)hh=0;return{h:hh,min:m[2]?+m[2]:0};}
-    return null;
+  function locale(){return lang()==='zh'?'zh-CN':'en-US';}
+  function cat(t){t=(t||'').toLowerCase();for(var i=0;i<CATS.length;i++){var c=CATS[i];for(var j=0;j<c.k.length;j++)if(t.indexOf(c.k[j].toLowerCase())>=0)return c;}return{en:'Task',zh:'任务',c:'#6E54F0'};}
+  function esc(s){return (s||'').replace(/[&<>]/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[m];});}
+  function th(){return document.getElementById('dThread');}
+  function scroll(){var t=th();t.scrollTop=t.scrollHeight;}
+  function fmtTime(iso){return new Intl.DateTimeFormat(locale(),{hour:'numeric',minute:'2-digit',timeZone:TZ}).format(new Date(iso));}
+  function dayPrefix(iso){
+    var df=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'});
+    if(df.format(new Date(iso))===df.format(new Date()))return '';   // today → omit the date
+    return new Intl.DateTimeFormat(locale(),{timeZone:TZ,weekday:'short',month:'short',day:'numeric'}).format(new Date(iso))+' · ';
   }
-  function fmt(h,mi){var ap=h<12?'AM':'PM';var hh=h%12;if(hh===0)hh=12;return hh+':'+('0'+mi).slice(-2)+' '+ap;}
-  function clean(s){return s.replace(/明天|今天|tomorrow|today/ig,'').replace(/(上午|早上|中午|下午|晚上|傍晚)?\s*\d{1,2}\s*点\s*半?/g,'').replace(/(at\s*)?\d{1,2}(?::\d{2})?\s*(am|pm)/ig,'').replace(/^(去|在|to\s+)/i,'').replace(/\s{2,}/g,' ').trim();}
-  function esc(s){return s.replace(/[&<>]/g,function(m){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[m];});}
-  function go(){
-    var inp=document.getElementById('dInput'),txt=(inp.value||'').trim();if(!txt)return;
-    var L=lang(),tr=T[L],th=document.getElementById('dThread');
-    th.innerHTML='';
-    var u=document.createElement('div');u.className='ubub';u.textContent=txt;th.appendChild(u);inp.value='';
-    var ty=document.createElement('div');ty.className='typing';ty.innerHTML='<i></i><i></i><i></i>';th.appendChild(ty);
-    setTimeout(function(){
-      ty.remove();
-      var items=txt.split(/[,，、;；。\n]|(?:\s+(?:then|and|还有|然后)\s+)/i);
-      var out=[];for(var i=0;i<items.length;i++){var x=items[i].trim();if(x)out.push(x);}out=out.slice(0,5);
-      var defs=[9,11,14,16,19,21],L2=lang(),tr2=T[L2];
-      var html='<div class="s">✓ '+tr2.sched+'</div>';
-      out.forEach(function(it,i){var tm=parseTime(it)||{h:defs[i%6],min:0};var c=cat(it);var title=clean(it)||it;
-        html+='<div class="row"><div class="barC" style="background:'+c.c+'"></div>'+
-          '<div class="ti"><b>'+esc(title)+'</b><span>'+fmt(tm.h,tm.min)+' – '+fmt((tm.h+1)%24,tm.min)+'</span></div>'+
-          '<div class="pill" style="background:'+c.c+'22;color:'+c.c+'">'+c[L2]+'</div></div>';});
-      html+='<div class="tap">📅 '+tr2.tap+'</div>';
-      var card=document.createElement('div');card.className='recpt';card.innerHTML=html;th.appendChild(card);
-    },950);
+
+  var convo=[];   // running {role,content} thread, so answering a clarifying question works
+  var busy=false;
+
+  function addUser(t){var d=document.createElement('div');d.className='ubub';d.textContent=t;th().appendChild(d);scroll();}
+  function addBot(t){var d=document.createElement('div');d.className='bbub';d.textContent=t;th().appendChild(d);scroll();}
+  function typing(){var d=document.createElement('div');d.className='typing';d.innerHTML='<i></i><i></i><i></i>';th().appendChild(d);scroll();return d;}
+
+  function renderReceipt(items){
+    var L=lang(),tr=T[L];
+    var html='<div class="s">✓ '+tr.sched+'</div>';
+    var any=false;
+    items.forEach(function(it){
+      if(!it||!it.start||!it.end)return;any=true;
+      var c=cat(it.title);
+      var when=dayPrefix(it.start)+fmtTime(it.start)+' – '+fmtTime(it.end);
+      var cm='';
+      if(it.commute&&it.commute.leaveAt){
+        var ic=it.commute.mode==='driving'?'🚗':it.commute.mode==='walking'?'🚶':'🚇';
+        cm='<span class="cm">'+ic+' '+tr.leave+' '+fmtTime(it.commute.leaveAt)+' · '+it.commute.durationMin+' '+tr.min+'</span>';
+      }
+      html+='<div class="row"><div class="barC" style="background:'+c.c+'"></div>'+
+        '<div class="ti"><b>'+esc(it.title)+'</b><span>'+when+'</span>'+cm+'</div>'+
+        '<div class="pill" style="background:'+c.c+'22;color:'+c.c+'">'+c[L]+'</div></div>';
+    });
+    if(!any)return;
+    html+='<div class="tap">📅 '+tr.tap+'</div>';
+    var card=document.createElement('div');card.className='recpt';card.innerHTML=html;th().appendChild(card);scroll();
   }
-  window.demoGo=go;
-  window.demoFill=function(b){document.getElementById('dInput').value=b.textContent.trim();go();};
+  function renderQuestions(qs){
+    qs.forEach(function(q){
+      if(q.question)addBot(q.question);
+      var wrap=document.createElement('div');wrap.className='chips';
+      (q.options||[]).forEach(function(op){
+        var b=document.createElement('button');b.textContent=op.label;
+        b.onclick=function(){send(op.label,false);};
+        wrap.appendChild(b);
+      });
+      if(wrap.children.length){th().appendChild(wrap);scroll();}
+    });
+  }
+
+  function send(txt,fresh){
+    txt=(txt||'').trim();if(!txt||busy)return;
+    if(fresh){convo=[];th().innerHTML='';}
+    addUser(txt);convo.push({role:'user',content:txt});if(convo.length>12)convo=convo.slice(-12);
+    var ty=typing();busy=true;
+    var ctrl=new AbortController(),to=setTimeout(function(){ctrl.abort();},35000);
+    fetch(ENDPOINT,{method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({messages:convo,tz:TZ}),signal:ctrl.signal})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        clearTimeout(to);ty.remove();busy=false;
+        if(!d||d.error){addBot(T[lang()].oops);return;}
+        if(d.type==='scheduled'){
+          var items=(d.receipt&&d.receipt.items)||[];
+          var titles=items.map(function(i){return i&&i.title;}).filter(Boolean).join(lang()==='zh'?'、':', ');
+          convo.push({role:'assistant',content:T[lang()].sched+': '+titles});
+          if(d.receipt&&d.receipt.summary)addBot(d.receipt.summary);
+          renderReceipt(items);
+        } else if(d.type==='questions'){
+          convo.push({role:'assistant',content:(d.questions||[]).map(function(q){return q.question;}).join(' ')});
+          renderQuestions(d.questions||[]);
+        } else {
+          var t=d.text||'';convo.push({role:'assistant',content:t});if(t)addBot(t);
+        }
+      })
+      .catch(function(){clearTimeout(to);ty.remove();busy=false;addBot(T[lang()].oops);});
+  }
+
+  window.demoGo=function(){var inp=document.getElementById('dInput');var v=inp.value;inp.value='';send(v,convo.length===0);};
+  window.demoFill=function(b){send(b.textContent.trim(),true);};
   window.demoSetLang=function(){var L=lang(),tr=T[L];
     document.getElementById('dInput').placeholder=tr.ph;
     var ch=document.getElementById('dChips');ch.innerHTML='';
     tr.chips.forEach(function(c){var b=document.createElement('button');b.textContent=c;b.onclick=function(){demoFill(b);};ch.appendChild(b);});
   };
-  document.getElementById('dInput').addEventListener('keydown',function(e){if(e.key==='Enter')go();});
+  document.getElementById('dInput').addEventListener('keydown',function(e){if(e.key==='Enter')window.demoGo();});
   demoSetLang();
 })();
 </script>

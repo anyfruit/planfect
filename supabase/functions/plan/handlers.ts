@@ -360,6 +360,7 @@ export function buildHandlers(
   searchApiKey?: string,
   mapsApiKey?: string,
   billingEnforced = false,
+  demo = false,
 ): ToolHandlers {
   const routines = toRoutineInputs(ctx.routines);
   const tz = ctx.timezone;
@@ -429,6 +430,7 @@ export function buildHandlers(
       }
     },
     [TOOL_GET_SCHEDULE]: async (args) => {
+      if (demo) return JSON.stringify(ctx.blocks ?? []);   // demo has no persisted schedule
       const start = String(args.start ?? '');
       const endRaw = String(args.end ?? '');
       const end = endRaw.includes('T') ? endRaw : `${endRaw}T23:59:59.999Z`; // include the whole end day
@@ -443,6 +445,7 @@ export function buildHandlers(
     },
 
     [TOOL_SET_ROUTINE]: async (args) => {
+      if (demo) return JSON.stringify({ ok: true });
       const action = String(args.action ?? '');
       const id = args.routine_id ? String(args.routine_id) : '';
       try {
@@ -476,6 +479,7 @@ export function buildHandlers(
     // Edit an EXISTING task (referenced by the [task:…] id shown in the calendar list): move it,
     // mark it done, or delete it. Used for "change the time of X", "X is done", "swap X and Y".
     [TOOL_UPDATE_TASK]: async (args) => {
+      if (demo) return JSON.stringify({ ok: true, action: 'noop' });
       const taskId = String(args.task_id ?? '').trim();
       const changes = (args.changes ?? {}) as Record<string, unknown>;
       if (!taskId) return JSON.stringify({ ok: false, error: 'missing task_id' });
@@ -517,6 +521,7 @@ export function buildHandlers(
 
     // Habit memory: add/remove a durable preference. Read back into the prompt on every turn.
     [TOOL_REMEMBER_PREFERENCE]: async (args) => {
+      if (demo) return JSON.stringify({ ok: true });
       const action = String(args.action ?? '');
       try {
         if (action === 'delete') {
@@ -544,6 +549,7 @@ export function buildHandlers(
     // Recurring tasks/habits. add → create the rule + place upcoming occurrences now; delete → drop
     // the rule (cascade-removes its future occurrences).
     [TOOL_SET_RECURRING]: async (args) => {
+      if (demo) return JSON.stringify({ ok: true, action: 'added' });
       const action = String(args.action ?? '');
       try {
         if (action === 'delete') {
@@ -603,6 +609,7 @@ export function buildHandlers(
       try {
         const g = await googleGeocode(mapsApiKey, query);
         if (!g) return JSON.stringify({ name: query, placeId: null, note: 'no match found' });
+        if (demo) return JSON.stringify({ name: query, address: g.address, lat: g.lat, lng: g.lng, placeId: g.placeId });
         // Reuse an already-saved location for the same place rather than duplicating it.
         const existing = ctx.locations.find((l) => l.place_id && l.place_id === g.placeId);
         if (existing) {
@@ -642,7 +649,7 @@ export function buildHandlers(
         if (!t.estimated_duration_min) assumptions.push(`Assumed ${durationMin} min for "${t.title}".`);
 
         const { availability, busy } = planningWindowsForDate(routines, date, tz);
-        const dayBusy = await loadDayBusy(supabase, userId, date, tz);
+        const dayBusy = demo ? [] : await loadDayBusy(supabase, userId, date, tz);
         // Routine is a soft default. A pinned explicit time (start_local) may land ANYWHERE on the
         // day — even over sleep — so it uses a full-day window; an un-pinned task stays in the awake
         // window. When overriding routine we only avoid other already-booked tasks. The agent is
@@ -674,6 +681,22 @@ export function buildHandlers(
         if (!placement.ok) {
           items.push({ title: t.title, start: null, end: null });
           assumptions.push(`No free slot for "${t.title}" on ${t.date}.`);
+          continue;
+        }
+
+        // Demo mode: the placement is REAL (same timezone-aware engine), but nothing is persisted —
+        // build the receipt item straight from the computed blocks and move on. No DB writes.
+        if (demo) {
+          const ss = placement.blocks.filter((b) => b.kind === 'task');
+          const cm = placement.blocks.find((b) => b.kind === 'commute');
+          items.push({
+            title: t.title,
+            start: new Date(ss[0].start).toISOString(),
+            end: new Date(ss[ss.length - 1].end).toISOString(),
+            commute: cm
+              ? { mode: 'transit', leaveAt: new Date(cm.start).toISOString(), durationMin: Math.round((cm.end - cm.start) / 60_000) }
+              : undefined,
+          });
           continue;
         }
 

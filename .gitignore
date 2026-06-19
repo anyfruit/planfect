@@ -29,3 +29,6 @@ npm-debug.log*
 .idea/
 .vscode/
 *.swp
+
+# Local Claude Code tooling (machine-specific settings + preview launch config)
+.claude/
