@@ -18,11 +18,13 @@ create table usage_events (
   cost_usd            numeric(12,6) not null default 0,
   latency_ms          int,
   success             boolean not null default true,
+  source              text not null default 'app',   -- 'app' (signed-in planner) | 'demo' (public web demo)
   created_at          timestamptz not null default now()
 );
 create index usage_events_created_idx on usage_events(created_at);
 create index usage_events_user_idx    on usage_events(user_id);
 create index usage_events_model_idx   on usage_events(provider, model, created_at);
+create index usage_events_source_idx  on usage_events(source, created_at);
 
 -- ============================================================================
 -- app_events — product analytics (actions/screens) for counts & active users
@@ -101,3 +103,42 @@ create view metrics_actions_daily with (security_invoker = true) as
          count(*) as count
   from app_events
   group by 1, 2;
+
+-- Daily totals across all models, per source (the dashboard's "每天总额 / token")
+create view metrics_usage_daily_total with (security_invoker = true) as
+  select date_trunc('day', created_at) as day,
+         source,
+         count(*)                          as calls,
+         sum(input_tokens + output_tokens) as total_tokens,
+         sum(cost_usd)                     as cost_usd
+  from usage_events
+  group by 1, 2;
+
+-- All-time usage split by source (app vs public demo)
+create view metrics_usage_by_source with (security_invoker = true) as
+  select source,
+         count(*)                          as calls,
+         sum(input_tokens + output_tokens) as total_tokens,
+         sum(cost_usd)                     as cost_usd
+  from usage_events
+  group by 1;
+
+-- ============================================================================
+-- demo_conversations — public-demo chats, stored for the author to review.
+-- Anonymous (no account); the IP is stored HASHED, never raw. Admin-read only;
+-- inserts come from the /plan-demo Edge Function via the service role.
+-- ============================================================================
+create table demo_conversations (
+  id          uuid primary key default gen_random_uuid(),
+  created_at  timestamptz not null default now(),
+  ip_hash     text,
+  tz          text,
+  model       text,
+  result_type text,
+  turns       int  not null default 0,
+  messages    jsonb not null default '[]'::jsonb,
+  result      jsonb
+);
+create index demo_conversations_created_idx on demo_conversations(created_at desc);
+alter table demo_conversations enable row level security;
+create policy "admins read demo_conversations" on demo_conversations for select using (is_admin());

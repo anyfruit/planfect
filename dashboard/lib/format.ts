@@ -35,6 +35,22 @@ export function sortByCost(rows: ModelRow[]): ModelRow[] {
   return [...rows].sort((a, b) => (b.cost_usd ?? 0) - (a.cost_usd ?? 0));
 }
 
+/** Collapse per-day-per-source rows into one grand total per day (app + demo combined), oldest first. */
+export function dailyGrandTotals(
+  rows: { day: string; calls: number; total_tokens: number; cost_usd: number }[],
+): { day: string; calls: number; tokens: number; cost: number }[] {
+  const byDay = new Map<string, { day: string; calls: number; tokens: number; cost: number }>();
+  for (const r of rows) {
+    const day = String(r.day).slice(0, 10);
+    const cur = byDay.get(day) ?? { day, calls: 0, tokens: 0, cost: 0 };
+    cur.calls += r.calls ?? 0;
+    cur.tokens += r.total_tokens ?? 0;
+    cur.cost += r.cost_usd ?? 0;
+    byDay.set(day, cur);
+  }
+  return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+}
+
 export function totals(rows: ModelRow[]): { calls: number; tokens: number; costUsd: number } {
   return rows.reduce(
     (acc, r) => ({

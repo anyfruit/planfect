@@ -797,12 +797,15 @@ export function buildHandlers(
 
 export class SupabaseUsageSink implements UsageSink {
   private supabase: SupabaseClient;
-  constructor(supabase: SupabaseClient) {
+  private source: string;
+  // source tags where the call came from: 'app' (the signed-in planner) or 'demo' (the public web demo).
+  constructor(supabase: SupabaseClient, source = 'app') {
     this.supabase = supabase;
+    this.source = source;
   }
   async record(e: UsageEvent): Promise<void> {
     await this.supabase.from('usage_events').insert({
-      user_id: e.userId,
+      user_id: isUuid(e.userId) ? e.userId : null,   // the demo has no real user → null
       conversation_id: e.conversationId,
       provider: e.provider,
       model: e.model,
@@ -813,6 +816,7 @@ export class SupabaseUsageSink implements UsageSink {
       cost_usd: e.costUsd,
       latency_ms: e.latencyMs,
       success: e.success,
+      source: this.source,
     });
   }
 }

@@ -17,9 +17,10 @@ import { runPlanner } from '../../../server/planner.ts';
 import { createPlanner } from '../../../server/llm/providers.ts';
 import { PLANNER_TOOLS } from '../../../server/llm/tools.ts';
 import { type LLMMessage, type LLMProvider } from '../../../server/llm/types.ts';
-import { buildHandlers, buildSystemPrompt, type PlanContext } from '../plan/handlers.ts';
+import { buildHandlers, buildSystemPrompt, SupabaseUsageSink, type PlanContext } from '../plan/handlers.ts';
 
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Promise<Response>): void };
+declare const crypto: { subtle: { digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer> } };
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -151,12 +152,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
       stamped = true;
     }
 
-    // buildHandlers requires a Supabase client, but demo mode never touches the DB — every
+    // buildHandlers requires a Supabase client, but demo mode never touches the user's data — every
     // DB-writing/reading tool is guarded by the `demo` flag. A throwaway anon client satisfies the
     // signature; web_search + estimate_commute (the tools that matter for a real answer) stay live.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
+      { auth: { persistSession: false } },
+    );
+    // Service-role client, used ONLY for our own analytics (usage_events + demo_conversations) —
+    // never for the demo's planning tools. Lets us meter demo cost and review how guests use it.
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { persistSession: false } },
     );
 
@@ -165,20 +173,46 @@ Deno.serve(async (req: Request): Promise<Response> => {
       model,
       system: buildSystemPrompt(ctx) + DEMO_ADDENDUM,
       tools: PLANNER_TOOLS,
-      // demo=true (last arg): real placement + web search + commutes, but no DB writes.
+      // demo=true (last arg): real placement + web search + commutes, but no writes to user data.
       handlers: buildHandlers(
         supabase, 'demo', ctx, undefined,
         Deno.env.get('OPENAI_API_KEY'), Deno.env.get('GOOGLE_MAPS_API_KEY'), false, true,
       ),
       context: { userId: 'demo' },
+      // Meter the demo's token/cost into usage_events, tagged source='demo' (user_id is null).
+      usage: new SupabaseUsageSink(admin, 'demo'),
       maxSteps: 8,
     });
+
+    // Persist the conversation for the author to review (anonymous; IP hashed, not raw). Best-effort —
+    // a logging failure must never break the demo response.
+    try {
+      const cleaned = messages
+        .filter((m) => (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+        .map((m) => ({ role: m.role, content: (m.content as string).replace(nowTag, '') }));
+      const r = result as { type?: string };
+      await admin.from('demo_conversations').insert({
+        ip_hash: await sha256Hex(ip).then((h) => h.slice(0, 16)),
+        tz,
+        model,
+        result_type: r.type ?? 'unknown',
+        turns: cleaned.filter((m) => m.role === 'user').length,
+        messages: cleaned,
+        result,
+      });
+    } catch (_) { /* analytics is best-effort */ }
 
     return json(result);
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }
 });
+
+/** SHA-256 hex of a string — used to hash the visitor IP so the raw address is never stored. */
+async function sha256Hex(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 function providerKeyEnv(p: LLMProvider): string {
   if (p === 'anthropic') return 'ANTHROPIC_API_KEY';
