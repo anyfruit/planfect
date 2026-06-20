@@ -102,7 +102,16 @@ final class ChatViewModel: ObservableObject {
                 items.append(.assistant(resp.text ?? "Done."))
             }
         } catch {
-            items.append(.assistant("⚠️ \(error.localizedDescription)"))
+            // If the app was backgrounded mid-request the connection drops — but the planner often
+            // finished server-side anyway. Pull the latest schedule so a plan that DID land shows up,
+            // and say so honestly instead of a scary raw error.
+            if let ue = error as? URLError,
+               [.networkConnectionLost, .cancelled, .timedOut, .notConnectedToInternet].contains(ue.code) {
+                if let blocks = try? await supa.fetchBlocks() { await NotificationManager.shared.reschedule(for: blocks) }
+                items.append(.assistant("Sent — but the connection dropped when you switched away. I've refreshed; check Schedule to see if it landed, or resend."))
+            } else {
+                items.append(.assistant("⚠️ \(error.localizedDescription)"))
+            }
         }
         persist()
         sending = false

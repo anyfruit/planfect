@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import UIKit
 
 private struct PrefInsert: Encodable { let user_id: String; let text: String; let source: String }
 private struct ProfilePlaceIds: Decodable { let home_location_id: UUID?; let work_location_id: UUID? }
@@ -67,8 +68,18 @@ extension SupabaseManager {
         return SupabaseConfig.anonKey
     }
 
+    /// Run async network work under a UIKit background-task assertion, so a request the user kicked
+    /// off keeps running for the ~30 s iOS grants after they switch apps — instead of being suspended
+    /// mid-flight (which surfaced as a "network connection lost" error even when the server finished).
+    func withBackgroundTask<T>(_ name: String, _ work: () async throws -> T) async rethrows -> T {
+        let id = await UIApplication.shared.beginBackgroundTask(withName: name)
+        defer { Task { @MainActor in if id != .invalid { UIApplication.shared.endBackgroundTask(id) } } }
+        return try await work()
+    }
+
     /// Call the `/plan` Edge Function over URLSession with the session JWT. (The SDK's invoke did
-    /// not reliably attach the token, causing 401s.)
+    /// not reliably attach the token, causing 401s.) Wrapped in a background-task assertion so a plan
+    /// the user fired off still completes if they switch apps while waiting.
     func plan(_ request: PlanRequest) async throws -> PlanResponse {
         let token = await currentToken()
         var req = URLRequest(url: URL(string: SupabaseConfig.url.absoluteString + "/functions/v1/plan")!)
@@ -77,12 +88,14 @@ extension SupabaseManager {
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(request)
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw NSError(domain: "Planfect.Plan", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "Planner unavailable (HTTP \(http.statusCode)). Please try again."])
+        return try await withBackgroundTask("plan") {
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw NSError(domain: "Planfect.Plan", code: http.statusCode,
+                              userInfo: [NSLocalizedDescriptionKey: "Planner unavailable (HTTP \(http.statusCode)). Please try again."])
+            }
+            return try JSONDecoder().decode(PlanResponse.self, from: data)
         }
-        return try JSONDecoder().decode(PlanResponse.self, from: data)
     }
 
     /// Ask the `/insights` Edge Function for an AI read of the user's time breakdown.
@@ -94,13 +107,15 @@ extension SupabaseManager {
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = try JSONEncoder().encode(summary)
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            throw NSError(domain: "Planfect.Insights", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "Analysis unavailable (HTTP \(http.statusCode)). Please try again."])
-        }
         struct R: Decodable { let analysis: String? }
-        return (try JSONDecoder().decode(R.self, from: data)).analysis ?? ""
+        return try await withBackgroundTask("insights") {
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw NSError(domain: "Planfect.Insights", code: http.statusCode,
+                              userInfo: [NSLocalizedDescriptionKey: "Analysis unavailable (HTTP \(http.statusCode)). Please try again."])
+            }
+            return (try JSONDecoder().decode(R.self, from: data)).analysis ?? ""
+        }
     }
 
     func fetchBlocks() async throws -> [TimeBlock] {
