@@ -16,6 +16,8 @@ struct ProfileView: View {
     @State private var showPaywall = false
     @State private var shareItem: ShareItem?
     @State private var exporting = false
+    @State private var myProfile: MyProfile?
+    @State private var showEditProfile = false
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
@@ -28,15 +30,18 @@ struct ProfileView: View {
         NavigationStack {
             List {
                 Section {
-                    HStack(spacing: 14) {
-                        Image(systemName: "person.crop.circle.fill")
-                            .font(.system(size: 46)).foregroundStyle(.tint)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(supa.email ?? "Signed in").font(.headline)
-                            Text("Planfect account").font(.caption).foregroundStyle(.secondary)
+                    Button { showEditProfile = true } label: {
+                        HStack(spacing: 14) {
+                            Avatar(url: myProfile?.avatarURL, size: 56)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(profileName).font(.headline).foregroundStyle(.primary)
+                                Text(profileSubtitle).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
 
                 Section {
@@ -221,6 +226,7 @@ struct ProfileView: View {
             .sheet(item: $editing) { r in RoutineEditView(existing: r) { Task { await reload() } } }
             .sheet(isPresented: $addingNew) { RoutineEditView(existing: nil) { Task { await reload() } } }
             .sheet(isPresented: $showPaywall) { PaywallView() }
+            .sheet(isPresented: $showEditProfile) { ProfileEditView { Task { await reload() } } }
             .sheet(item: $shareItem) { item in ShareSheet(items: [item.url]) }
             .sheet(item: $editingPlace) { kind in
                 AddressEditView(title: LocalizedStringKey(kind == .home ? "Home" : "Work"),
@@ -253,12 +259,22 @@ struct ProfileView: View {
         }
     }
 
+    private var profileName: String {
+        if let d = myProfile?.display_name, !d.isEmpty { return d }
+        return supa.email ?? String(localized: "Signed in")
+    }
+    private var profileSubtitle: String {
+        if let u = myProfile?.username, !u.isEmpty { return "@\(u)" }
+        return supa.email ?? String(localized: "Planfect account")
+    }
+
     private func reload() async {
         routines = (try? await supa.fetchRoutines()) ?? []
         let hw = await supa.fetchHomeWork()
         homeAddr = hw.home ?? ""; workAddr = hw.work ?? ""
         prefs = await supa.fetchPreferences()
         recurring = await supa.fetchRecurring()
+        myProfile = try? await supa.fetchMyProfile()
         await supa.refreshEntitlement()
     }
 

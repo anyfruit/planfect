@@ -10,6 +10,9 @@
 		02CBD4F151FA45EFA99F3299 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D62CE08D5A42BAFBDF9DA204 /* ScheduleView.swift */; };
 		08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */; };
 		0A5C8DAC0FBFA5594A8266E9 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07C79F5E50489C2AFF73A95 /* ProfileView.swift */; };
+		123D1230375971B7E2ADEF6D /* FriendsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6890EC57F76CBF4B488DF27A /* FriendsView.swift */; };
+		13E3AECF6C678EF805266A85 /* ProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06501C277CA116C17EA7B26 /* ProfileEditView.swift */; };
+		23860187D734A6C56CCAF2B3 /* SupabaseManager+Friends.swift in Sources */ = {isa = PBXBuildFile; fileRef = F469ADAFC2822CB9EFD73800 /* SupabaseManager+Friends.swift */; };
 		23A3E72400211ABBBAE89556 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97D82409A559BA08A144C75 /* PaywallView.swift */; };
 		2AE67964FCA94900030BE7B3 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E578E174CF9A1913F0BA58AD /* WidgetModel.swift */; };
 		2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */; };
@@ -87,6 +90,7 @@
 		621776B04C4F2726894FCEB9 /* PlanfectWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanfectWidget.swift; sourceTree = "<group>"; };
 		6265160A353BD5092527B6F7 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		63B90191AE7E2FA83F5001C9 /* BlockDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockDetailView.swift; sourceTree = "<group>"; };
+		6890EC57F76CBF4B488DF27A /* FriendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FriendsView.swift; sourceTree = "<group>"; };
 		6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		6F071AB24843BFE2B2A5D7D0 /* ReceiptCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptCardView.swift; sourceTree = "<group>"; };
 		6FCB597B22B7D9B63127A986 /* Planfect.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Planfect.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -99,6 +103,7 @@
 		83C57028392E6CFC13CFF701 /* TaskCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskCategory.swift; sourceTree = "<group>"; };
 		8AD4441B7C166052676F36B9 /* PlanfectWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = PlanfectWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9A978E8C5E8D3AE671B38647 /* Planfect.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Planfect.entitlements; sourceTree = "<group>"; };
+		A06501C277CA116C17EA7B26 /* ProfileEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditView.swift; sourceTree = "<group>"; };
 		A7B266EB035034732CCE00FD /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		A7DCD96ACADCB82289EE9026 /* TimelineViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViews.swift; sourceTree = "<group>"; };
 		A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryStyle.swift; sourceTree = "<group>"; };
@@ -116,6 +121,7 @@
 		E578E174CF9A1913F0BA58AD /* WidgetModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetModel.swift; sourceTree = "<group>"; };
 		E97D82409A559BA08A144C75 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		EB2922E43C5BEDE6AB2C73D0 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
+		F469ADAFC2822CB9EFD73800 /* SupabaseManager+Friends.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SupabaseManager+Friends.swift"; sourceTree = "<group>"; };
 		FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -141,6 +147,7 @@
 				5D5BABC304FF3DC8A6517433 /* ShareSheet.swift */,
 				54521C45A418BBBD81C4174E /* SupabaseManager.swift */,
 				730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */,
+				F469ADAFC2822CB9EFD73800 /* SupabaseManager+Friends.swift */,
 				EB2922E43C5BEDE6AB2C73D0 /* WidgetBridge.swift */,
 			);
 			path = Services;
@@ -195,6 +202,7 @@
 				7A65A8D2769A5EC3F87E06EC /* Auth */,
 				CA4CA4385930BC7B69644F79 /* Chat */,
 				56EAA38340066614DC7CFAF5 /* Config */,
+				D432D79068D5570F98352DA6 /* Friends */,
 				6BF3221DBB463B927ECE0F3B /* Insights */,
 				F52D82E7FBC6225B9446F7B2 /* Localizable.strings */,
 				8AB02D0E40C697C9F765A83E /* Models */,
@@ -279,11 +287,20 @@
 			path = Chat;
 			sourceTree = "<group>";
 		};
+		D432D79068D5570F98352DA6 /* Friends */ = {
+			isa = PBXGroup;
+			children = (
+				6890EC57F76CBF4B488DF27A /* FriendsView.swift */,
+			);
+			path = Friends;
+			sourceTree = "<group>";
+		};
 		F658456C2F8464443D81E877 /* Profile */ = {
 			isa = PBXGroup;
 			children = (
 				2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */,
 				E97D82409A559BA08A144C75 /* PaywallView.swift */,
+				A06501C277CA116C17EA7B26 /* ProfileEditView.swift */,
 				D07C79F5E50489C2AFF73A95 /* ProfileView.swift */,
 				D5D3F42E7102085C0772E633 /* RoutineEditView.swift */,
 			);
@@ -420,6 +437,7 @@
 				D347F1657CA06B0BF94D5B1A /* CalendarManager.swift in Sources */,
 				82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */,
 				C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */,
+				123D1230375971B7E2ADEF6D /* FriendsView.swift in Sources */,
 				5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */,
 				C0FA7555B4D949CB2AB2C388 /* LanguageManager.swift in Sources */,
 				9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */,
@@ -428,6 +446,7 @@
 				99D653613F32DF3DAF9EB60D /* OnboardingView.swift in Sources */,
 				23A3E72400211ABBBAE89556 /* PaywallView.swift in Sources */,
 				B3CDEA4CF3DEC41ABBD75F15 /* PlanfectApp.swift in Sources */,
+				13E3AECF6C678EF805266A85 /* ProfileEditView.swift in Sources */,
 				0A5C8DAC0FBFA5594A8266E9 /* ProfileView.swift in Sources */,
 				2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */,
 				FCA5D02799924C05CBAB2EFF /* ReceiptCardView.swift in Sources */,
@@ -438,6 +457,7 @@
 				50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */,
 				C58AC76843AEE44BA888CF52 /* SupabaseConfig.swift in Sources */,
 				8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */,
+				23860187D734A6C56CCAF2B3 /* SupabaseManager+Friends.swift in Sources */,
 				FC43EB3A10CA1A76FC72C0B6 /* SupabaseManager.swift in Sources */,
 				FF56E5C6E2F4A899DDF5CBA6 /* TaskCategory.swift in Sources */,
 				DD29AF440E60FE00EDD74544 /* TimelineViews.swift in Sources */,

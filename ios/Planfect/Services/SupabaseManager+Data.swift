@@ -386,7 +386,7 @@ extension SupabaseManager {
 
     // MARK: - PostgREST over URLSession with the user's JWT
 
-    private func rest(_ method: String, _ pathAndQuery: String, body: Data? = nil, prefer: String? = nil) async throws -> Data {
+    func rest(_ method: String, _ pathAndQuery: String, body: Data? = nil, prefer: String? = nil) async throws -> Data {
         let token = await currentToken()
         let url = URL(string: SupabaseConfig.url.absoluteString + "/rest/v1/" + pathAndQuery)!
         var req = URLRequest(url: url)

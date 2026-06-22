@@ -209,6 +209,13 @@ reflect the current state.
 
 _2026-06-22_
 
+- **Friends — phase 1.** Profiles gain a unique **@username**, an editable **display name**, and an
+  uploadable **avatar**. A new **Friends tab** finds people by @username, sends / accepts requests,
+  and grades each friend **Regular** or **Close** — single-directional, so *you* control per-friend
+  what they're allowed (Close will see specifics and be able to schedule with you; Regular only sees
+  when you're busy). Backed by a directed-edge `friendships` model, a service-role `friends` Edge
+  Function that keeps both sides consistent, and an `avatars` storage bucket. Cross-calendar
+  visibility (blurred by tier) and collaborative scheduling land in the next phases.
 - **Apple Calendar sync (app → calendar).** Plans now sync into a dedicated **Planfect** calendar,
   reconciled — create / move / delete — against a `planfect://block/<id>` marker stamped on each
   event. Edits and deletions in the app flow to Apple Calendar, while your personal events are never

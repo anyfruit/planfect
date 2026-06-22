@@ -24,6 +24,12 @@ struct MainTabView: View {
             }
             .tabItem { Label("Insights", systemImage: "chart.pie.fill") }
             .tag(2)
+
+            NavigationStack {
+                FriendsView().planfectAvatar { showProfile = true }
+            }
+            .tabItem { Label("Friends", systemImage: "person.2.fill") }
+            .tag(3)
         }
         .sheet(isPresented: $showProfile) { ProfileView() }
         // Leaving a tab drops the keyboard — otherwise a stuck keyboard can hide the tab bar and

@@ -192,3 +192,27 @@
 "Scroll to latest" = "滚动到最新";
 "Dictate answer" = "语音输入答案";
 "Stop dictation" = "停止语音输入";
+
+/* Friends & profile */
+"Friends" = "好友";
+"Requests" = "好友请求";
+"Accept" = "接受";
+"Add friend" = "添加好友";
+"No friends yet" = "还没有好友";
+"Add friends by their @username to share schedules." = "用 @用户名 添加好友,一起共享日程。";
+"Close" = "密友";
+"Close friend" = "密友";
+"Close friends can see your specific plans and schedule things with you. Regular friends only see when you're busy." = "密友能看到你的具体安排,还能跟你一起排日程;普通好友只能看到你什么时候忙。";
+"Remove friend" = "删除好友";
+"Search by @username" = "按 @用户名搜索";
+"No users found" = "没找到用户";
+"Requested" = "已发送";
+"Someone" = "某人";
+"Signed in" = "已登录";
+"Edit profile" = "编辑资料";
+"Username" = "用户名";
+"username" = "用户名";
+"Display name" = "昵称";
+"Your name" = "你的名字";
+"3–20 letters, numbers, or underscore. Friends find and add you by this." = "3–20 位字母、数字或下划线。好友靠它找到并添加你。";
+"Username must be 3–20 letters, numbers, or underscore." = "用户名必须是 3–20 位字母、数字或下划线。";

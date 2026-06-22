@@ -73,6 +73,43 @@ struct RoutineInsert: Encodable {
     let is_flexible: Bool
 }
 
+// MARK: - Friends
+
+/// A friend, a pending request (either direction), or a search hit — the shape the `friends`
+/// edge function returns. Tier fields appear only in the friends list; `relationship` only in search.
+struct FriendProfile: Decodable, Identifiable {
+    let id: UUID
+    let username: String?
+    let display_name: String?
+    let avatar_url: String?
+    let my_tier: String?       // tier I grant them: "friend" | "close"
+    let their_tier: String?    // tier they grant me
+    let relationship: String?  // search only: none | requested | incoming | friends
+
+    var name: String {
+        if let d = display_name, !d.isEmpty { return d }
+        if let u = username, !u.isEmpty { return "@\(u)" }
+        return String(localized: "Someone")
+    }
+    var handle: String { username.map { "@\($0)" } ?? "" }
+    var isClose: Bool { my_tier == "close" }
+    var avatarURL: URL? { avatar_url.flatMap { URL(string: $0) } }
+}
+
+struct FriendsList: Decodable {
+    let friends: [FriendProfile]
+    let incoming: [FriendProfile]
+    let outgoing: [FriendProfile]
+}
+
+/// The signed-in user's own editable profile fields.
+struct MyProfile: Decodable {
+    let username: String?
+    let display_name: String?
+    let avatar_url: String?
+    var avatarURL: URL? { avatar_url.flatMap { URL(string: $0) } }
+}
+
 // MARK: - /plan request & response
 
 struct PlanRequest: Encodable {
