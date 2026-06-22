@@ -169,6 +169,13 @@ const scheduleTasks: ToolDef = {
                 'separate free slot — set it (with start_local at that activity\'s time) when the user ' +
                 'wants to do this WHILE doing something else (一边…一边…, "during", "at the same time").',
             },
+            with_friend: {
+              type: 'string',
+              description:
+                'The username (WITHOUT @) of a CLOSE FRIEND this plan is together with — it will be ' +
+                'added to BOTH calendars. Use ONLY a username listed under CLOSE FRIENDS in the system ' +
+                'prompt; omit otherwise.',
+            },
           },
         },
       },

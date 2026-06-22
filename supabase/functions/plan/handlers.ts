@@ -43,6 +43,7 @@ export interface PlanContext {
   calendarBusy: { start: number; end: number; title: string }[];   // real device-calendar events (from the request)
   recurring: RecurringRow[];  // active recurring tasks/habits
   isPro: boolean;             // active Planfect Pro subscription (gates paid features when billing is on)
+  closeFriends: { id: string; username: string; name: string }[];   // friends who let the user add to THEIR calendar
 }
 
 interface RecurringRow {
@@ -95,6 +96,20 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     .gte('start_at', fromUtc)
     .order('start_at')
     .limit(100);
+  // Friends who set ME as a "close" friend — they let me add plans to their calendar.
+  const { data: closeEdges } = await supabase
+    .from('friendships').select('owner_id')
+    .eq('friend_id', userId).eq('tier', 'close').eq('status', 'accepted');
+  const closeIds = (closeEdges ?? []).map((e: { owner_id: string }) => e.owner_id);
+  let closeFriends: { id: string; username: string; name: string }[] = [];
+  if (closeIds.length) {
+    const { data: fps } = await supabase
+      .from('profiles').select('id,username,display_name').in('id', closeIds);
+    closeFriends = ((fps ?? []) as { id: string; username: string | null; display_name: string | null }[])
+      .filter((p) => p.username)
+      .map((p) => ({ id: p.id, username: p.username as string, name: p.display_name || (p.username as string) }));
+  }
+
   return {
     routines: routines.data ?? [],
     locations: (locations.data ?? []) as LocationRow[],
@@ -108,6 +123,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     calendarBusy: [],   // populated from the request body in index.ts
     recurring: recurringRows,
     isPro: profile.data?.is_pro ?? false,
+    closeFriends,
   };
 }
 
@@ -261,6 +277,11 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     `LEARNED PREFERENCES — apply these every time; they reflect how THIS user likes things and override generic defaults: ${ctx.preferences.length ? ctx.preferences.map((p) => `- ${p.text} [pref:${p.id}]`).join(' ') : 'none yet'}`,
     `OBSERVED HABITS from their past schedule (soft hints, weaker than a stated preference or routine; use only when it fits): ${ctx.observedHabits}`,
     `Recurring tasks already set up (reference by id to change/stop): ${formatRecurring(ctx.recurring)}`,
+    `CLOSE FRIENDS who let you add plans to THEIR calendar: ${ctx.closeFriends.length ? ctx.closeFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
+    'WITH A FRIEND: when the user says a plan is together with one of the CLOSE FRIENDS listed above',
+    '(e.g. "和 @sam 一起看电影", "dinner with Alex"), set that task\'s with_friend to that friend\'s',
+    'username (without @) in schedule_tasks — it gets added to BOTH calendars. Use ONLY a username from',
+    'that list; if the named person isn\'t a close friend, schedule it for the user alone and say so.',
     'RECURRING: when the user wants to do something REPEATEDLY on a schedule (每周一三五健身 / 每天背单词 /',
     'every Tuesday night), call set_recurring with days_of_week + start_local — do NOT create a separate',
     'one-off for each, and do NOT use set_routine (that is for work/sleep/meal background to avoid). To',
@@ -846,11 +867,37 @@ export function buildHandlers(
           rows.push(blockRow(userId, `Buffer after ${t.title}`, 'buffer', buffer, { task_id: taskId }));
         }
 
+        // Collaborative double-booking: if the user named a CLOSE friend, stamp a shared id on the
+        // task block(s) and mirror them into that friend's own calendar (linked by shared_event_id).
+        const friend = t.with_friend
+          ? ctx.closeFriends.find((f) => f.username.toLowerCase() === String(t.with_friend).replace(/^@/, '').toLowerCase())
+          : undefined;
+        const sharedId = friend ? crypto.randomUUID() : undefined;
+        if (sharedId) for (const r of rows) if (r.kind === 'task') r.shared_event_id = sharedId;
+
         const { error: blkErr } = await supabase.from('time_blocks').insert(rows);
         if (blkErr) {
           items.push({ title: t.title, start: null, end: null });
           assumptions.push(`Saved "${t.title}" but not its blocks: ${blkErr.message}.`);
           continue;
+        }
+
+        if (friend && sharedId) {
+          // Mirror only the task block(s) — commute/buffer are personal to the user.
+          const friendRows = rows
+            .filter((r) => r.kind === 'task')
+            .map((r) => ({
+              user_id: friend.id, title: r.title as string, kind: 'task', status: 'planned',
+              start_at: r.start_at as string, end_at: r.end_at as string,
+              category: (r.category as string | null) ?? null, shared_event_id: sharedId,
+            }));
+          const { error: fErr } = await supabase.from('time_blocks').insert(friendRows);
+          if (fErr) {
+            assumptions.push(`Couldn't add to ${friend.name}'s calendar: ${fErr.message}.`);
+          } else {
+            assumptions.push(`Also added to ${friend.name}'s calendar.`);
+            await notifyScheduledWith(supabase, friend.id, userId, t.title).catch(() => {});
+          }
         }
 
         // Best-effort product analytics (service role bypasses RLS). Never fail the plan on it.
@@ -930,6 +977,7 @@ interface ScheduleTaskArg {
   deadline?: string;       // ISO-8601
   allow_over_routine?: boolean;
   allow_overlap?: boolean;
+  with_friend?: string;   // username (no @) of a close friend to double-book this plan with
 }
 
 interface ScheduledItem {
@@ -1049,6 +1097,20 @@ async function loadDayBusy(
 }
 
 /** Build a time_blocks insert row from a placed block. */
+/** Notify a friend that someone scheduled a plan with them (best-effort). The APNs sender lands
+ *  with the push key; until configured this writes a notification row the sender can pick up. */
+async function notifyScheduledWith(
+  supabase: SupabaseClient,
+  friendId: string,
+  byUserId: string,
+  title: string,
+): Promise<void> {
+  await supabase.from('notifications').insert({
+    user_id: friendId, kind: 'scheduled_with', actor_id: byUserId,
+    body: title, delivered: false,
+  });
+}
+
 function blockRow(
   userId: string,
   title: string,

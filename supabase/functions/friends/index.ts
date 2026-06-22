@@ -93,12 +93,14 @@ async function request(db: SupabaseClient, me: string, target?: string): Promise
   if (existing?.status === 'accepted') return json({ ok: true, status: 'friends' });
   if (existing?.status === 'pending' && existing.requested_by === target) {
     await setAccepted(db, me, target);                         // they asked first → this accepts it
+    await notify(db, target, 'friend_accept', me);
     return json({ ok: true, status: 'friends' });
   }
   await db.from('friendships').upsert([
     { owner_id: me, friend_id: target, status: 'pending', requested_by: me },
     { owner_id: target, friend_id: me, status: 'pending', requested_by: me },
   ], { onConflict: 'owner_id,friend_id', ignoreDuplicates: true });
+  await notify(db, target, 'friend_request', me);
   return json({ ok: true, status: 'requested' });
 }
 
@@ -111,6 +113,7 @@ async function accept(db: SupabaseClient, me: string, requester?: string): Promi
     return json({ error: 'no pending request' }, 400);
   }
   await setAccepted(db, me, requester);
+  await notify(db, requester, 'friend_accept', me);
   return json({ ok: true, status: 'friends' });
 }
 
@@ -167,6 +170,11 @@ async function list(db: SupabaseClient, me: string): Promise<Response> {
 async function setAccepted(db: SupabaseClient, a: string, b: string): Promise<void> {
   await db.from('friendships').update({ status: 'accepted' }).eq('owner_id', a).eq('friend_id', b);
   await db.from('friendships').update({ status: 'accepted' }).eq('owner_id', b).eq('friend_id', a);
+}
+
+/** Queue a notification (the APNs sender, landing with the push key, delivers it). Best-effort. */
+async function notify(db: SupabaseClient, userId: string, kind: string, actorId: string): Promise<void> {
+  await db.from('notifications').insert({ user_id: userId, kind, actor_id: actorId, delivered: false });
 }
 
 function json(data: unknown, status = 200): Response {
