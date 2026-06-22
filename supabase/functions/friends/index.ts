@@ -30,20 +30,25 @@ Deno.serve(async (req: Request): Promise<Response> => {
     });
     const { data: { user } } = await userClient.auth.getUser();
     if (!user) return json({ error: 'unauthorized' }, 401);
-    const me = user.id;
+    const me = user.id.toLowerCase();
 
     const srKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!srKey) return json({ error: 'not configured' }, 500);
     const db = createClient(url, srKey, { auth: { persistSession: false } });
 
     const body = (await req.json()) as Body;
+    // Swift's UUID.uuidString is UPPERCASE; Postgres returns lowercase. Normalize every client-sent
+    // id to lowercase so JS string comparisons (e.g. the requested_by check) match the DB values.
+    const targetId = body.target_id?.toLowerCase();
+    const requesterId = body.requester_id?.toLowerCase();
+    const friendId = body.friend_id?.toLowerCase();
     switch (body.action) {
       case 'search':   return await search(db, me, body.q ?? '');
-      case 'request':  return await request(db, me, body.target_id);
-      case 'accept':   return await accept(db, me, body.requester_id);
-      case 'decline':  return await unlink(db, me, body.requester_id);   // reject incoming / cancel outgoing
-      case 'remove':   return await unlink(db, me, body.friend_id);      // unfriend
-      case 'set_tier': return await setTier(db, me, body.friend_id, body.tier);
+      case 'request':  return await request(db, me, targetId);
+      case 'accept':   return await accept(db, me, requesterId);
+      case 'decline':  return await unlink(db, me, requesterId);   // reject incoming / cancel outgoing
+      case 'remove':   return await unlink(db, me, friendId);      // unfriend
+      case 'set_tier': return await setTier(db, me, friendId, body.tier);
       case 'list':     return await list(db, me);
       default:         return json({ error: 'unknown action' }, 400);
     }

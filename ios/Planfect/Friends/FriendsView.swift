@@ -64,7 +64,7 @@ struct FriendsView: View {
                     .accessibilityLabel(Text("Add friend"))
             }
         }
-        .sheet(isPresented: $showAdd) { AddFriendView() }
+        .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) { AddFriendView() }
         .refreshable { await load() }
         .task { await load() }
         .overlay {
