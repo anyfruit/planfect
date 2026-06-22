@@ -20,6 +20,17 @@
 "Other…" = "其他…";
 "Type your answer" = "输入你的回答";
 "Quick question" = "问一下";
+"(no selection)" = "未选择";
+"New chat" = "新对话";
+"Start a new chat?" = "开始新对话?";
+"This clears the current conversation." = "这会清空当前对话。";
+
+/* Chat fallbacks (shown only if the server reply is blank/edge-case) */
+"Scheduled." = "已安排好啦。";
+"Done." = "好了。";
+"I had a question but it came through empty." = "我本来想问你一句,但内容空了。";
+"Sorry — I lost the thread of that question. Mind rephrasing?" = "抱歉,我跟丢了刚才那个问题。要不换个说法再说一次?";
+"Upgrade to Planfect Pro to keep planning." = "升级到 Planfect Pro 继续无限规划。";
 
 /* Receipt */
 "Scheduled" = "已安排";

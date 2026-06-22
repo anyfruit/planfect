@@ -25,6 +25,10 @@ final class ChatViewModel: ObservableObject {
     @Published var input = ""
     @Published var sending = false
     @Published var showPaywall = false
+    /// The id of the one question card the user can still answer. Cleared the moment they move on
+    /// (send a new message, answer it, or the assistant replies again) so a stale card locks and a
+    /// late tap can't post an answer to a superseded question.
+    @Published var activeQuestionID: UUID? = nil
 
     private var supa: SupabaseManager?
     private var history: [JSONValue] = []   // full LLM thread, sent every turn so context persists
@@ -49,18 +53,27 @@ final class ChatViewModel: ObservableObject {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !sending else { return }
         input = ""
+        activeQuestionID = nil   // a new message supersedes any pending question card
         items.append(.user(text))
         history.append(.object(["role": .string("user"), "content": .string(text)]))
         persist()
         Task { await run(PlanRequest(messages: history)) }
     }
 
+    /// Reset to a clean conversation — the "start over" escape hatch when a thread feels stuck.
+    func startNewChat() {
+        guard !sending else { return }
+        activeQuestionID = nil
+        clearPersisted()
+    }
+
     func answer(_ answers: [QuestionAnswer]) {
         guard !sending else { return }
+        activeQuestionID = nil   // answering it now — lock the card so it can't be re-submitted
         let summary = answers.flatMap(\.selected).joined(separator: ", ")
-        items.append(.user(summary.isEmpty ? "(no selection)" : summary))
+        items.append(.user(summary.isEmpty ? String(localized: "(no selection)") : summary))
         guard let askId = JSONValue.askToolCallId(in: history) else {
-            items.append(.assistant("Sorry — I lost the thread of that question. Mind rephrasing?"))
+            items.append(.assistant(String(localized: "Sorry — I lost the thread of that question. Mind rephrasing?")))
             return
         }
         let answerArray: [JSONValue] = answers.map { a in
@@ -84,22 +97,26 @@ final class ChatViewModel: ObservableObject {
         do {
             let resp = try await supa.plan(req)
             if let m = resp.messages { history = m }
+            activeQuestionID = nil   // any reply supersedes a prior pending question card
             switch resp.type {
             case "questions":
-                if let qs = resp.questions, !qs.isEmpty { items.append(.questions(qs)) }
-                else { items.append(.assistant("I had a question but it came through empty.")) }
+                if let qs = resp.questions, !qs.isEmpty {
+                    items.append(.questions(qs))
+                    activeQuestionID = items.last?.id   // this card is now the answerable one
+                } else { items.append(.assistant(String(localized: "I had a question but it came through empty."))) }
             case "scheduled":
                 if let r = resp.receipt {
                     items.append(.receipt(r))
                     await CalendarManager.shared.addPlans(r.items)   // mirror the plan into Apple Calendar (if synced)
-                } else { items.append(.assistant("Scheduled.")) }
+                } else { items.append(.assistant(String(localized: "Scheduled."))) }
                 // Refresh reminders so a just-scheduled plan nudges even if the user never opens Schedule.
                 if let blocks = try? await supa.fetchBlocks() { await NotificationManager.shared.reschedule(for: blocks) }
             case "upgrade":
-                items.append(.assistant(resp.text ?? "Upgrade to Planfect Pro to keep planning."))
+                items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Upgrade to Planfect Pro to keep planning.")))
                 showPaywall = true
             default:
-                items.append(.assistant(resp.text ?? "Done."))
+                // A blank server reply must never render as an empty bubble — fall back to a word.
+                items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Done.")))
             }
         } catch {
             // If the app was backgrounded mid-request the connection drops — but the planner often
@@ -115,6 +132,12 @@ final class ChatViewModel: ObservableObject {
         }
         persist()
         sending = false
+    }
+
+    /// Trimmed text if it has visible content, else nil — guards against rendering an empty bubble.
+    private func nonEmpty(_ s: String?) -> String? {
+        let t = (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 
     // MARK: - Local persistence (so the transcript survives relaunch / view rebuilds)
@@ -205,6 +228,7 @@ struct ChatView: View {
     @StateObject private var speech = SpeechRecognizer()
     @FocusState private var inputFocused: Bool
     @Environment(\.openURL) private var openURL
+    @State private var showReset = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -213,7 +237,9 @@ struct ChatView: View {
                     LazyVStack(alignment: .leading, spacing: 14) {
                         if vm.items.isEmpty { EmptyChat() }
                         ForEach(vm.items) { item in
-                            ChatRow(item: item, onAnswer: vm.answer)
+                            ChatRow(item: item,
+                                    questionsLocked: item.id != vm.activeQuestionID || vm.sending,
+                                    onAnswer: vm.answer)
                         }
                         if vm.sending {
                             HStack(alignment: .top, spacing: 8) {
@@ -245,6 +271,19 @@ struct ChatView: View {
                 }
                 .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .leading, endPoint: .trailing))
             }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { showReset = true } label: {
+                    Image(systemName: "square.and.pencil")
+                }
+                .accessibilityLabel(Text("New chat"))
+                .disabled(vm.items.isEmpty || vm.sending)
+            }
+        }
+        .confirmationDialog("Start a new chat?", isPresented: $showReset, titleVisibility: .visible) {
+            Button("New chat", role: .destructive) { vm.startNewChat() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This clears the current conversation.")
         }
         .onAppear {
             vm.bind(supa)
@@ -328,13 +367,14 @@ private struct EmptyChat: View {
 
 private struct ChatRow: View {
     let item: ChatItem
+    let questionsLocked: Bool   // for a .questions row: superseded / mid-request → not answerable
     let onAnswer: ([QuestionAnswer]) -> Void
 
     var body: some View {
         switch item.content {
         case .text(.user, let s): Bubble(text: s, mine: true)
         case .text(.assistant, let s): withAvatar { Bubble(text: s, mine: false) }
-        case .questions(let qs): withAvatar { QuestionCardView(questions: qs, onSubmit: onAnswer) }
+        case .questions(let qs): withAvatar { QuestionCardView(questions: qs, locked: questionsLocked, onSubmit: onAnswer) }
         case .receipt(let r): withAvatar { ReceiptCardView(receipt: r) }
         }
     }

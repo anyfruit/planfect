@@ -31,7 +31,7 @@ export type PlannerResult =
 export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Promise<PlannerResult> {
   const now = deps.now ?? (() => Date.now());
   const maxSteps = deps.maxSteps ?? 8;
-  const msgs: LLMMessage[] = [...messages];
+  const msgs: LLMMessage[] = sanitizeThread(messages);
   const scheduledItems: ReceiptItem[] = [];
   const assumptions: string[] = [];
   let scheduled = false;
@@ -110,4 +110,52 @@ function safeParse(s: string): { items?: unknown; assumptions?: unknown } | null
   } catch {
     return null;
   }
+}
+
+/** Tool result synthesized for a clarifying question the user never answered (see sanitizeThread). */
+const UNANSWERED_TOOL_CALL =
+  '(The user did not pick an option — they sent a new message instead. Read their latest message and act on it.)';
+
+/**
+ * Repair a client-supplied message thread so it is structurally valid for the provider's tool
+ * protocol BEFORE it reaches the model. The chat app replays the WHOLE thread every turn, and the
+ * user can leave it malformed in ways the OpenAI/Anthropic APIs reject with a 400:
+ *
+ *   - bypassing a pending `ask_user_questions` card by typing a NEW message → an assistant tool
+ *     call with no following tool result, then a user turn;
+ *   - answering that card LATE, after already moving on → a tool result that no longer directly
+ *     follows its tool call.
+ *
+ * Either leaves a dangling tool_use (or an orphan tool_result); the request 400s, the turn throws,
+ * and because the app keeps resending the same thread, the WHOLE conversation bricks — the "freeze"
+ * a user hits by sending a message before tapping an option. We make the backend tolerant instead:
+ * every tool call still open when the next user/assistant turn arrives gets a synthetic result, and
+ * any tool result with no matching open call is dropped. The repaired thread always satisfies
+ * "each assistant tool call is answered, in order, before the conversation continues".
+ */
+export function sanitizeThread(messages: LLMMessage[]): LLMMessage[] {
+  const out: LLMMessage[] = [];
+  const openIds: string[] = [];   // tool-call ids still awaiting a result, in call order
+
+  const closeOpen = () => {
+    for (const id of openIds) out.push({ role: 'tool', toolCallId: id, content: UNANSWERED_TOOL_CALL });
+    openIds.length = 0;
+  };
+
+  for (const m of messages) {
+    if (m.role === 'tool') {
+      const i = openIds.indexOf(m.toolCallId);
+      if (i === -1) continue;   // orphan result (no open call to answer) — would 400; drop it
+      out.push(m);
+      openIds.splice(i, 1);
+      continue;
+    }
+    // A user or assistant turn must not appear between a tool call and its result: close any open
+    // calls with a synthetic "unanswered" result first, then emit the turn.
+    closeOpen();
+    out.push(m);
+    if (m.role === 'assistant' && m.toolCalls) for (const c of m.toolCalls) openIds.push(c.id);
+  }
+  closeOpen();   // a thread ending on an unanswered tool call (defensive; normally the app appends next)
+  return out;
 }

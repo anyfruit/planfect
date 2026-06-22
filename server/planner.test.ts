@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runPlanner, type PlannerDeps } from './planner.ts';
+import { runPlanner, sanitizeThread, type PlannerDeps } from './planner.ts';
 import { MockPlanner } from './llm/mock.ts';
 import { MemoryUsageSink } from './usage.ts';
 import { PLANNER_TOOLS, TOOL_ASK_USER_QUESTIONS, TOOL_SCHEDULE_TASKS } from './llm/tools.ts';
@@ -93,6 +93,64 @@ test('planner asks a clarifying question, then schedules on resume; usage is rec
   assert.equal(usage.events[0].provider, 'openai');
   assert.equal(usage.events[0].action, 'plan_step');
 });
+
+test('sanitizeThread: a clean ask→answer thread is left untouched', () => {
+  const thread: LLMMessage[] = [
+    { role: 'user', content: 'Book my dentist' },
+    { role: 'assistant', content: '', toolCalls: [{ id: 'c1', name: TOOL_ASK_USER_QUESTIONS, arguments: {} }] },
+    { role: 'tool', toolCallId: 'c1', content: '{"answers":[]}' },
+  ];
+  assert.deepEqual(sanitizeThread(thread), thread);
+});
+
+test('sanitizeThread: free text after a pending question gets a synthetic result (no dangling tool call)', () => {
+  // The freeze repro: a question card is showing, the user types a NEW message instead of tapping.
+  const thread: LLMMessage[] = [
+    { role: 'user', content: 'Plan my trip' },
+    { role: 'assistant', content: 'Which day?', toolCalls: [{ id: 'c1', name: TOOL_ASK_USER_QUESTIONS, arguments: {} }] },
+    { role: 'user', content: 'actually, log the return flight too' },
+  ];
+  const out = sanitizeThread(thread);
+  assert.equal(out.length, 4);
+  assert.deepEqual(out[2], { role: 'tool', toolCallId: 'c1', content: out[2].content });
+  assert.equal(out[2].role, 'tool');
+  assert.equal(out[3].content, 'actually, log the return flight too');
+  // Every assistant tool call is now answered before the conversation continues → no 400.
+  assertToolCallsAnswered(out);
+});
+
+test('sanitizeThread: a late answer to a superseded question is dropped as an orphan', () => {
+  // User moved on (got a reply), THEN taps the old card — its tool result no longer follows its call.
+  const thread: LLMMessage[] = [
+    { role: 'user', content: 'Plan my trip' },
+    { role: 'assistant', content: 'Which day?', toolCalls: [{ id: 'c1', name: TOOL_ASK_USER_QUESTIONS, arguments: {} }] },
+    { role: 'user', content: 'never mind, log the flight' },
+    { role: 'assistant', content: 'Logged the flight.' },
+    { role: 'tool', toolCallId: 'c1', content: '{"answers":[{"id":"q1","selected":["Today"]}]}' },
+  ];
+  const out = sanitizeThread(thread);
+  // c1 was already closed by the synthetic result before the user's "never mind"; the late real
+  // answer is an orphan and is dropped, so the trailing tool message can't 400.
+  assert.equal(out.filter((m) => m.role === 'tool' && m.toolCallId === 'c1').length, 1);
+  assert.equal(out[out.length - 1].role, 'assistant');
+  assertToolCallsAnswered(out);
+});
+
+/** Asserts the provider invariant: each assistant tool call is immediately followed by tool
+ * results for every one of its ids, before any later user/assistant turn. */
+function assertToolCallsAnswered(msgs: LLMMessage[]): void {
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    if (m.role !== 'assistant' || !m.toolCalls?.length) continue;
+    const pending = new Set(m.toolCalls.map((c) => c.id));
+    let j = i + 1;
+    while (j < msgs.length && msgs[j].role === 'tool') {
+      pending.delete((msgs[j] as { toolCallId: string }).toolCallId);
+      j++;
+    }
+    assert.equal(pending.size, 0, `assistant tool calls left unanswered: ${[...pending]}`);
+  }
+}
 
 test('planner returns a plain message when the model just talks', async () => {
   const llm = new MockPlanner([step({ text: 'Your week looks open on Thursday.', finishReason: 'stop' })]);

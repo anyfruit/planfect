@@ -4,6 +4,10 @@ import SwiftUI
 /// always-present "Other" free-text option. Single- or multi-select. One "Send answer" commits all.
 struct QuestionCardView: View {
     let questions: [PlanQuestion]
+    /// Superseded — the user sent a new message, answered already, or a request is in flight — so
+    /// this card is no longer answerable. Locking it stops a late tap from posting an answer to a
+    /// question the conversation has moved past (which used to wedge the thread).
+    var locked: Bool = false
     let onSubmit: ([QuestionAnswer]) -> Void
 
     private static let otherKey = "\u{0001}other"
@@ -11,6 +15,9 @@ struct QuestionCardView: View {
     @State private var picked: [String: Set<String>] = [:]   // question.id -> chosen option labels
     @State private var otherText: [String: String] = [:]
     @State private var submitted = false
+
+    /// Not answerable: already sent, or superseded from the outside.
+    private var inactive: Bool { submitted || locked }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -31,12 +38,12 @@ struct QuestionCardView: View {
                 Text(submitted ? "Sent" : "Send answer").bold().frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(submitted || !allAnswered)
+            .disabled(inactive || !allAnswered)
         }
         .padding(16)
         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
-        .opacity(submitted ? 0.6 : 1)
-        .disabled(submitted)   // once sent, lock the whole card (no more editing the Other field / options)
+        .opacity(inactive ? 0.6 : 1)
+        .disabled(inactive)   // sent OR superseded → lock the whole card (no editing, no late answer)
     }
 
     private func isPicked(_ q: PlanQuestion, _ label: String) -> Bool { picked[q.id]?.contains(label) ?? false }
@@ -62,6 +69,7 @@ struct QuestionCardView: View {
     }
 
     private func submit() {
+        guard !inactive else { return }
         let answers: [QuestionAnswer] = questions.map { q in
             let labels = (picked[q.id] ?? []).map { label -> String in
                 label == Self.otherKey ? (otherText[q.id] ?? "").trimmingCharacters(in: .whitespaces) : label
