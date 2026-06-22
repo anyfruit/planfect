@@ -28,7 +28,7 @@ scheduling) — type a plan and watch it schedule.
 - **Live on the web:** a public, no-account demo of the real planner, a support page, and a bilingual
   case-study page (all on Railway), plus a password-gated **analytics dashboard** (Next.js) for
   usage / cost / model metrics.
-- **Tested:** the platform-independent backend logic (`server/`) is unit-tested — **26 tests**, no
+- **Tested:** the platform-independent backend logic (`server/`) is unit-tested — **29 tests**, no
   network or keys required — and CI runs the suite on every push.
 
 > Planfect Pro / billing is a **dormant skeleton** (see [Security & billing](#security--billing)) —
@@ -173,7 +173,7 @@ planfect/
 **Backend logic — no Mac, no keys, no Supabase:**
 
 ```bash
-npm test                                                  # 26 unit tests (Node ≥ 22, built-in runner)
+npm test                                                  # 29 unit tests (Node ≥ 22, built-in runner)
 node --experimental-strip-types server/demo/planDemo.ts   # end-to-end planner demo (mock LLM + maps)
 ```
 
@@ -204,6 +204,20 @@ reflect the current state.
 - **Dashboard:** [DASHBOARD.md](docs/DASHBOARD.md) &nbsp;·&nbsp; **Deploy (Railway):** [railway-deploy.md](docs/railway-deploy.md)
 - **App Store copy:** [app-store-listing.md](docs/app-store-listing.md) &nbsp;·&nbsp; **Decisions (ADRs):** [DECISIONS.md](docs/DECISIONS.md)
 - **中文:** [项目进度](docs/PROJECT_STATUS.zh.md) &nbsp;·&nbsp; [上手 / 继续指南](docs/SETUP.zh.md)
+
+## Recent updates
+
+_2026-06-21_
+
+- **Commute shows the real travel mode.** The receipt no longer always reads "transit" with a walking
+  icon — `estimate_commute` and `schedule_tasks` now thread the actual mode (e.g. driving for an
+  airport run) into the commute block and the receipt's label + glyph.
+- **Tentative holds for undecided details.** When you clearly mean to do something but a detail is
+  still open (*"fine dining on the 28th, haven't picked where"*), the planner blocks a tentative slot
+  to refine later — instead of asking which place or scheduling nothing.
+- **No more chat freeze.** Sending a new message (or answering late) while a question card was still
+  pending left a malformed tool-call thread the model rejects, which could brick the conversation; the
+  backend now repairs the thread and the UI locks a superseded card.
 
 ## Author & license
 

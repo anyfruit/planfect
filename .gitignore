@@ -24,6 +24,8 @@ Package.resolved
 node_modules/
 npm-debug.log*
 .deno/
+deno.lock
+*.tsbuildinfo
 
 # Editors
 .idea/

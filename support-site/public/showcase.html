@@ -359,13 +359,13 @@
   <div class="zh"><h2>工程亮点</h2><h3>难点都在哪</h3></div>
   <div class="grid g2 en">
     <div class="card"><h4>🌍 Timezone-correct scheduling</h4><p>The planner schedules in the user's local time, and looks up cross-timezone events (a London match watched from the US) and converts to their clock. Fixed a class of bugs where “today” drifted to a past date in long, multi-day chats — by stamping the authoritative date onto the latest turn for recency.</p></div>
-    <div class="card"><h4>🧭 Product-minded placement</h4><p>Commute is scheduled <em>before</em> a pinned task (you leave early, arrive on time — not the activity pushed later). A voice brain-dump of several tasks is planned in one batch; genuine conflicts are surfaced, never silently mis-scheduled.</p></div>
+    <div class="card"><h4>🧭 Product-minded placement</h4><p>Commute is scheduled <em>before</em> a pinned task (you leave early, arrive on time — not the activity pushed later). A voice brain-dump of several tasks is planned in one batch; genuine conflicts are surfaced, never silently mis-scheduled. When a detail is still undecided — which restaurant, exactly where — it blocks a <em>tentative hold</em> you can refine in a tap, instead of interrogating you or scheduling nothing.</p></div>
     <div class="card"><h4>⚡ Latency, halved</h4><p>Cut planner latency ~60% by short-circuiting a redundant LLM round-trip once tasks land on the calendar, skipping needless schedule lookups (the calendar is already in context), and parsing dates once at decode.</p></div>
     <div class="card"><h4>🔒 Shipping rigor</h4><p>RLS-secured data, App Groups for the widget, distribution signing → TestFlight → App Store pipeline (automated via API key), a password-gated analytics dashboard, CI, and prompt-level content guardrails.</p></div>
   </div>
   <div class="grid g2 zh">
     <div class="card"><h4>🌍 时区正确的排程</h4><p>排程一律按用户本地时间;查跨时区赛事(在美国看伦敦的比赛)会自动换算成你的钟点。还修掉了一类 bug:跨好几天的长对话里"今天"会漂到过去的日期——办法是把权威日期戳到最新一条消息上,靠"就近"压住旧日期。</p></div>
-    <div class="card"><h4>🧭 有产品思维的排法</h4><p>通勤排在定点任务<em>之前</em>(你提前出门、准点到,而不是把活动往后推)。语音一口气报好几件事会被一次性批量排好;真正的冲突会提示你,绝不偷偷排错。</p></div>
+    <div class="card"><h4>🧭 有产品思维的排法</h4><p>通勤排在定点任务<em>之前</em>(你提前出门、准点到,而不是把活动往后推)。语音一口气报好几件事会被一次性批量排好;真正的冲突会提示你,绝不偷偷排错。细节还没定(哪家店、具体在哪)时,会先占一个<em>临时位</em>,之后一点就能改,而不是反问你或干脆什么都不排。</p></div>
     <div class="card"><h4>⚡ 延迟砍掉一半</h4><p>排程延迟降了约 60%:任务一落到日历就短路掉一次多余的 LLM 来回、省掉没必要的日程查询(日历本来就在上下文里)、日期只在解码时解析一次。</p></div>
     <div class="card"><h4>🔒 上线工程的严谨度</h4><p>RLS 保护的数据、小组件用的 App Groups、发布签名 → TestFlight → App Store 全流程(用 API key 自动化)、带密码保护的分析后台、CI、以及提示词层面的内容护栏。</p></div>
   </div>
