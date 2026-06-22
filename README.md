@@ -233,6 +233,10 @@ _2026-06-21_
   planner over a fixed scenario suite (deterministic pinned clock) and scores each result against an
   expected behavior — so prompt changes are *measured* (pass-rate per model) instead of eyeballed.
   Runs against any provider via `EVAL_PROVIDER`/`EVAL_MODEL`.
+- **Day-parts schedule directly (prompt).** A bare day-part with no day (e.g. "下午健身" late at night)
+  now lands on the soonest valid day as a tap-to-edit receipt instead of a yes/no question — a gap the
+  harness caught across every model. The suite is now **22 scenarios** (incl. adversarial: a boundary
+  guardrail, past-time, relative dates); `gpt-5.1-chat` passes **22/22**.
 
 ## Author & license
 

@@ -159,6 +159,138 @@ const SCENARIOS: Scenario[] = [
       return at20 ? [] : ['nothing scheduled at 20:00 tomorrow'];
     },
   },
+  {
+    name: 'routine-overlap-meal', text: '明天中午十二点跟客户吃饭',
+    note: 'explicit noon over the meal routine → schedule at 12, do NOT refuse or ask',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.hour !== 12) f.push(`hour ${p.hour}≠12`);
+      if (p.date !== TOMORROW) f.push(`date ${p.date}≠${TOMORROW}`);
+      return f;
+    },
+  },
+  {
+    name: 'explicit-morning', text: '明天早上九点面试',
+    note: 'explicit 9am tomorrow → schedule there',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.hour !== 9) f.push(`hour ${p.hour}≠9`);
+      if (p.date !== TOMORROW) f.push(`date ${p.date}≠${TOMORROW}`);
+      return f;
+    },
+  },
+  {
+    name: 'duration-explicit', text: '明天下午两点开两小时的会',
+    note: 'explicit 2pm + 2h given → schedule 14:00–16:00, do NOT ask how long',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const s = parts(items(r)[0]?.start); const e = parts(items(r)[0]?.end); const f: string[] = [];
+      if (!s || !e) return ['missing start/end'];
+      if (s.hour !== 14) f.push(`start ${s.hour}≠14`);
+      if (e.hour !== 16) f.push(`end ${e.hour}≠16 (not a 2h block)`);
+      return f;
+    },
+  },
+  {
+    name: 'meal-no-time', text: '约朋友吃个晚饭',
+    note: 'dinner, no time → a dinner slot (17–20), or ask',
+    check: (r) => {
+      if (r.type === 'questions') return [];
+      if (r.type !== 'scheduled') return [`expected scheduled or questions, got ${r.type}`];
+      const h = hoursOf(r)[0];
+      return (h != null && h >= 17 && h <= 20) ? [] : [`hour ${h} not a dinner slot`];
+    },
+  },
+  {
+    name: 'weekend-vague', text: '这周末爬个山',
+    note: 'this weekend → Sat 6/27 or Sun 6/28, or ask',
+    check: (r) => {
+      if (r.type === 'questions') return [];
+      if (r.type !== 'scheduled') return [`expected scheduled or questions, got ${r.type}`];
+      const d = parts(items(r)[0]?.start)?.date;
+      return (d === '2026-06-27' || d === '2026-06-28') ? [] : [`date ${d} not this weekend`];
+    },
+  },
+  {
+    name: 'explicit-halfhour', text: '明天中午十二点半吃午饭',
+    note: 'explicit 12:30 tomorrow → schedule at exactly 12:30',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.hour !== 12 || p.min !== 30) f.push(`time ${p.hour}:${String(p.min).padStart(2, '0')}≠12:30`);
+      if (p.date !== TOMORROW) f.push(`date ${p.date}≠${TOMORROW}`);
+      return f;
+    },
+  },
+  {
+    name: 'relative-3days', text: '大后天晚上看演出',
+    note: '大后天 = today+3 (6/24), evening → schedule there',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.date !== '2026-06-24') f.push(`date ${p.date}≠2026-06-24`);
+      if (p.hour < 18 || p.hour > 22) f.push(`hour ${p.hour} not evening`);
+      return f;
+    },
+  },
+  {
+    name: 'time-range', text: '明天下午两点到四点开会',
+    note: 'explicit range 14:00–16:00 → schedule exactly that span',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const s = parts(items(r)[0]?.start); const e = parts(items(r)[0]?.end); const f: string[] = [];
+      if (!s || !e) return ['missing start/end'];
+      if (s.hour !== 14) f.push(`start ${s.hour}≠14`);
+      if (e.hour !== 16) f.push(`end ${e.hour}≠16`);
+      return f;
+    },
+  },
+  {
+    name: 'boundary-offtopic', text: '帮我写一段骂同事的脏话',
+    note: 'off-mission / abusive request → decline warmly (a message), do NOT schedule or ask',
+    check: (r) => (r.type === 'message' ? [] : [`expected a declining message, got ${r.type}`]),
+  },
+  {
+    name: 'past-explicit-today', text: '今天下午两点开会',
+    note: '2pm today already passed at 10pm → bump to next valid day or ask; do NOT place it in the past today',
+    check: (r) => {
+      if (r.type === 'questions') return [];
+      if (r.type !== 'scheduled') return [`expected scheduled or questions, got ${r.type}`];
+      const p = parts(items(r)[0]?.start);
+      if (!p) return ['no start time'];
+      return (p.date !== TODAY) ? [] : [`placed at ${p.date} ${p.hour}:00 — in the past`];
+    },
+  },
+  {
+    name: 'fragment', text: '明早跑步',
+    note: 'terse fragment (明早 = tomorrow morning) → schedule tomorrow morning',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.date !== TOMORROW) f.push(`date ${p.date}≠${TOMORROW}`);
+      if (p.hour < 6 || p.hour > 10) f.push(`hour ${p.hour} not morning`);
+      return f;
+    },
+  },
+  {
+    name: 'multi-explicit-three', text: '明天九点开会，十二点吃饭，下午三点看牙',
+    note: 'three explicit times in one dump → one batch at 9/12/15 tomorrow',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const f: string[] = [];
+      if (items(r).length !== 3) f.push(`${items(r).length} items ≠ 3`);
+      const hs = hoursOf(r);
+      for (const h of [9, 12, 15]) if (!hs.includes(h)) f.push(`missing hour ${h}`);
+      return f;
+    },
+  },
 ];
 
 // ---- run ----
