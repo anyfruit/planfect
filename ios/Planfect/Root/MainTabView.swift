@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct MainTabView: View {
     @EnvironmentObject var router: AppRouter
@@ -25,6 +26,9 @@ struct MainTabView: View {
             .tag(2)
         }
         .sheet(isPresented: $showProfile) { ProfileView() }
+        // Leaving a tab drops the keyboard — otherwise a stuck keyboard can hide the tab bar and
+        // trap the user on the current tab.
+        .onChange(of: router.tab) { _, _ in UIApplication.shared.endEditing() }
         .onAppear {
             Task { await NotificationManager.shared.ensureAuthorization() }
             #if DEBUG
@@ -47,5 +51,13 @@ extension View {
                 .accessibilityLabel("Profile")
             }
         }
+    }
+}
+
+extension UIApplication {
+    /// Resign the first responder app-wide — guarantees the keyboard drops (e.g. when switching tabs)
+    /// even if a focused field won't let go on its own.
+    func endEditing() {
+        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Renders the planner's clarifying question(s) as tappable multiple-choice cards, each with an
 /// always-present "Other" free-text option. Single- or multi-select. One "Send answer" commits all.
@@ -108,6 +109,10 @@ private struct OtherRow: View {
     let selected: Bool
     @Binding var text: String
     let onTap: () -> Void
+    @StateObject private var speech = SpeechRecognizer()
+    @State private var baseline = ""
+    @Environment(\.openURL) private var openURL
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Button(action: onTap) {
@@ -121,8 +126,39 @@ private struct OtherRow: View {
             }
             .buttonStyle(.plain)
             if selected {
-                TextField("Type your answer", text: $text)
-                    .textFieldStyle(.roundedBorder).padding(.leading, 30)
+                HStack(spacing: 8) {
+                    TextField("Type your answer", text: $text)
+                        .textFieldStyle(.roundedBorder)
+                    Button {
+                        if !speech.isRecording { baseline = text }
+                        speech.toggle()
+                    } label: {
+                        Image(systemName: speech.isRecording ? "stop.circle.fill" : "mic.fill")
+                            .font(.system(size: 18))
+                            .foregroundStyle(speech.isRecording ? Color.red : Color.secondary)
+                            .symbolEffect(.bounce, value: speech.isRecording)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(speech.isRecording ? "Stop dictation" : "Dictate answer"))
+                }
+                .padding(.leading, 30)
+                .onChange(of: speech.transcript) { _, t in
+                    guard speech.isRecording, !t.isEmpty else { return }
+                    let sep = (baseline.isEmpty || baseline.hasSuffix(" ") || baseline.hasSuffix("\n")) ? "" : " "
+                    text = baseline.isEmpty ? t : baseline + sep + t
+                }
+                .onDisappear { speech.stop() }
+                .alert("Voice input", isPresented: Binding(
+                    get: { speech.errorMessage != nil },
+                    set: { if !$0 { speech.errorMessage = nil } }
+                )) {
+                    Button("OK", role: .cancel) {}
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        Button("Open Settings") { openURL(url) }
+                    }
+                } message: {
+                    Text(speech.errorMessage ?? "")
+                }
             }
         }
     }

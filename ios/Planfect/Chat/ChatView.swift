@@ -231,35 +231,66 @@ struct ChatView: View {
     @FocusState private var inputFocused: Bool
     @Environment(\.openURL) private var openURL
     @State private var showReset = false
+    @State private var atBottom = true
 
     var body: some View {
         VStack(spacing: 0) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
-                        if vm.items.isEmpty { EmptyChat() }
-                        ForEach(vm.items) { item in
-                            ChatRow(item: item,
-                                    questionsLocked: item.id != vm.activeQuestionID || vm.sending,
-                                    onAnswer: vm.answer)
-                        }
-                        if vm.sending {
-                            HStack(alignment: .top, spacing: 8) {
-                                BotAvatar()
-                                HStack(spacing: 8) {
-                                    ProgressView().controlSize(.small)
-                                    Text("Planning…").foregroundStyle(.secondary).font(.system(.footnote, design: .rounded))
-                                }
-                                .padding(.horizontal, 14).padding(.vertical, 10)
-                                .background(Color(.secondarySystemBackground), in: Capsule())
+            GeometryReader { outer in
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 14) {
+                            if vm.items.isEmpty { EmptyChat() }
+                            ForEach(vm.items) { item in
+                                ChatRow(item: item,
+                                        questionsLocked: item.id != vm.activeQuestionID || vm.sending,
+                                        onAnswer: vm.answer)
                             }
+                            if vm.sending {
+                                HStack(alignment: .top, spacing: 8) {
+                                    BotAvatar()
+                                    HStack(spacing: 8) {
+                                        ProgressView().controlSize(.small)
+                                        Text("Planning…").foregroundStyle(.secondary).font(.system(.footnote, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 14).padding(.vertical, 10)
+                                    .background(Color(.secondarySystemBackground), in: Capsule())
+                                }
+                            }
+                            Color.clear.frame(height: 1).id("bottom")
+                                .background(GeometryReader { g in
+                                    Color.clear.preference(
+                                        key: AtBottomKey.self,
+                                        value: g.frame(in: .named("chatScroll")).maxY <= outer.size.height + 60)
+                                })
                         }
-                        Color.clear.frame(height: 1).id("bottom")
+                        .padding()
                     }
-                    .padding()
+                    .coordinateSpace(name: "chatScroll")
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: vm.items.count) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+                    .onChange(of: vm.sending) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
+                    .onPreferenceChange(AtBottomKey.self) { atBottom = $0 }
+                    .overlay(alignment: .bottomTrailing) {
+                        if !atBottom && !vm.items.isEmpty {
+                            Button {
+                                inputFocused = false
+                                withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                            } label: {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(.primary)
+                                    .frame(width: 36, height: 36)
+                                    .background(.regularMaterial, in: Circle())
+                                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.08), lineWidth: 1))
+                                    .shadow(color: .black.opacity(0.15), radius: 5, y: 2)
+                            }
+                            .padding(.trailing, 16).padding(.bottom, 10)
+                            .transition(.scale.combined(with: .opacity))
+                            .accessibilityLabel(Text("Scroll to latest"))
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: atBottom)
                 }
-                .onChange(of: vm.items.count) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
-                .onChange(of: vm.sending) { _, _ in withAnimation { proxy.scrollTo("bottom", anchor: .bottom) } }
             }
             inputBar
         }
@@ -439,4 +470,11 @@ private struct Bubble: View {
         ?? AttributedString(s)
     markdownCache[s] = a
     return a
+}
+
+/// True when the chat's bottom sentinel sits within (or near) the visible viewport — drives the
+/// show/hide of the floating "scroll to latest" button.
+private struct AtBottomKey: PreferenceKey {
+    static var defaultValue = true
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = nextValue() }
 }

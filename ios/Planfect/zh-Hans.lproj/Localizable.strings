@@ -187,3 +187,8 @@
 "Tell it your plans. It builds your day." = "告诉它你的计划,它帮你安排好一天。";
 "or" = "或";
 "Apple sign-in didn't return a token. Try again." = "Apple 登录没有返回凭证,请重试。";
+
+/* Chat accessibility */
+"Scroll to latest" = "滚动到最新";
+"Dictate answer" = "语音输入答案";
+"Stop dictation" = "停止语音输入";

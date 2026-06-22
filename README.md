@@ -219,6 +219,12 @@ _2026-06-22_
   that re-skins the whole app immediately — no relaunch. A `Bundle.main` reclass redirects every
   localized lookup to the chosen `.lproj` at runtime, and the view tree re-renders keyed on the
   language while the one-time startup `.task` stays put.
+- **Jump to latest in chat.** A floating ⌄ button appears when you scroll up in a conversation —
+  tap it to snap back to the newest message (tapping the Chat tab still jumps to the top, as before).
+- **The keyboard no longer traps you.** Swipe down in the conversation to dismiss the keyboard, and
+  switching tabs now force-drops it — so a stuck keyboard can't cover the tab bar and pin you to Chat.
+- **Voice input on the "Other" answer.** The free-text "Other…" option on a question card gets the
+  same mic + dictation as the chat box, so you can speak a custom answer instead of typing it.
 
 _2026-06-21_
 
