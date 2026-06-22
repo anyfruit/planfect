@@ -19,7 +19,7 @@ struct ReceiptCardView: View {
                     }
                     if let c = item.commute, let leave = APIDate.parse(c.leaveAt) {
                         Label("Leave \(leave.formatted(date: .omitted, time: .shortened)) · \(c.mode), \(c.durationMin) min",
-                              systemImage: "figure.walk")
+                              systemImage: commuteIcon(c.mode))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -50,6 +50,17 @@ struct ReceiptCardView: View {
             router.openSchedule(on: Calendar.current.startOfDay(for: day))
         } else {
             router.tab = 1
+        }
+    }
+
+    /// Glyph for the travel mode, so a drive doesn't show a walking figure (and vice-versa). The
+    /// backend sends the real mode ("driving" for an airport run, etc.); fall back to transit.
+    private func commuteIcon(_ mode: String) -> String {
+        switch mode.lowercased() {
+        case "driving", "car": return "car.fill"
+        case "walking", "walk": return "figure.walk"
+        case "cycling", "bicycling", "bike": return "bicycle"
+        default: return "tram.fill"   // transit / unknown
         }
     }
 

@@ -253,8 +253,11 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'TRAVEL TIME — for a task at a physical place (an address, venue, "across town", a saved spot):',
     'if the place is not already in Saved locations, call geocode_place first to resolve it; then call',
     'estimate_commute with from = the user\'s Home (use "home", or their Work via "work" if the task',
-    'directly follows work) and to = that location, with arrive_by set to the task start. Pass the',
-    'returned durationMin as commute_min to schedule_tasks so a commute + buffer are blocked off. If',
+    'directly follows work) and to = that location, with arrive_by set to the task start. Pass a MODE',
+    'that matches how they\'ll travel — "driving" for an airport/station run, a long or cross-town hop,',
+    'or when the user implies a car (车程 / 开车 / "drive"); otherwise their default (transit / walking).',
+    'Pass the returned durationMin as commute_min AND the SAME mode as transport_mode to schedule_tasks,',
+    'so a commute + buffer are blocked off and the receipt shows the right mode + icon. If',
     'there is no Home saved and you cannot tell where they\'re leaving from, ask once (or skip the',
     'commute). Skip commute for at-home / virtual tasks (calls, study, chores).',
     'CRITICAL — start_local is when the ACTIVITY itself starts (arrival / appointment / showtime / the',
@@ -263,6 +266,25 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'commute BEFORE it, so the user leaves early and ARRIVES on time. Example: "eat at 7:30" with a',
     '15-min drive → start_local 19:30, commute_min 15 → the meal stays at 19:30, leave at 19:15. Never',
     'push the activity later than the time the user said.',
+    'CATCHING A FLIGHT / TRAIN / FERRY / INTERCITY BUS: the time the user gives is when it DEPARTS',
+    '(wheels-up / the train leaves) — NOT when to leave home, and you must get them there EARLY.',
+    'Anchor on ARRIVING ahead of departure, then let the commute sit before that — never schedule them',
+    'to leave barely an hour before a flight. Steps:',
+    '1) Pick the lead time to BE there before departure: a DOMESTIC flight ~90 min (≈120 if a big/busy',
+    '   hub or bags to check); an INTERNATIONAL flight ~150–180 min; a train / ferry / intercity bus',
+    '   ~20–30 min. Decide domestic vs international from the two endpoints — same country is DOMESTIC',
+    '   (e.g. Providence / TF Green (PVD) → Los Angeles (LAX) are both in the US → domestic, so do NOT',
+    '   pad it like an international trip). You know the major airports and their cities/codes; use that.',
+    '2) Get the REAL drive: estimate_commute from the user\'s Home to the airport/station (geocode_place',
+    '   it first if it is not a saved location), mode "driving", arrive_by = departure − lead time.',
+    '3) Schedule ONE task — title it like "去 TF Green 赶 19:00 飞 LA 的航班" / "Head to TF Green for the',
+    '   LA flight", category travel — with start_local = the ARRIVAL time (departure − lead time),',
+    '   estimated_duration_min = the lead time (so the block runs from arrival to the flight), and',
+    '   commute_min = that drive, with transport_mode "driving". The scheduler lays the commute BEFORE',
+    '   it, so the leave time falls out',
+    '   automatically. Worked example: a 19:00 DOMESTIC flight, airport 15 min away → be there 17:30',
+    '   (90 min ahead) → start_local 17:30, estimated_duration_min 90, commute_min 15 → they leave 17:15.',
+    '   Confirm ONLY if you had to assume something (which airport, bags); otherwise just schedule it.',
     'Routine blocks (sleep, work, meals, commute) are SOFT defaults to plan AROUND — NOT bans. Keep',
     'an AUTO / unspecified task out of them. But NEVER refuse a time the user EXPLICITLY wants just',
     'because a routine sits there — schedule it by passing start_local (the exact time) AND',
@@ -592,7 +614,9 @@ export function buildHandlers(
       const fromArg = String(args.from_location_id ?? '').trim();
       const toArg = String(args.to_location_id ?? '').trim();
       const arriveBy = args.arrive_by ? String(args.arrive_by) : undefined;
-      const mode = ctx.preferredModes[0] ?? 'transit';
+      // Use the mode the model asked for (driving for an airport run, etc.); fall back to the
+      // user's preferred mode when it didn't specify one.
+      const mode = normalizeMode(args.mode) ?? ctx.preferredModes[0] ?? 'transit';
       if (proLocked) return JSON.stringify({ mode, durationMin: 25, note: 'Real travel time is a Planfect Pro feature — using a rough estimate.' });
       if (!mapsApiKey) return JSON.stringify({ mode, durationMin: 25, distanceM: 6000, note: 'maps not configured — rough estimate' });
       const from = resolvePlace(fromArg);
@@ -654,6 +678,9 @@ export function buildHandlers(
         }
         const durationMin = t.estimated_duration_min ?? DEFAULT_DURATION_MIN;
         if (!t.estimated_duration_min) assumptions.push(`Assumed ${durationMin} min for "${t.title}".`);
+        // Mode for the commute block + receipt: what the model said it'd travel by, else the
+        // user's preferred mode. Drives the receipt label and the transport_mode column/icon.
+        const commuteMode = normalizeMode(t.transport_mode) ?? ctx.preferredModes[0] ?? 'transit';
 
         const { availability, busy } = planningWindowsForDate(routines, date, tz);
         const dayBusy = demo ? [] : await loadDayBusy(supabase, userId, date, tz);
@@ -701,7 +728,7 @@ export function buildHandlers(
             start: new Date(ss[0].start).toISOString(),
             end: new Date(ss[ss.length - 1].end).toISOString(),
             commute: cm
-              ? { mode: 'transit', leaveAt: new Date(cm.start).toISOString(), durationMin: Math.round((cm.end - cm.start) / 60_000) }
+              ? { mode: commuteMode, leaveAt: new Date(cm.start).toISOString(), durationMin: clampCommuteMin((cm.end - cm.start) / 60_000) }
               : undefined,
           });
           continue;
@@ -751,7 +778,7 @@ export function buildHandlers(
           rows.push(blockRow(userId, `Commute to ${t.title}`, 'commute', commute, {
             task_id: taskId,
             destination_location_id: t.location_id ?? null,
-            transport_mode: 'transit',
+            transport_mode: commuteMode,
           }));
         }
         if (buffer) {
@@ -782,9 +809,9 @@ export function buildHandlers(
           end: new Date(last.end).toISOString(),
           commute: commute
             ? {
-                mode: 'transit',
+                mode: commuteMode,
                 leaveAt: new Date(commute.start).toISOString(),
-                durationMin: Math.round((commute.end - commute.start) / 60_000),
+                durationMin: clampCommuteMin((commute.end - commute.start) / 60_000),
               }
             : undefined,
         });
@@ -835,6 +862,7 @@ interface ScheduleTaskArg {
   location_id?: string | null;
   category?: string;
   commute_min?: number;
+  transport_mode?: string;
   buffer_min?: number;
   session_min?: number;
   earliest_start?: string; // ISO-8601
@@ -1022,6 +1050,15 @@ async function googleGeocode(
 const ROUTES_TRAVEL_MODE: Record<string, string> = {
   driving: 'DRIVE', transit: 'TRANSIT', walking: 'WALK', cycling: 'BICYCLE',
 };
+
+/** The travel modes the tools expose (matches the estimate_commute / schedule_tasks enums and the
+ * Routes mapping above). Returns the normalized mode, or undefined for anything unrecognized so the
+ * caller falls back to the user's preferred mode rather than storing garbage. */
+const COMMUTE_MODES = ['driving', 'transit', 'walking', 'cycling'];
+function normalizeMode(m: unknown): string | undefined {
+  const s = String(m ?? '').trim().toLowerCase();
+  return COMMUTE_MODES.includes(s) ? s : undefined;
+}
 
 function routesWaypoint(p: ResolvedPlace): Record<string, unknown> {
   if (p.lat != null && p.lng != null) return { location: { latLng: { latitude: p.lat, longitude: p.lng } } };

@@ -76,6 +76,14 @@ const estimateCommute: ToolDef = {
     properties: {
       from_location_id: { type: 'string' },
       to_location_id: { type: 'string' },
+      mode: {
+        type: 'string',
+        enum: ['driving', 'transit', 'walking', 'cycling'],
+        description:
+          "How the user travels this leg. Defaults to the user's preferred mode; pass 'driving' " +
+          'for an airport/station run, a long or cross-town hop, or whenever the user implies a car ' +
+          '(车程, 开车, "drive"). Pass the SAME mode as transport_mode to schedule_tasks.',
+      },
       arrive_by: { type: 'string', description: 'ISO-8601 (optional)' },
     },
   },
@@ -132,6 +140,13 @@ const scheduleTasks: ToolDef = {
             commute_min: {
               type: 'integer',
               description: 'Travel minutes to insert as a commute block before the task (from estimate_commute).',
+            },
+            transport_mode: {
+              type: 'string',
+              enum: ['driving', 'transit', 'walking', 'cycling'],
+              description:
+                'How the commute is traveled, for the receipt + icon — pass the SAME mode you used in ' +
+                "estimate_commute. Defaults to the user's preferred mode.",
             },
             buffer_min: { type: 'integer', description: 'Slack minutes appended after the task.' },
             session_min: {
