@@ -31,6 +31,10 @@ export function createPlanner(provider: LLMProvider, cfg: ProviderConfig): Plann
     case 'qwen':
       // DashScope OpenAI-compatible endpoint (use the -intl host outside mainland China).
       return new OpenAICompatiblePlanner('qwen', cfg.apiKey, cfg.baseURL ?? 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1');
+    case 'minimax':
+      // MiniMax open platform — OpenAI-compatible chat completions. M3 is a reasoning model and
+      // wraps its chain-of-thought in <think>…</think> inside content; the adapter strips that.
+      return new OpenAICompatiblePlanner('minimax', cfg.apiKey, cfg.baseURL ?? 'https://api.minimaxi.com/v1');
     case 'anthropic':
       return new AnthropicPlanner(cfg.apiKey, cfg.baseURL ?? 'https://api.anthropic.com/v1');
   }
@@ -77,7 +81,7 @@ class OpenAICompatiblePlanner implements PlannerLLM {
       arguments: safeJson(tc.function?.arguments),
     }));
     return {
-      text: msg.content ?? undefined,
+      text: stripThink(msg.content),
       toolCalls,
       usage: {
         inputTokens: json.usage?.prompt_tokens ?? 0,
@@ -188,6 +192,19 @@ function safeJson(s: unknown): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+/** Reasoning models (e.g. MiniMax M3, some Qwen) wrap chain-of-thought in <think>…</think> inside
+ *  the message content. Strip it so the model's private reasoning is never shown to the user or
+ *  re-sent in the thread — and a tool-call turn whose content is ONLY reasoning collapses to no
+ *  user-facing text. Harmless for providers that never emit the tags. */
+export function stripThink(s: string | undefined | null): string | undefined {
+  if (!s) return undefined;
+  const out = s
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')   // well-formed blocks
+    .replace(/<think>[\s\S]*$/i, '')             // an unclosed block (output truncated by max_tokens)
+    .trim();
+  return out.length ? out : undefined;
 }
 
 function mapFinish(reason: unknown): FinishReason {

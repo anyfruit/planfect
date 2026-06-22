@@ -2,7 +2,7 @@
 // PlannerLLM, so the planner loop and all scheduling logic are provider-independent and
 // switching/A-B-testing is a config change. See docs/AI_PROVIDERS.md.
 
-export type LLMProvider = 'openai' | 'anthropic' | 'qwen';
+export type LLMProvider = 'openai' | 'anthropic' | 'qwen' | 'minimax';
 
 export interface LLMUsage {
   inputTokens: number;

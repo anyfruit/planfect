@@ -62,6 +62,11 @@ export const PRICING: Record<string, ModelPrice> = {
   'qwen:qwen-max': { inputPerM: 0, outputPerM: 0 },
   'qwen:qwen-plus': { inputPerM: 0, outputPerM: 0 },
   'qwen:qwen-turbo': { inputPerM: 0, outputPerM: 0 },
+  // MiniMax (api.minimaxi.com) — CNY list converted to USD at ¥7.2/$ (2026-06). M3 is the ≤512k
+  // input '永久五折' rate (list is 2×; the >512k tier is higher). Verify before trusting figures.
+  'minimax:MiniMax-M3': { inputPerM: 0.29, outputPerM: 1.17, cachedInputPerM: 0.058 },
+  'minimax:MiniMax-M2.7': { inputPerM: 0.29, outputPerM: 1.17, cachedInputPerM: 0.058 },
+  'minimax:MiniMax-M2.7-highspeed': { inputPerM: 0.58, outputPerM: 2.33, cachedInputPerM: 0.058 },
 };
 
 /** Strip a dated snapshot suffix so a vendor-returned id matches PRICING:

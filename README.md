@@ -86,7 +86,7 @@ Under the hood the planner:
   Node) and runs verbatim inside the Deno Edge Functions — a future Android app reuses it and only
   re-implements the UI.
 - **Providers are abstractions:** the LLM sits behind one `PlannerLLM` interface (OpenAI / Anthropic /
-  Qwen — switch via config), and maps behind a `MapsProvider` interface.
+  Qwen / MiniMax — switch via config), and maps behind a `MapsProvider` interface.
 
 ## The planner agent
 
@@ -119,7 +119,7 @@ and unit-tested, including the "leave early, arrive on time" commute logic. Full
 | iOS app | Native **SwiftUI** (iOS 17+), **WidgetKit**, **EventKit**, **Swift Charts**, Sign in with Apple, Speech; project generated with **XcodeGen** |
 | Backend | **Supabase** — Postgres + Auth + **Edge Functions** (Deno / TypeScript) |
 | Data | Postgres with **Row-Level Security** — each user can only ever read/write their own rows |
-| AI | **OpenAI** by default behind a `PlannerLLM` abstraction (Anthropic / Qwen drop in via config); LLM tool-calling + web search |
+| AI | **OpenAI** by default behind a `PlannerLLM` abstraction (Anthropic / Qwen / MiniMax drop in via config); LLM tool-calling + web search |
 | Maps | **Google Maps** — Routes + Geocoding, server-side, behind a `MapsProvider` abstraction |
 | Aux services | A **Next.js** admin dashboard + a zero-dependency **Node** support / showcase site, both on **Railway** |
 | Quality | Node's built-in test runner (zero deps), CI on every push; fully bilingual (English / 简体中文) |
@@ -218,6 +218,10 @@ _2026-06-21_
 - **No more chat freeze.** Sending a new message (or answering late) while a question card was still
   pending left a malformed tool-call thread the model rejects, which could brick the conversation; the
   backend now repairs the thread and the UI locks a superseded card.
+- **MiniMax (M3) wired as a provider.** Added `minimax` to the pluggable LLM layer — OpenAI-compatible,
+  so it reuses the existing adapter — as a domestic-China option. M3 is a reasoning model (its `<think>`
+  chain-of-thought is stripped), roughly 7× cheaper per token than the GPT-4.1 tier, and validated
+  end-to-end (chat + tool-calling). Flip via `ACTIVE_LLM_PROVIDER=minimax` + `PLANNER_MODEL=MiniMax-M3`.
 
 ## Author & license
 

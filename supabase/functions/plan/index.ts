@@ -112,6 +112,7 @@ async function freeUsageThisMonth(admin: ReturnType<typeof createClient>, userId
 function providerKeyEnv(p: LLMProvider): string {
   if (p === 'anthropic') return 'ANTHROPIC_API_KEY';
   if (p === 'qwen') return 'QWEN_API_KEY';
+  if (p === 'minimax') return 'MINIMAX_API_KEY';
   return 'OPENAI_API_KEY';
 }
 
