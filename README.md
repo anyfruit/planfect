@@ -222,6 +222,13 @@ _2026-06-21_
   so it reuses the existing adapter — as a domestic-China option. M3 is a reasoning model (its `<think>`
   chain-of-thought is stripped), roughly 7× cheaper per token than the GPT-4.1 tier, and validated
   end-to-end (chat + tool-calling). Flip via `ACTIVE_LLM_PROVIDER=minimax` + `PLANNER_MODEL=MiniMax-M3`.
+- **Dashboard → control panel.** The developer dashboard gains a per-surface **model switcher** (app
+  vs demo): pick `gpt` / `claude` / `MiniMax` from a dropdown and the live planner switches within
+  ~20s, **no redeploy** — backed by a new `runtime_config` table the edge functions read (falling back
+  to OpenAI if the chosen provider's key isn't configured).
+- **Explicit times schedule directly.** An explicitly-stated clock time with no day (e.g. "下午3点开会")
+  now lands on the obvious day (today, or tomorrow if it already passed) with a one-line confirm,
+  instead of an unnecessary yes/no question.
 
 ## Author & license
 

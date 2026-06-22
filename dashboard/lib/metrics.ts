@@ -64,3 +64,23 @@ export async function getRecentDemoConversations(limit = 50): Promise<DemoConver
   if (error) throw error;
   return (data ?? []) as DemoConversationRow[];
 }
+
+// --- runtime config: the planner model switcher (writes are gated by the dashboard's Basic-Auth) ---
+
+export type RuntimeConfig = Record<string, string>;
+
+/** All runtime_config key/values (e.g. planner_provider_app, planner_model_demo, …). */
+export async function getRuntimeConfig(): Promise<RuntimeConfig> {
+  const { data, error } = await serverClient().from('runtime_config').select('key,value');
+  if (error) throw error;
+  const out: RuntimeConfig = {};
+  for (const r of (data ?? []) as { key: string; value: string }[]) out[r.key] = r.value;
+  return out;
+}
+
+/** Upsert one or more runtime_config entries (service-role; called from a server action). */
+export async function setRuntimeConfig(entries: RuntimeConfig): Promise<void> {
+  const rows = Object.entries(entries).map(([key, value]) => ({ key, value, updated_at: new Date().toISOString() }));
+  const { error } = await serverClient().from('runtime_config').upsert(rows);
+  if (error) throw error;
+}

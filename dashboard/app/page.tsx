@@ -1,20 +1,51 @@
+import { revalidatePath } from 'next/cache';
 import {
   getModelComparison, getDau, getUsageDailyTotal, getUsageBySource, getRecentDemoConversations,
+  getRuntimeConfig, setRuntimeConfig,
 } from '../lib/metrics';
 import { sortByCost, totals, dailyGrandTotals, formatUsd, formatTokens, formatNumber, pct } from '../lib/format';
 import type { DemoConversationRow } from '../lib/types';
+
+// Curated provider:model options for the switcher. All are priced in server/usage.ts so cost
+// tracking keeps working; switching to one needs its API key set as a Supabase secret.
+const MODEL_OPTIONS: [string, string][] = [
+  ['openai', 'gpt-5.1-chat-latest'],
+  ['openai', 'gpt-5.4'],
+  ['anthropic', 'claude-opus-4-8'],
+  ['anthropic', 'claude-sonnet-4-6'],
+  ['minimax', 'MiniMax-M3'],
+  ['minimax', 'MiniMax-M2.7-highspeed'],
+];
+
+// Server action: flip the active model for a surface ('app' | 'demo'). Behind the dashboard's
+// Basic-Auth; writes runtime_config via the service role. The edge functions pick it up within ~20s.
+async function switchModel(formData: FormData) {
+  'use server';
+  const surface = String(formData.get('surface'));
+  const choice = String(formData.get('choice'));
+  if (surface !== 'app' && surface !== 'demo') return;
+  const i = choice.indexOf(':');
+  const provider = choice.slice(0, i);
+  const model = choice.slice(i + 1);
+  if (!MODEL_OPTIONS.some(([p, m]) => p === provider && m === model)) return;
+  await setRuntimeConfig({ [`planner_provider_${surface}`]: provider, [`planner_model_${surface}`]: model });
+  revalidatePath('/');
+}
 
 // Always render fresh (admin dashboard; no static caching of metrics).
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const [models, dau, dailyRows, bySource, demos] = await Promise.all([
+  const [models, dau, dailyRows, bySource, demos, cfg] = await Promise.all([
     getModelComparison(),
     getDau(30),
     getUsageDailyTotal(30),
     getUsageBySource(),
     getRecentDemoConversations(50),
+    getRuntimeConfig(),
   ]);
+  const appChoice = `${cfg.planner_provider_app ?? 'openai'}:${cfg.planner_model_app ?? 'gpt-5.1-chat-latest'}`;
+  const demoChoice = `${cfg.planner_provider_demo ?? 'openai'}:${cfg.planner_model_demo ?? 'gpt-5.1-chat-latest'}`;
 
   const t = totals(models);
   const peakActive = dau.reduce((m, d) => Math.max(m, d.active_users), 0);
@@ -37,6 +68,13 @@ export default async function DashboardPage() {
         <Kpi label="Demo spend" value={formatUsd(demoRow?.cost_usd ?? 0)} accent />
         <Kpi label="Active users (peak/day)" value={formatNumber(peakActive)} />
       </section>
+
+      <h2>🎛 Planner model</h2>
+      <p style={hint}>Switch the live model per surface — effective within ~20s, no redeploy. The chosen provider&apos;s API key must be set as a Supabase secret (else it falls back to OpenAI).</p>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', margin: '8px 0 24px' }}>
+        <ModelPicker surface="app" label="📱 App · /plan" current={appChoice} />
+        <ModelPicker surface="demo" label="🌐 Demo · /plan-demo" current={demoChoice} />
+      </div>
 
       <h2>App vs demo</h2>
       <p style={hint}>Where the spend goes: the signed-in app vs the public web demo (anonymous, no DB writes).</p>
@@ -157,6 +195,24 @@ function Kpi({ label, value, accent }: { label: string; value: string; accent?: 
       <div style={{ color: '#888', fontSize: 13 }}>{label}</div>
       <div style={{ fontSize: 26, fontWeight: 700 }}>{value}</div>
     </div>
+  );
+}
+
+function ModelPicker({ surface, label, current }: { surface: 'app' | 'demo'; label: string; current: string }) {
+  const known = MODEL_OPTIONS.some(([p, m]) => `${p}:${m}` === current);
+  return (
+    <form action={switchModel} style={{ border: '1px solid #eee', borderRadius: 12, padding: 16, minWidth: 320, flex: 1 }}>
+      <div style={{ color: '#888', fontSize: 13, marginBottom: 8 }}>{label}</div>
+      <input type="hidden" name="surface" value={surface} />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <select name="choice" defaultValue={known ? current : ''} style={{ flex: 1, padding: '7px 8px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, background: '#fff' }}>
+          {!known && <option value="" disabled>{current} (unlisted)</option>}
+          {MODEL_OPTIONS.map(([p, m]) => <option key={p + m} value={`${p}:${m}`}>{p} · {m}</option>)}
+        </select>
+        <button type="submit" style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#6e54f0', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Switch</button>
+      </div>
+      <div style={{ color: '#aaa', fontSize: 12, marginTop: 6 }}>Active: <b style={{ color: '#666' }}>{current}</b></div>
+    </form>
   );
 }
 

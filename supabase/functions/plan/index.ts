@@ -10,7 +10,7 @@ import { runPlanner } from '../../../server/planner.ts';
 import { createPlanner } from '../../../server/llm/providers.ts';
 import { PLANNER_TOOLS } from '../../../server/llm/tools.ts';
 import { type LLMMessage, type LLMProvider } from '../../../server/llm/types.ts';
-import { buildHandlers, loadContext, buildSystemPrompt, SupabaseUsageSink } from './handlers.ts';
+import { buildHandlers, loadContext, buildSystemPrompt, SupabaseUsageSink, getPlannerConfig } from './handlers.ts';
 
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Promise<Response>): void };
 
@@ -35,10 +35,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const conversationId: string | undefined = body.conversation_id;
     const messages: LLMMessage[] = body.messages ?? [{ role: 'user', content: String(body.text ?? '') }];
 
-    // Provider + model are config (switch OpenAI / Anthropic / Qwen without code changes).
-    const provider = (Deno.env.get('ACTIVE_LLM_PROVIDER') ?? 'openai') as LLMProvider;
-    const model = Deno.env.get('PLANNER_MODEL') ?? 'gpt-5.4';
-    const apiKey = Deno.env.get(providerKeyEnv(provider))!;
+    // Provider + model come from runtime_config (the dashboard's model switcher, surface 'app'),
+    // falling back to env then a default. If the chosen provider has no key configured, fall back to
+    // OpenAI so a misconfigured switch never hard-fails the planner.
+    const cfg = await getPlannerConfig(admin, 'app', Deno.env.get('ACTIVE_LLM_PROVIDER'), Deno.env.get('PLANNER_MODEL'));
+    let provider = cfg.provider as LLMProvider;
+    let model = cfg.model;
+    let apiKey = Deno.env.get(providerKeyEnv(provider));
+    if (!apiKey) {
+      provider = 'openai';
+      model = Deno.env.get('PLANNER_MODEL') || 'gpt-5.1-chat-latest';
+      apiKey = Deno.env.get('OPENAI_API_KEY');
+    }
 
     const ctx = await loadContext(supabase, user.id);
     // Real device-calendar events the app passes in, so the planner schedules around them.

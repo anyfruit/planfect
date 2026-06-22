@@ -17,7 +17,7 @@ import { runPlanner } from '../../../server/planner.ts';
 import { createPlanner } from '../../../server/llm/providers.ts';
 import { PLANNER_TOOLS } from '../../../server/llm/tools.ts';
 import { type LLMMessage, type LLMProvider } from '../../../server/llm/types.ts';
-import { buildHandlers, buildSystemPrompt, SupabaseUsageSink, type PlanContext } from '../plan/handlers.ts';
+import { buildHandlers, buildSystemPrompt, SupabaseUsageSink, getPlannerConfig, type PlanContext } from '../plan/handlers.ts';
 
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Promise<Response>): void };
 declare const crypto: { subtle: { digest(algorithm: string, data: Uint8Array): Promise<ArrayBuffer> } };
@@ -125,10 +125,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       return json({ error: 'empty message' }, 400);
     }
 
-    const provider = (Deno.env.get('ACTIVE_LLM_PROVIDER') ?? 'openai') as LLMProvider;
-    const model = Deno.env.get('PLANNER_MODEL') ?? 'gpt-5.4';
-    const apiKey = Deno.env.get(providerKeyEnv(provider));
-    if (!apiKey) return json({ error: 'demo temporarily unavailable' }, 503);
+    // provider / model / apiKey are resolved below, after the admin client exists — they come from
+    // runtime_config (surface 'demo') so the dashboard can switch the demo's model without a redeploy.
 
     const ctx = demoContext(tz);
 
@@ -167,6 +165,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { persistSession: false } },
     );
+
+    // Provider + model for the DEMO surface, from runtime_config (dashboard switch) → env → default.
+    const cfg = await getPlannerConfig(admin, 'demo', Deno.env.get('ACTIVE_LLM_PROVIDER'), Deno.env.get('PLANNER_MODEL'));
+    let provider = cfg.provider as LLMProvider;
+    let model = cfg.model;
+    let apiKey = Deno.env.get(providerKeyEnv(provider));
+    if (!apiKey) {   // chosen provider has no key → fall back to OpenAI so the demo still works
+      provider = 'openai';
+      model = Deno.env.get('PLANNER_MODEL') || 'gpt-5.1-chat-latest';
+      apiKey = Deno.env.get('OPENAI_API_KEY');
+    }
+    if (!apiKey) return json({ error: 'demo temporarily unavailable' }, 503);
 
     const result = await runPlanner(messages, {
       llm: createPlanner(provider, { apiKey }),

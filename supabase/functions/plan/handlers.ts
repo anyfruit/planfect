@@ -111,6 +111,48 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
   };
 }
 
+// --- runtime model config (dashboard-driven) --------------------------------------------
+
+export type PlannerSurface = 'app' | 'demo';
+export interface PlannerChoice { provider: string; model: string }
+
+// Cache the runtime_config read per surface for a few seconds, so a dashboard switch lands quickly
+// without a DB round-trip on every request. Module-level → shared across requests in a warm isolate.
+const _plannerCfgCache = new Map<PlannerSurface, { v: PlannerChoice; at: number }>();
+const PLANNER_CFG_TTL_MS = 20_000;
+
+/** Resolve the active provider/model for a surface from runtime_config (written by the dashboard's
+ *  model switcher), falling back to env (ACTIVE_LLM_PROVIDER / PLANNER_MODEL) then a safe default.
+ *  A DB error never breaks planning — it falls back. */
+export async function getPlannerConfig(
+  admin: SupabaseClient,
+  surface: PlannerSurface,
+  envProvider?: string,
+  envModel?: string,
+): Promise<PlannerChoice> {
+  const fallback: PlannerChoice = {
+    provider: envProvider || 'openai',
+    model: envModel || 'gpt-5.1-chat-latest',
+  };
+  const cached = _plannerCfgCache.get(surface);
+  if (cached && Date.now() - cached.at < PLANNER_CFG_TTL_MS) return cached.v;
+  try {
+    const { data } = await admin
+      .from('runtime_config')
+      .select('key,value')
+      .in('key', [`planner_provider_${surface}`, `planner_model_${surface}`]);
+    const m = new Map((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]));
+    const v: PlannerChoice = {
+      provider: m.get(`planner_provider_${surface}`) || fallback.provider,
+      model: m.get(`planner_model_${surface}`) || fallback.model,
+    };
+    _plannerCfgCache.set(surface, { v, at: Date.now() });
+    return v;
+  } catch {
+    return fallback;
+  }
+}
+
 // --- recurring-task materialization -----------------------------------------------------
 
 function addDays(d: CalendarDate, n: number): CalendarDate {
@@ -368,6 +410,10 @@ export function buildSystemPrompt(ctx: PlanContext): string {
     'reply with a one-line receipt. If the user gave an EXPLICIT time, treat it as authoritative: set',
     'start_local to exactly that time and schedule directly (allow_over_routine=true if it overlaps',
     'work/meals — e.g. a 3pm meeting on a workday). Never shift an explicit time to a different slot.',
+    'An explicit clock time with NO day stated is NOT a "vague day": schedule it at the obvious next',
+    'occurrence — today, or tomorrow if that time has already passed per [Now] — and just NAME the day',
+    'in your one-line confirm ("跟老板开会 明天 15:00 ✅"). Do NOT turn it into an ask_user_questions; only',
+    'ask about the day when it is genuinely ambiguous (e.g. which of two possible weeks).',
     'A time you PROPOSED and the user ACCEPTED is authoritative the same way: you MUST pass it as',
     'start_local (HH:MM), with allow_over_routine=true if it lands in any routine. NEVER report "no',
     'free slot" for a time the user already agreed to — pin it with start_local. If schedule_tasks',
