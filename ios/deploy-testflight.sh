@@ -55,7 +55,8 @@ def api(m, p, b=None):
         headers={"Authorization": "Bearer " + tok(), "Content-Type": "application/json"})
     if b is not None: r.data = json.dumps(b).encode()
     try:
-        with urllib.request.urlopen(r) as x: return x.status, json.loads(x.read())
+        with urllib.request.urlopen(r) as x:
+            body = x.read(); return x.status, (json.loads(body) if body else {})  # DELETE → 204 no body
     except urllib.error.HTTPError as e:
         try: return e.code, json.loads(e.read())
         except Exception: return e.code, {}
