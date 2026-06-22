@@ -61,6 +61,24 @@ extension SupabaseManager {
                                "tier": close ? "close" : "friend"])
     }
 
+    /// A friend's schedule for a date range — already blurred by tier on the server (regular
+    /// friends get "Busy" only; close friends get specifics except blocks the owner marked private).
+    func friendSchedule(_ target: UUID, from: Date, to: Date) async throws -> [FriendBlock] {
+        let body = try JSONEncoder().encode([
+            "target": target.uuidString.lowercased(),
+            "from_ts": APIDate.iso(from),
+            "to_ts": APIDate.iso(to),
+        ])
+        let data = try await rest("POST", "rpc/friend_schedule", body: body)
+        return try JSONDecoder().decode([FriendBlock].self, from: data)
+    }
+
+    /// Mark one of my blocks private — friends then see only "Busy", even close ones.
+    func setBlockPrivate(_ blockId: UUID, _ isPrivate: Bool) async throws {
+        _ = try await rest("PATCH", "time_blocks?id=eq.\(blockId.uuidString)",
+                           body: try JSONEncoder().encode(["is_private": isPrivate]), prefer: "return=minimal")
+    }
+
     // MARK: Profile
 
     func fetchMyProfile() async throws -> MyProfile {

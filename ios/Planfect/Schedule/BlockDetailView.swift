@@ -11,6 +11,7 @@ struct BlockDetailView: View {
 
     @State private var title: String
     @State private var done: Bool
+    @State private var isPrivate: Bool
     @State private var start: Date
     @State private var durationMin: Int
     @State private var notes: String
@@ -25,6 +26,7 @@ struct BlockDetailView: View {
         self.onChange = onChange
         _title = State(initialValue: block.title)
         _done = State(initialValue: block.isDone)
+        _isPrivate = State(initialValue: block.is_private)
         _start = State(initialValue: block.start)
         _durationMin = State(initialValue: block.durationMin)
         _notes = State(initialValue: block.notes)
@@ -43,6 +45,12 @@ struct BlockDetailView: View {
                 }
 
                 Section { Toggle("Done", isOn: $done) }
+
+                Section {
+                    Toggle("Private", isOn: $isPrivate)
+                } footer: {
+                    Text("Friends see this as just \"Busy\" — even close friends.")
+                }
 
                 Section("Time") {
                     DatePicker("Starts", selection: $start, displayedComponents: [.date, .hourAndMinute])
@@ -125,6 +133,7 @@ struct BlockDetailView: View {
                     try await supa.setBlockTitle(block.id, taskId: block.task_id, trimmed)
                 }
                 if done != block.isDone { try await supa.setBlockDone(block.id, done) }
+                if isPrivate != block.is_private { try await supa.setBlockPrivate(block.id, isPrivate) }
                 if start != block.start || durationMin != block.durationMin {
                     try await supa.rescheduleBlock(block.id, start: start,
                                                    end: start.addingTimeInterval(Double(durationMin) * 60))

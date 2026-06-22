@@ -142,7 +142,7 @@ extension SupabaseManager {
     }
 
     func fetchBlocks() async throws -> [TimeBlock] {
-        let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode,category,task_id,tasks(notes)&order=start_at")
+        let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode,category,task_id,is_private,tasks(notes)&order=start_at")
         return try JSONDecoder().decode([TimeBlock].self, from: data)
     }
 

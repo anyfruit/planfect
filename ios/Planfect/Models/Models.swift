@@ -11,6 +11,7 @@ struct TimeBlock: Decodable, Identifiable {
     let task_id: UUID?
     let category: String?
     let tasks: NoteRef?         // embedded task note (PostgREST: tasks(notes))
+    let is_private: Bool        // friends see this as just "Busy", even close ones
     // Dates are parsed ONCE at decode time. (ISO8601DateFormatter is slow; the schedule/insights
     // views read .start/.end hundreds of times per render when sorting/filtering/positioning.)
     let start: Date
@@ -21,7 +22,7 @@ struct TimeBlock: Decodable, Identifiable {
     var durationMin: Int { max(5, Int(end.timeIntervalSince(start) / 60)) }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, kind, status, start_at, end_at, transport_mode, task_id, category, tasks
+        case id, title, kind, status, start_at, end_at, transport_mode, task_id, category, tasks, is_private
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -33,6 +34,7 @@ struct TimeBlock: Decodable, Identifiable {
         task_id = try c.decodeIfPresent(UUID.self, forKey: .task_id)
         category = try c.decodeIfPresent(String.self, forKey: .category)
         tasks = try c.decodeIfPresent(NoteRef.self, forKey: .tasks)
+        is_private = try c.decodeIfPresent(Bool.self, forKey: .is_private) ?? false
         start = APIDate.parse(try c.decode(String.self, forKey: .start_at)) ?? .distantPast
         end = APIDate.parse(try c.decode(String.self, forKey: .end_at)) ?? .distantPast
     }
@@ -108,6 +110,19 @@ struct MyProfile: Decodable {
     let display_name: String?
     let avatar_url: String?
     var avatarURL: URL? { avatar_url.flatMap { URL(string: $0) } }
+}
+
+/// One block of a friend's schedule from the `friend_schedule` RPC — already blurred by tier on
+/// the server (regular friends get title "Busy", category dropped). No row id is returned.
+struct FriendBlock: Decodable, Identifiable {
+    let start_at: String
+    let end_at: String
+    let title: String
+    let category: String?
+    let kind: String
+    var id: String { start_at + "|" + title }
+    var start: Date { APIDate.parse(start_at) ?? .distantPast }
+    var end: Date { APIDate.parse(end_at) ?? .distantPast }
 }
 
 // MARK: - /plan request & response

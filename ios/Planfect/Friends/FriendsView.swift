@@ -180,6 +180,13 @@ private struct FriendDetailView: View {
                 Text("Close friends can see your specific plans and schedule things with you. Regular friends only see when you're busy.")
             }
             Section {
+                NavigationLink {
+                    FriendScheduleView(friend: friend)
+                } label: {
+                    Label("View their calendar", systemImage: "calendar")
+                }
+            }
+            Section {
                 Button("Remove friend", role: .destructive) { remove() }
             }
         }
@@ -279,5 +286,76 @@ private struct AddFriendView: View {
             do { try await work(); actedOn.insert(u.id) }
             catch { self.error = error.localizedDescription }
         }
+    }
+}
+
+/// A friend's day schedule. The server already blurred it by tier — regular friends get "Busy"
+/// only; close friends get specifics except blocks the owner marked private.
+private struct FriendScheduleView: View {
+    let friend: FriendProfile
+    @EnvironmentObject var supa: SupabaseManager
+    @State private var blocks: [FriendBlock] = []
+    @State private var day = Date()
+    @State private var loading = false
+    @State private var error: String?
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button { shift(-1) } label: { Image(systemName: "chevron.left") }
+                Spacer()
+                Text(day.formatted(.dateTime.weekday(.abbreviated).month().day())).font(.headline)
+                Spacer()
+                Button { shift(1) } label: { Image(systemName: "chevron.right") }
+            }
+            .padding()
+            content
+        }
+        .navigationTitle(friend.name).navigationBarTitleDisplayMode(.inline)
+        .task(id: day) { await load() }
+        .alert("Schedule", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(error ?? "") }
+    }
+
+    @ViewBuilder private var content: some View {
+        if loading && blocks.isEmpty {
+            Spacer(); ProgressView(); Spacer()
+        } else if blocks.isEmpty {
+            Spacer()
+            VStack(spacing: 8) {
+                Image(systemName: "calendar").font(.largeTitle).foregroundStyle(.tint)
+                Text("Nothing scheduled").foregroundStyle(.secondary)
+            }
+            Spacer()
+        } else {
+            List(blocks) { b in
+                HStack(spacing: 12) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(b.title == "Busy" ? Color.secondary : Color.accentColor)
+                        .frame(width: 5, height: 38)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(b.title == "Busy" ? String(localized: "Busy") : b.title)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(b.title == "Busy" ? Color.secondary : Color.primary)
+                        Text("\(b.start.formatted(date: .omitted, time: .shortened)) – \(b.end.formatted(date: .omitted, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .listStyle(.insetGrouped)
+        }
+    }
+
+    private func shift(_ d: Int) {
+        if let nd = Calendar.current.date(byAdding: .day, value: d, to: day) { day = nd }
+    }
+
+    private func load() async {
+        loading = true; defer { loading = false }
+        let start = Calendar.current.startOfDay(for: day)
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
+        do { blocks = try await supa.friendSchedule(friend.id, from: start, to: end) }
+        catch { self.error = error.localizedDescription }
     }
 }
