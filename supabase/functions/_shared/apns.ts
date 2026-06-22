@@ -58,6 +58,8 @@ export async function sendPush(db: SupabaseClient, userId: string, title: string
 
     for (const t of tokens) {
       const tok = (t as { token: string }).token;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);   // never let a slow/hung APNs stall the caller
       try {
         const res = await fetch(`${host}/3/device/${tok}`, {
           method: 'POST',
@@ -68,11 +70,14 @@ export async function sendPush(db: SupabaseClient, userId: string, title: string
             'content-type': 'application/json',
           },
           body: payload,
+          signal: ctrl.signal,
         });
         if (res.status === 410 || res.status === 400) {
           await db.from('device_tokens').delete().eq('user_id', userId).eq('token', tok);   // dead token
         }
-      } catch (_) { /* per-device best-effort */ }
+      } catch (_) { /* timeout or network — best-effort */ } finally {
+        clearTimeout(timer);
+      }
     }
   } catch (_) { /* never fail the caller on push */ }
 }
