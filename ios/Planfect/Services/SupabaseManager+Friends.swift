@@ -79,6 +79,15 @@ extension SupabaseManager {
                            body: try JSONEncoder().encode(["is_private": isPrivate]), prefer: "return=minimal")
     }
 
+    /// Register this device's APNs token so the backend can push friend + collaborative-plan alerts.
+    func uploadDeviceToken(_ token: String) async {
+        guard let uid = userId?.uuidString else { return }
+        struct Row: Encodable { let user_id: String; let token: String; let platform: String }
+        let body = try? JSONEncoder().encode([Row(user_id: uid, token: token, platform: "ios")])
+        _ = try? await rest("POST", "device_tokens?on_conflict=user_id,token",
+                            body: body, prefer: "resolution=merge-duplicates,return=minimal")
+    }
+
     // MARK: Profile
 
     func fetchMyProfile() async throws -> MyProfile {

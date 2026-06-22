@@ -5,6 +5,7 @@
 // (owner→friend and friend→owner) always stay consistent. See migration 20260622000009_friends.sql.
 
 import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { sendPush } from '../_shared/apns.ts';
 
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Promise<Response>): void };
 
@@ -172,9 +173,15 @@ async function setAccepted(db: SupabaseClient, a: string, b: string): Promise<vo
   await db.from('friendships').update({ status: 'accepted' }).eq('owner_id', b).eq('friend_id', a);
 }
 
-/** Queue a notification (the APNs sender, landing with the push key, delivers it). Best-effort. */
+/** Record + push a notification (best-effort). */
 async function notify(db: SupabaseClient, userId: string, kind: string, actorId: string): Promise<void> {
-  await db.from('notifications').insert({ user_id: userId, kind, actor_id: actorId, delivered: false });
+  const { data: actor } = await db.from('profiles').select('display_name,username').eq('id', actorId).maybeSingle();
+  const name = (actor?.display_name as string) || (actor?.username as string) || 'Someone';
+  const body = kind === 'friend_request'
+    ? `${name} sent you a friend request`
+    : `${name} accepted your friend request`;
+  await db.from('notifications').insert({ user_id: userId, kind, actor_id: actorId, body, delivered: true });
+  await sendPush(db, userId, 'Planfect', body);
 }
 
 function json(data: unknown, status = 200): Response {

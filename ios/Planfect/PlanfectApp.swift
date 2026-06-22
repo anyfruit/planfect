@@ -6,6 +6,7 @@ struct PlanfectApp: App {
     @StateObject private var supa = SupabaseManager.shared
     @StateObject private var router = AppRouter()
     @StateObject private var lang = LanguageManager.shared
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
         // Rounded nav-bar titles to match the in-content SF Rounded typeface.
@@ -45,5 +46,21 @@ private struct RootHost: View {
         RootView()
             .environment(\.locale, lang.locale)
             .id(lang.lang)
+    }
+}
+
+/// Receives the APNs device token after registerForRemoteNotifications and uploads it, so the
+/// backend can push friend-request / collaborative-plan alerts to this device.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        Task { await SupabaseManager.shared.uploadDeviceToken(token) }
+    }
+    func application(_ application: UIApplication,
+                     didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        #if DEBUG
+        print("⚠️ remote notification registration failed: \(error.localizedDescription)")
+        #endif
     }
 }

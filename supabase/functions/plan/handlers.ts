@@ -6,6 +6,7 @@
 // (server/scheduling), and server/demo/planDemo.ts shows it producing real times end-to-end.
 
 import { type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { sendPush } from '../_shared/apns.ts';
 import { type ToolHandlers } from '../../../server/planner.ts';
 import { type UsageEvent, type UsageSink } from '../../../server/usage.ts';
 import { scheduleTask, type PlacedBlock } from '../../../server/scheduling/scheduler.ts';
@@ -1105,10 +1106,14 @@ async function notifyScheduledWith(
   byUserId: string,
   title: string,
 ): Promise<void> {
+  const { data: actor } = await supabase.from('profiles')
+    .select('display_name,username').eq('id', byUserId).maybeSingle();
+  const name = (actor?.display_name as string) || (actor?.username as string) || 'A friend';
+  const body = `${name} planned "${title}" with you`;
   await supabase.from('notifications').insert({
-    user_id: friendId, kind: 'scheduled_with', actor_id: byUserId,
-    body: title, delivered: false,
+    user_id: friendId, kind: 'scheduled_with', actor_id: byUserId, body, delivered: true,
   });
+  await sendPush(supabase, friendId, 'Planfect', body);
 }
 
 function blockRow(

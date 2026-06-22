@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import UserNotifications
 
 /// Schedules local notifications for upcoming blocks: a "time to head out" nudge at the start of
@@ -55,6 +56,12 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let settings = await center.notificationSettings()
         if settings.authorizationStatus == .notDetermined {
             _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
+        }
+        // Register for remote (APNs) push so the backend can deliver friend + collaborative-plan
+        // alerts. Safe to call repeatedly; the device token arrives in AppDelegate.
+        let status = await center.notificationSettings().authorizationStatus
+        if status == .authorized || status == .provisional {
+            UIApplication.shared.registerForRemoteNotifications()
         }
     }
 
