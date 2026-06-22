@@ -229,6 +229,10 @@ _2026-06-21_
 - **Explicit times schedule directly.** An explicitly-stated clock time with no day (e.g. "下午3点开会")
   now lands on the obvious day (today, or tomorrow if it already passed) with a one-line confirm,
   instead of an unnecessary yes/no question.
+- **Prompt-eval harness.** [`server/eval/promptEval.ts`](server/eval/promptEval.ts) drives the real
+  planner over a fixed scenario suite (deterministic pinned clock) and scores each result against an
+  expected behavior — so prompt changes are *measured* (pass-rate per model) instead of eyeballed.
+  Runs against any provider via `EVAL_PROVIDER`/`EVAL_MODEL`.
 
 ## Author & license
 

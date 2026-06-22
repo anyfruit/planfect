@@ -215,10 +215,10 @@ function summarizeHabits(blocks: HabitRow[], tz: string): string {
   return parts.length ? parts.join('; ') : 'not enough history yet';
 }
 
-export function buildSystemPrompt(ctx: PlanContext): string {
+export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): string {
   // Stable prefix first (routine/locations) for prompt-cache friendliness; the volatile
-  // "today" line goes LAST so it doesn't bust the cacheable prefix.
-  const now = new Date();
+  // "today" line goes LAST so it doesn't bust the cacheable prefix. `now` is injectable so the
+  // prompt-eval harness can pin a deterministic "today" (defaults to the real current time).
   const ymd = new Intl.DateTimeFormat('en-CA', {
     timeZone: ctx.timezone, year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(now);
