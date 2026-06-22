@@ -209,6 +209,15 @@ reflect the current state.
 
 _2026-06-22_
 
+- **Friends — phases 2 & 3 (shared calendars, collaborative plans, push).** A friend's calendar is
+  now viewable, **blurred server-side by tier** — regular friends see only busy/free, close friends
+  see specifics, and any plan can be set **Private** to force "Busy" even for close friends (a
+  security-definer `friend_schedule` RPC is the only authorized read path; the owner's own RLS still
+  hides the rows). Tell the planner a plan is **"with @friend"** and it double-books both calendars
+  via a shared `shared_event_id` — permissioned so only friends who marked you Close qualify, and
+  proven additive (eval 22/22, no regression to existing scheduling). Plus **push notifications**
+  (APNs): friend requests / accepts and collaborative plans fire an instant push, signed with an
+  ES256 provider JWT from the team's APNs key. Shipped in build 6.
 - **Friends — phase 1.** Profiles gain a unique **@username**, an editable **display name**, and an
   uploadable **avatar**. A new **Friends tab** finds people by @username, sends / accepts requests,
   and grades each friend **Regular** or **Close** — single-directional, so *you* control per-friend
