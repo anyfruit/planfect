@@ -239,6 +239,8 @@ _2026-06-21_
   guardrail, past-time, relative dates); `gpt-5.1-chat` passes **22/22**.
 - **Build 3 → TestFlight.** v1.0 (build 3) uploaded to App Store Connect carrying the commute-icon +
   chat-freeze iOS fixes (the prompt/commute-mode backend changes were already live on the Edge Functions).
+  Repeatable now via [`ios/deploy-testflight.sh`](ios/deploy-testflight.sh) — bumps the build, archives,
+  re-signs with an ASC-API-managed distribution cert + profiles (no Xcode GUI, no cloud signing), uploads.
 
 ## Author & license
 

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Manual App Store signing for deploy-testflight.sh. The distribution certificate and these two
+     App-Store provisioning profiles are created/managed via the App Store Connect API (see the
+     script), so the export never needs cloud signing — which an API key can't do for distribution. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>method</key><string>app-store-connect</string>
+  <key>teamID</key><string>9K59GFVLS5</string>
+  <key>signingStyle</key><string>manual</string>
+  <key>signingCertificate</key><string>Apple Distribution</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>com.planfect.app</key><string>Planfect AppStore CLI</string>
+    <key>com.planfect.app.PlanfectWidget</key><string>Planfect Widget AppStore CLI</string>
+  </dict>
+  <key>uploadSymbols</key><true/>
+  <key>manageAppVersionAndBuildNumber</key><false/>
+  <key>destination</key><string>export</string>
+</dict>
+</plist>
