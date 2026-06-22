@@ -241,6 +241,10 @@ _2026-06-21_
   chat-freeze iOS fixes (the prompt/commute-mode backend changes were already live on the Edge Functions).
   Repeatable now via [`ios/deploy-testflight.sh`](ios/deploy-testflight.sh) — bumps the build, archives,
   re-signs with an ASC-API-managed distribution cert + profiles (no Xcode GUI, no cloud signing), uploads.
+- **Notes: voice input + AI tidy.** A task's note (tap a block → Notes) gains a 🎙️ **Dictate** button
+  (on-device speech, reusing the chat's recognizer) and a ✨ **Tidy up** button that reorganizes a
+  run-on note into clean bullet points — preserving every detail — via a new `note-tidy` Edge Function
+  (cheap `gpt-4.1-mini`). The cleaned text lands in the editable field; you review and Save.
 
 ## Author & license
 

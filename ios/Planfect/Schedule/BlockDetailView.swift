@@ -16,6 +16,9 @@ struct BlockDetailView: View {
     @State private var notes: String
     @State private var saving = false
     @State private var error: String?
+    @StateObject private var speech = SpeechRecognizer()
+    @State private var tidying = false
+    @State private var noteBaseline = ""
 
     init(block: TimeBlock, onChange: @escaping () -> Void) {
         self.block = block
@@ -48,7 +51,37 @@ struct BlockDetailView: View {
 
                 if block.task_id != nil {
                     Section("Notes") {
-                        TextField("Add a note", text: $notes, axis: .vertical).lineLimit(1...5)
+                        TextField("Add a note", text: $notes, axis: .vertical).lineLimit(1...10)
+                        HStack {
+                            Button {
+                                if !speech.isRecording { noteBaseline = notes }
+                                speech.toggle()
+                            } label: {
+                                Label(speech.isRecording ? "Stop" : "Dictate",
+                                      systemImage: speech.isRecording ? "stop.circle.fill" : "mic.fill")
+                                    .foregroundStyle(speech.isRecording ? Color.red : Color.accentColor)
+                            }
+                            Spacer()
+                            Button {
+                                tidying = true; error = nil
+                                Task {
+                                    do {
+                                        let cleaned = try await supa.tidyNote(notes, title: title)
+                                        if !cleaned.isEmpty { notes = cleaned }
+                                    } catch { self.error = error.localizedDescription }
+                                    tidying = false
+                                }
+                            } label: {
+                                if tidying { ProgressView() }
+                                else { Label("Tidy up", systemImage: "wand.and.stars") }
+                            }
+                            .disabled(tidying || notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                        .buttonStyle(.borderless)
+                        .font(.subheadline)
+                        if let msg = speech.errorMessage {
+                            Text(msg).font(.caption).foregroundStyle(.orange)
+                        }
                     }
                 }
 
@@ -65,6 +98,12 @@ struct BlockDetailView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("Save", action: save).disabled(saving) }
             }
+            .onChange(of: speech.transcript) { _, t in
+                guard speech.isRecording, !t.isEmpty else { return }
+                let sep = (noteBaseline.isEmpty || noteBaseline.hasSuffix(" ") || noteBaseline.hasSuffix("\n")) ? "" : " "
+                notes = noteBaseline.isEmpty ? t : noteBaseline + sep + t
+            }
+            .onDisappear { speech.stop() }
         }
     }
 

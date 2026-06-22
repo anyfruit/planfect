@@ -118,6 +118,29 @@ extension SupabaseManager {
         }
     }
 
+    /// Ask the `/note-tidy` Edge Function to reorganize a task note into clean bullet points
+    /// (preserves all info; returns the original text on an empty result).
+    func tidyNote(_ text: String, title: String?) async throws -> String {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return text }
+        let token = await currentToken()
+        var req = URLRequest(url: URL(string: SupabaseConfig.url.absoluteString + "/functions/v1/note-tidy")!)
+        req.httpMethod = "POST"
+        req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        struct Body: Encodable { let text: String; let title: String? }
+        struct R: Decodable { let text: String? }
+        req.httpBody = try JSONEncoder().encode(Body(text: text, title: title))
+        return try await withBackgroundTask("note-tidy") {
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw NSError(domain: "Planfect.NoteTidy", code: http.statusCode,
+                              userInfo: [NSLocalizedDescriptionKey: "Cleanup unavailable (HTTP \(http.statusCode)). Please try again."])
+            }
+            return (try JSONDecoder().decode(R.self, from: data)).text ?? text
+        }
+    }
+
     func fetchBlocks() async throws -> [TimeBlock] {
         let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode,category,task_id,tasks(notes)&order=start_at")
         return try JSONDecoder().decode([TimeBlock].self, from: data)
