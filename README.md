@@ -237,6 +237,8 @@ _2026-06-21_
   now lands on the soonest valid day as a tap-to-edit receipt instead of a yes/no question — a gap the
   harness caught across every model. The suite is now **22 scenarios** (incl. adversarial: a boundary
   guardrail, past-time, relative dates); `gpt-5.1-chat` passes **22/22**.
+- **Build 3 → TestFlight.** v1.0 (build 3) uploaded to App Store Connect carrying the commute-icon +
+  chat-freeze iOS fixes (the prompt/commute-mode backend changes were already live on the Edge Functions).
 
 ## Author & license
 
