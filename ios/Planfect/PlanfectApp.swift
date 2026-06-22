@@ -5,6 +5,7 @@ import UIKit
 struct PlanfectApp: App {
     @StateObject private var supa = SupabaseManager.shared
     @StateObject private var router = AppRouter()
+    @StateObject private var lang = LanguageManager.shared
 
     init() {
         // Rounded nav-bar titles to match the in-content SF Rounded typeface.
@@ -23,13 +24,26 @@ struct PlanfectApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootHost()
                 .environmentObject(supa)
                 .environmentObject(router)
+                .environmentObject(lang)
                 .task {
                     _ = NotificationManager.shared   // sets the notification delegate so actions work at launch
                     await supa.start()
                 }
         }
+    }
+}
+
+/// Wraps RootView so an in-app language change re-renders the whole tree (every localized string
+/// picks up the new language live) — via `.id` keyed on the language — WITHOUT re-running the app's
+/// one-time startup `.task`, which stays attached to this stable host.
+private struct RootHost: View {
+    @EnvironmentObject private var lang: LanguageManager
+    var body: some View {
+        RootView()
+            .environment(\.locale, lang.locale)
+            .id(lang.lang)
     }
 }

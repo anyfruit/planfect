@@ -207,6 +207,19 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-06-22_
+
+- **Apple Calendar sync (app → calendar).** Plans now sync into a dedicated **Planfect** calendar,
+  reconciled — create / move / delete — against a `planfect://block/<id>` marker stamped on each
+  event. Edits and deletions in the app flow to Apple Calendar, while your personal events are never
+  read or touched; the planner also excludes its own calendar when reading "busy" so it never plans
+  around itself. (Pull-back from Apple Calendar → app is the next phase; the id markers are already in
+  place for it.)
+- **Instant in-app language switch.** Settings gains an **App Language** picker (Auto / English / 中文)
+  that re-skins the whole app immediately — no relaunch. A `Bundle.main` reclass redirects every
+  localized lookup to the chosen `.lproj` at runtime, and the view tree re-renders keyed on the
+  language while the one-time startup `.task` stays put.
+
 _2026-06-21_
 
 - **Commute shows the real travel mode.** The receipt no longer always reads "transit" with a walking

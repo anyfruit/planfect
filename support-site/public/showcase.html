@@ -362,12 +362,16 @@
     <div class="card"><h4>🧭 Product-minded placement</h4><p>Commute is scheduled <em>before</em> a pinned task (you leave early, arrive on time — not the activity pushed later). A voice brain-dump of several tasks is planned in one batch; genuine conflicts are surfaced, never silently mis-scheduled. When a detail is still undecided — which restaurant, exactly where — it blocks a <em>tentative hold</em> you can refine in a tap, instead of interrogating you or scheduling nothing.</p></div>
     <div class="card"><h4>⚡ Latency, halved</h4><p>Cut planner latency ~60% by short-circuiting a redundant LLM round-trip once tasks land on the calendar, skipping needless schedule lookups (the calendar is already in context), and parsing dates once at decode.</p></div>
     <div class="card"><h4>🔒 Shipping rigor</h4><p>RLS-secured data, App Groups for the widget, distribution signing → TestFlight → App Store pipeline (automated via API key), a password-gated analytics dashboard, CI, and prompt-level content guardrails.</p></div>
+    <div class="card"><h4>🗓 Calendar sync that never touches your stuff</h4><p>Plans sync into a <em>dedicated</em> “Planfect” calendar, reconciled — create / move / delete — against a <code>planfect://block/&lt;id&gt;</code> marker stamped on each event. Edits and deletions in the app flow to Apple Calendar, while your personal events are never read or modified; the planner also excludes its own calendar when reading “busy,” so it never plans around itself.</p></div>
+    <div class="card"><h4>🌐 Instant in-app language switch</h4><p>Flipping 中文 ⇄ EN in Settings re-skins the whole app <em>immediately</em> — no relaunch. A <code>Bundle.main</code> reclass redirects every localized lookup to the chosen <code>.lproj</code> at runtime, and the view tree re-renders keyed on the language while the one-time startup work stays put.</p></div>
   </div>
   <div class="grid g2 zh">
     <div class="card"><h4>🌍 时区正确的排程</h4><p>排程一律按用户本地时间;查跨时区赛事(在美国看伦敦的比赛)会自动换算成你的钟点。还修掉了一类 bug:跨好几天的长对话里"今天"会漂到过去的日期——办法是把权威日期戳到最新一条消息上,靠"就近"压住旧日期。</p></div>
     <div class="card"><h4>🧭 有产品思维的排法</h4><p>通勤排在定点任务<em>之前</em>(你提前出门、准点到,而不是把活动往后推)。语音一口气报好几件事会被一次性批量排好;真正的冲突会提示你,绝不偷偷排错。细节还没定(哪家店、具体在哪)时,会先占一个<em>临时位</em>,之后一点就能改,而不是反问你或干脆什么都不排。</p></div>
     <div class="card"><h4>⚡ 延迟砍掉一半</h4><p>排程延迟降了约 60%:任务一落到日历就短路掉一次多余的 LLM 来回、省掉没必要的日程查询(日历本来就在上下文里)、日期只在解码时解析一次。</p></div>
     <div class="card"><h4>🔒 上线工程的严谨度</h4><p>RLS 保护的数据、小组件用的 App Groups、发布签名 → TestFlight → App Store 全流程(用 API key 自动化)、带密码保护的分析后台、CI、以及提示词层面的内容护栏。</p></div>
+    <div class="card"><h4>🗓 只动自己那本的日历同步</h4><p>计划会同步进一本<em>专属</em>的「Planfect」日历,按写在每个事件上的 <code>planfect://block/&lt;id&gt;</code> 标记做对账——新建 / 移动 / 删除。你在 app 里改或删,都会同步到 Apple 日历,而你自己的私人事件从不被读取或改动;规划器读「忙碌」时也会排除自己这本日历,绝不围着自己排程。</p></div>
+    <div class="card"><h4>🌐 即时切换 App 语言</h4><p>在设置里 中文 ⇄ EN 一切,整个 app <em>立刻</em>换皮、不用重启。靠把 <code>Bundle.main</code> 重新归类、运行时把每次本地化查找重定向到选定的 <code>.lproj</code>,再让视图树按语言重渲染,而一次性的启动逻辑原地不动。</p></div>
   </div>
 </div></section>
 

@@ -107,10 +107,12 @@ final class ChatViewModel: ObservableObject {
             case "scheduled":
                 if let r = resp.receipt {
                     items.append(.receipt(r))
-                    await CalendarManager.shared.addPlans(r.items)   // mirror the plan into Apple Calendar (if synced)
                 } else { items.append(.assistant(String(localized: "Scheduled."))) }
-                // Refresh reminders so a just-scheduled plan nudges even if the user never opens Schedule.
-                if let blocks = try? await supa.fetchBlocks() { await NotificationManager.shared.reschedule(for: blocks) }
+                // Refresh reminders + mirror the new plan into Apple Calendar (if synced).
+                if let blocks = try? await supa.fetchBlocks() {
+                    await NotificationManager.shared.reschedule(for: blocks)
+                    await CalendarManager.shared.syncToCalendar(blocks)
+                }
             case "upgrade":
                 items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Upgrade to Planfect Pro to keep planning.")))
                 showPaywall = true

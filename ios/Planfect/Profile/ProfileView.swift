@@ -20,6 +20,7 @@ struct ProfileView: View {
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
     @AppStorage(CalendarManager.syncKey) private var calendarSync = false
+    @EnvironmentObject private var appLang: LanguageManager
 
     private enum PlaceKind: String, Identifiable { case home, work; var id: String { rawValue } }
 
@@ -151,6 +152,18 @@ struct ProfileView: View {
                     Text("Reminders")
                 } footer: {
                     Text("A nudge when it's time to head out, and before each task begins.")
+                }
+
+                Section {
+                    Picker("App Language", selection: Binding(get: { appLang.lang }, set: { appLang.set($0) })) {
+                        Text("Auto (device)").tag("")
+                        Text("English").tag("en")
+                        Text("中文").tag("zh-Hans")
+                    }
+                } header: {
+                    Text("Language")
+                } footer: {
+                    Text("Switches the whole app instantly. \"Auto\" follows your device language.")
                 }
 
                 Section {

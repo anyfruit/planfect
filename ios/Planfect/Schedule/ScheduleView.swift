@@ -20,6 +20,7 @@ final class ScheduleViewModel: ObservableObject {
         do {
             blocks = try await supa.fetchBlocks()
             await NotificationManager.shared.reschedule(for: blocks)
+            await CalendarManager.shared.syncToCalendar(blocks)
         }
         catch { self.error = error.localizedDescription }
         loading = false
