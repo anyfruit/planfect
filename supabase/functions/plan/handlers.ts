@@ -68,7 +68,7 @@ interface LocationRow {
   place_id?: string | null;
 }
 
-export async function loadContext(supabase: SupabaseClient, userId: string): Promise<PlanContext> {
+export async function loadContext(supabase: SupabaseClient, userId: string, admin?: SupabaseClient): Promise<PlanContext> {
   const nowIso = new Date().toISOString();
   const pastIso = new Date(Date.now() - 60 * 86_400_000).toISOString();   // ~8 weeks back for habit mining
   const [routines, locations, profile, prefs, past, recurring] = await Promise.all([
@@ -99,8 +99,10 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     .order('start_at')
     .limit(100);
   // Accepted friends, keyed by the tier THEY grant me (their edge: owner=them, friend=me). 'close'
-  // lets me add a plan to their calendar; 'friend' (regular) does not.
-  const { data: friendEdges } = await supabase
+  // lets me add a plan to their calendar; 'friend' (regular) does not. Reading a friend's profile
+  // needs the service role — the user's own client is limited by RLS to their OWN profile row.
+  const fdb = admin ?? supabase;
+  const { data: friendEdges } = await fdb
     .from('friendships').select('owner_id, tier')
     .eq('friend_id', userId).eq('status', 'accepted');
   const tierByFriend = new Map<string, string>();
@@ -108,7 +110,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
   const closeFriends: { id: string; username: string; name: string }[] = [];
   const regularFriends: { id: string; username: string; name: string }[] = [];
   if (tierByFriend.size) {
-    const { data: fps } = await supabase
+    const { data: fps } = await fdb
       .from('profiles').select('id,username,display_name').in('id', [...tierByFriend.keys()]);
     for (const p of ((fps ?? []) as { id: string; username: string | null; display_name: string | null }[])) {
       if (!p.username) continue;
@@ -906,7 +908,9 @@ export function buildHandlers(
           continue;
         }
 
-        // Mirror the task block(s) into EACH chosen close friend's own calendar (commute/buffer stay personal).
+        // Mirror into EACH chosen close friend's calendar — needs the service role, since writing
+        // another user's rows and reading their push tokens is blocked by RLS for the user's client.
+        const friendWriter = analytics ?? supabase;
         for (const friend of friends) {
           const friendRows = rows
             .filter((r) => r.kind === 'task')
@@ -915,12 +919,12 @@ export function buildHandlers(
               start_at: r.start_at as string, end_at: r.end_at as string,
               category: (r.category as string | null) ?? null, shared_event_id: sharedId,
             }));
-          const { error: fErr } = await supabase.from('time_blocks').insert(friendRows);
+          const { error: fErr } = await friendWriter.from('time_blocks').insert(friendRows);
           if (fErr) {
             assumptions.push(`Couldn't add to ${friend.name}'s calendar: ${fErr.message}.`);
           } else {
             assumptions.push(`Also added to ${friend.name}'s calendar.`);
-            await notifyScheduledWith(supabase, friend.id, userId, t.title).catch(() => {});
+            await notifyScheduledWith(friendWriter, friend.id, userId, t.title).catch(() => {});
           }
         }
 

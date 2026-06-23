@@ -5,7 +5,7 @@
 // cover the pure logic via MockPlanner). For a runnable end-to-end walkthrough on Node, see
 // server/demo/planDemo.ts. Deploy with: supabase functions deploy plan
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { runPlanner } from '../../../server/planner.ts';
 import { createPlanner } from '../../../server/llm/providers.ts';
 import { PLANNER_TOOLS } from '../../../server/llm/tools.ts';
@@ -48,7 +48,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       apiKey = Deno.env.get('OPENAI_API_KEY');
     }
 
-    const ctx = await loadContext(supabase, user.id);
+    const ctx = await loadContext(supabase, user.id, admin);
     // Real device-calendar events the app passes in, so the planner schedules around them.
     ctx.calendarBusy = ((body.calendar_busy ?? []) as Array<{ start: string; end: string; title?: string }>)
       .map((c) => ({ start: Date.parse(c.start), end: Date.parse(c.end), title: String(c.title ?? 'Busy') }))
@@ -89,7 +89,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const result = await runPlanner(messages, {
-      llm: createPlanner(provider, { apiKey }),
+      llm: createPlanner(provider, { apiKey: apiKey ?? '' }),
       model,
       system: buildSystemPrompt(ctx),
       tools: PLANNER_TOOLS,
@@ -108,7 +108,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 });
 
 /** Count the user's AI-usage events this calendar month (the free-tier budget unit). */
-async function freeUsageThisMonth(admin: ReturnType<typeof createClient>, userId: string): Promise<number> {
+async function freeUsageThisMonth(admin: SupabaseClient, userId: string): Promise<number> {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
   const { count } = await admin.from('usage_events')
