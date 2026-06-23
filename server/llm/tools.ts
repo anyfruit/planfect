@@ -187,8 +187,8 @@ const updateTask: ToolDef = {
   name: TOOL_UPDATE_TASK,
   description:
     'Modify an EXISTING scheduled task, referenced by the [task:…] id shown in the calendar list: ' +
-    'move it, mark it done, or delete it. Use for "change the time of X", "X is done", "delete X", ' +
-    'or to swap/reorder two items (call once per item with its new start_local).',
+    'rename it, move it, mark it done, or delete it. Use for "rename X" / "改名 / 改成…", "change the ' +
+    'time of X", "X is done", "delete X", or to swap/reorder two items (call once per item).',
   parameters: {
     type: 'object',
     additionalProperties: false,
@@ -199,8 +199,9 @@ const updateTask: ToolDef = {
         type: 'object',
         additionalProperties: true,
         description:
-          "What to change: { start_local: 'HH:MM', date: 'YYYY-MM-DD' } to move it, " +
-          "{ estimated_duration_min: 90 } to resize, { status: 'done' } to complete, { delete: true } to remove.",
+          "What to change: { title: 'New name' } to rename, { start_local: 'HH:MM', date: " +
+          "'YYYY-MM-DD' } to move it, { estimated_duration_min: 90 } to resize, { status: 'done' } to " +
+          "complete, { delete: true } to remove.",
       },
     },
   },

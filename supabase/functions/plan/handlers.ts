@@ -611,6 +611,12 @@ export function buildHandlers(
           await supabase.from('tasks').delete().eq('id', taskId);   // cascades its time_blocks
           return JSON.stringify({ ok: true, action: 'deleted' });
         }
+        // Rename: update the task and its task-block title(s) so the new name shows everywhere.
+        if (typeof changes.title === 'string' && changes.title.trim()) {
+          const newTitle = changes.title.trim();
+          await supabase.from('tasks').update({ title: newTitle }).eq('id', taskId);
+          await supabase.from('time_blocks').update({ title: newTitle }).eq('task_id', taskId).eq('kind', 'task');
+        }
         if (typeof changes.status === 'string') {
           const status = changes.status === 'done' ? 'done' : 'planned';
           await supabase.from('time_blocks').update({ status }).eq('task_id', taskId);
@@ -635,6 +641,9 @@ export function buildHandlers(
             start_at: new Date(newStart).toISOString(), end_at: new Date(newEnd).toISOString(),
           }).eq('id', main.id);
           return JSON.stringify({ ok: true, action: 'rescheduled', start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString() });
+        }
+        if (typeof changes.title === 'string' && changes.title.trim()) {
+          return JSON.stringify({ ok: true, action: 'renamed', title: changes.title.trim() });
         }
         return JSON.stringify({ ok: true, action: 'noop' });
       } catch (e) {
