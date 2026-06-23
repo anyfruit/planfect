@@ -169,12 +169,14 @@ const scheduleTasks: ToolDef = {
                 'separate free slot — set it (with start_local at that activity\'s time) when the user ' +
                 'wants to do this WHILE doing something else (一边…一边…, "during", "at the same time").',
             },
-            with_friend: {
-              type: 'string',
+            with_friends: {
+              type: 'array',
+              items: { type: 'string' },
               description:
-                'The username (WITHOUT @) of a CLOSE FRIEND this plan is together with — it will be ' +
-                'added to BOTH calendars. Use ONLY a username listed under CLOSE FRIENDS in the system ' +
-                'prompt; omit otherwise.',
+                'Usernames (WITHOUT @) of CLOSE FRIENDS this plan is together with — it is added to ' +
+                'EACH of their calendars too. Use ONLY usernames listed under CLOSE FRIENDS. If the user ' +
+                'is vague about WHO ("和好友一起"), or you can\'t confidently match the name, do NOT ' +
+                'guess — call ask_user_questions first with the close friends as options (multi_select).',
             },
           },
         },

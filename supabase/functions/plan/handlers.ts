@@ -287,13 +287,15 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     `Recurring tasks already set up (reference by id to change/stop): ${formatRecurring(ctx.recurring)}`,
     `CLOSE FRIENDS — you CAN add a shared plan to their calendar: ${ctx.closeFriends.length ? ctx.closeFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
     `OTHER FRIENDS — accepted, but they have NOT made you close, so you canNOT add to their calendar yet: ${ctx.regularFriends.length ? ctx.regularFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
-    'WITH A FRIEND: when the user says a plan is together with someone (e.g. "和 @sam 一起看电影",',
-    '"dinner with Alex", "和 greenleaf 吃饭"), match the name they said — even an approximate /',
-    'lowercased / casual spelling, or a display name — to the closest friend in the two lists above.',
-    'Then: if it matches a CLOSE friend, set that task\'s with_friend to that friend\'s EXACT username',
-    '(without @) so it lands on BOTH calendars. If it matches an OTHER friend, schedule it for the user',
-    'alone and add ONE line that they need to set you as a close friend first to plan together. If it',
-    'matches no friend at all, just schedule it for the user.',
+    'WITH A FRIEND: when the user says a plan is together with someone ("和好友一起看电影", "和 @sam',
+    '吃饭", "dinner with Alex"): if they clearly name ONE close friend you can confidently match (an',
+    'exact @username, or an obvious match), set that task\'s with_friends to [that username] so it lands',
+    'on BOTH calendars. But if they are VAGUE about who ("和好友", "和朋友"), name someone you can\'t',
+    'confidently match, or might mean several — do NOT guess. Call ask_user_questions with ONE question',
+    '"和哪位好友一起？" whose options are the CLOSE FRIENDS above (option label = each friend\'s display',
+    'name; multi_select = true); then on their answer, schedule with with_friends = the chosen friends\'',
+    'usernames. If the person they meant is only an OTHER friend (not close), schedule it for the user',
+    'alone and add one line that the friend must set them close first.',
     'RECURRING: when the user wants to do something REPEATEDLY on a schedule (每周一三五健身 / 每天背单词 /',
     'every Tuesday night), call set_recurring with days_of_week + start_local — do NOT create a separate',
     'one-off for each, and do NOT use set_routine (that is for work/sleep/meal background to avoid). To',
@@ -890,11 +892,11 @@ export function buildHandlers(
 
         // Collaborative double-booking: if the user named a CLOSE friend, stamp a shared id on the
         // task block(s) and mirror them into that friend's own calendar (linked by shared_event_id).
-        const wantFriend = String(t.with_friend ?? '').replace(/^@/, '').toLowerCase();
-        const friend = t.with_friend
-          ? ctx.closeFriends.find((f) => f.username.toLowerCase() === wantFriend || f.name.toLowerCase() === wantFriend)
-          : undefined;
-        const sharedId = friend ? crypto.randomUUID() : undefined;
+        const wanted = (t.with_friends ?? []).map((w) => String(w).replace(/^@/, '').toLowerCase());
+        const friends = wanted
+          .map((w) => ctx.closeFriends.find((f) => f.username.toLowerCase() === w || f.name.toLowerCase() === w))
+          .filter((f): f is { id: string; username: string; name: string } => !!f);
+        const sharedId = friends.length ? crypto.randomUUID() : undefined;
         if (sharedId) for (const r of rows) if (r.kind === 'task') r.shared_event_id = sharedId;
 
         const { error: blkErr } = await supabase.from('time_blocks').insert(rows);
@@ -904,8 +906,8 @@ export function buildHandlers(
           continue;
         }
 
-        if (friend && sharedId) {
-          // Mirror only the task block(s) — commute/buffer are personal to the user.
+        // Mirror the task block(s) into EACH chosen close friend's own calendar (commute/buffer stay personal).
+        for (const friend of friends) {
           const friendRows = rows
             .filter((r) => r.kind === 'task')
             .map((r) => ({
@@ -999,7 +1001,7 @@ interface ScheduleTaskArg {
   deadline?: string;       // ISO-8601
   allow_over_routine?: boolean;
   allow_overlap?: boolean;
-  with_friend?: string;   // username (no @) of a close friend to double-book this plan with
+  with_friends?: string[];   // usernames (no @) of close friends to double-book this plan with
 }
 
 interface ScheduledItem {
