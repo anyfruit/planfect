@@ -280,9 +280,11 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     `Recurring tasks already set up (reference by id to change/stop): ${formatRecurring(ctx.recurring)}`,
     `CLOSE FRIENDS who let you add plans to THEIR calendar: ${ctx.closeFriends.length ? ctx.closeFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
     'WITH A FRIEND: when the user says a plan is together with one of the CLOSE FRIENDS listed above',
-    '(e.g. "和 @sam 一起看电影", "dinner with Alex"), set that task\'s with_friend to that friend\'s',
-    'username (without @) in schedule_tasks — it gets added to BOTH calendars. Use ONLY a username from',
-    'that list; if the named person isn\'t a close friend, schedule it for the user alone and say so.',
+    '(e.g. "和 @sam 一起看电影", "dinner with Alex", "和 greenleaf 吃饭"), match the name they said —',
+    'even an approximate / lowercased / casual spelling, or a display name — to the closest close',
+    'friend in that list, and set that task\'s with_friend to THAT friend\'s EXACT username from the',
+    'list (without the @). It then gets added to BOTH calendars. Only if NO close friend reasonably',
+    'matches, schedule it for the user alone and say so.',
     'RECURRING: when the user wants to do something REPEATEDLY on a schedule (每周一三五健身 / 每天背单词 /',
     'every Tuesday night), call set_recurring with days_of_week + start_local — do NOT create a separate',
     'one-off for each, and do NOT use set_routine (that is for work/sleep/meal background to avoid). To',
@@ -870,8 +872,9 @@ export function buildHandlers(
 
         // Collaborative double-booking: if the user named a CLOSE friend, stamp a shared id on the
         // task block(s) and mirror them into that friend's own calendar (linked by shared_event_id).
+        const wantFriend = String(t.with_friend ?? '').replace(/^@/, '').toLowerCase();
         const friend = t.with_friend
-          ? ctx.closeFriends.find((f) => f.username.toLowerCase() === String(t.with_friend).replace(/^@/, '').toLowerCase())
+          ? ctx.closeFriends.find((f) => f.username.toLowerCase() === wantFriend || f.name.toLowerCase() === wantFriend)
           : undefined;
         const sharedId = friend ? crypto.randomUUID() : undefined;
         if (sharedId) for (const r of rows) if (r.kind === 'task') r.shared_event_id = sharedId;
