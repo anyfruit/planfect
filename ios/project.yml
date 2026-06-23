@@ -35,7 +35,7 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Planfect/Planfect.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "6"
+        CURRENT_PROJECT_VERSION: "7"
         GENERATE_INFOPLIST_FILE: "YES"
         INFOPLIST_KEY_CFBundleDisplayName: Planfect
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: "NO"
@@ -62,7 +62,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.planfect.app.PlanfectWidget
         CODE_SIGN_ENTITLEMENTS: PlanfectWidget/PlanfectWidget.entitlements
         MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "6"
+        CURRENT_PROJECT_VERSION: "7"
     info:
       path: PlanfectWidget/Info.plist
       properties:
