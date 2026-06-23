@@ -207,6 +207,15 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-06-23_
+
+- **App Review 2.1 fix — onboarding now follows the device language.** The 1.0 submission was held
+  under Guideline 2.1: the onboarding flow still rendered in Chinese on an English-language device
+  while the rest of the app was already localized. Every onboarding string moved to
+  `String(localized:)` with matching zh-Hans translations, and the weekday pickers now use the
+  locale's own standalone symbols — so onboarding shows English on English devices and Chinese on
+  Chinese ones, consistent with the rest of the app. Shipped in **build 7** and resubmitted for review.
+
 _2026-06-22_
 
 - **Friends — phases 2 & 3 (shared calendars, collaborative plans, push).** A friend's calendar is
