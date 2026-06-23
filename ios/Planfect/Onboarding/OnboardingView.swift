@@ -2,6 +2,7 @@ import SwiftUI
 
 /// First-run setup as a conversation: Planfect asks one thing at a time (work, sleep, meals,
 /// places) with tappable answers, then saves the routine. Deterministic + offline — no LLM call.
+/// All copy is localized (English base + zh-Hans), so it follows the device language.
 struct OnboardingView: View {
     @EnvironmentObject var supa: SupabaseManager
 
@@ -52,8 +53,8 @@ struct OnboardingView: View {
     // MARK: - Conversation
 
     private func start() {
-        botSay("嗨,我是 Planfect 👋")
-        botSay("先花一分钟了解下你的作息——之后我帮你安排事情,就会自动绕开这些时间。")
+        botSay(String(localized: "Hi, I'm Planfect 👋"))
+        botSay(String(localized: "Let's take a minute to learn your routine — then when I plan things for you, I'll work around these times automatically."))
         ask(.work)
     }
 
@@ -63,18 +64,18 @@ struct OnboardingView: View {
     private func ask(_ s: Step) {
         step = s
         switch s {
-        case .work: botSay("你平时有固定的上班 / 上学时间吗?")
-        case .workHours: botSay("几点到几点?把适用的星期几选上 👇")
-        case .sleep: botSay("一般几点睡、几点起?")
-        case .meals: botSay("三餐大概几点吃?不吃的关掉就行。")
-        case .places: botSay("最后~ 你住哪儿、在哪上班?用来算路上的通勤时间(可选)。")
+        case .work: botSay(String(localized: "Do you have set work / school hours?"))
+        case .workHours: botSay(String(localized: "What hours? Pick the days they apply to 👇"))
+        case .sleep: botSay(String(localized: "When do you usually sleep and wake up?"))
+        case .meals: botSay(String(localized: "Around when are your meals? Turn off any you skip."))
+        case .places: botSay(String(localized: "Last one — where do you live and work? Used to estimate travel time (optional)."))
         case .done: break
         }
     }
 
     private func finishFlow() {
         step = .done
-        botSay("搞定 🎉 都记下了,带你开始用!")
+        botSay(String(localized: "All set 🎉 Got it all — let's get you started!"))
         Task { await save() }
     }
 
@@ -111,7 +112,7 @@ struct OnboardingView: View {
             supa.needsOnboarding = false
         } catch {
             saveFailed = true
-            botSay("呃,没存上:\(error.localizedDescription)。点「重试」?")
+            botSay(String(format: String(localized: "Hmm, couldn't save: %@. Tap Retry?"), error.localizedDescription))
         }
     }
 
@@ -121,45 +122,46 @@ struct OnboardingView: View {
         switch step {
         case .work:
             HStack(spacing: 10) {
-                chip("有固定时间") { hasWork = true; mySay("有固定的上班/上学时间"); ask(.workHours) }
-                chip("没有 / 不固定") { hasWork = false; mySay("没有,时间不固定"); ask(.sleep) }
+                chip(String(localized: "Set hours")) { hasWork = true; mySay(String(localized: "I have set work / school hours")); ask(.workHours) }
+                chip(String(localized: "None / flexible")) { hasWork = false; mySay(String(localized: "No, my time is flexible")); ask(.sleep) }
             }
         case .workHours:
             VStack(spacing: 12) {
-                timeRow("开始", $workStart)
-                timeRow("结束", $workEnd)
+                timeRow(String(localized: "Start"), $workStart)
+                timeRow(String(localized: "End"), $workEnd)
                 WeekdayPicker(selection: $workDays)
-                Stepper(commuteMin == 0 ? "通勤:无" : "通勤:单程 \(commuteMin) 分钟",
+                Stepper(commuteMin == 0 ? String(localized: "Commute: none")
+                                        : String(format: String(localized: "Commute: %d min each way"), commuteMin),
                         value: $commuteMin, in: 0...120, step: 5).font(.subheadline)
-                confirm("就这些") { mySay(workSummary); ask(.sleep) }
+                confirm(String(localized: "That's it")) { mySay(workSummary); ask(.sleep) }
             }
         case .sleep:
             VStack(spacing: 12) {
-                timeRow("睡觉", $bedtime)
-                timeRow("起床", $wake)
-                confirm("确定") { mySay("\(hhmm(bedtime)) 睡,\(hhmm(wake)) 起"); ask(.meals) }
+                timeRow(String(localized: "Sleep"), $bedtime)
+                timeRow(String(localized: "Wake"), $wake)
+                confirm(String(localized: "OK")) { mySay(String(format: String(localized: "Sleep %1$@, wake %2$@"), hhmm(bedtime), hhmm(wake))); ask(.meals) }
             }
         case .meals:
             VStack(spacing: 10) {
-                mealRow("早餐", $hasBreakfast, $breakfast)
-                mealRow("午餐", $hasLunch, $lunch)
-                mealRow("晚餐", $hasDinner, $dinner)
-                confirm("确定") { mySay(mealSummary); ask(.places) }
+                mealRow(String(localized: "Breakfast"), $hasBreakfast, $breakfast)
+                mealRow(String(localized: "Lunch"), $hasLunch, $lunch)
+                mealRow(String(localized: "Dinner"), $hasDinner, $dinner)
+                confirm(String(localized: "OK")) { mySay(mealSummary); ask(.places) }
             }
         case .places:
             VStack(spacing: 10) {
-                AddressAutocompleteField(placeholder: "家庭住址", text: $homeAddress)
-                AddressAutocompleteField(placeholder: "公司 / 学校(可选)", text: $workAddress)
+                AddressAutocompleteField(placeholder: String(localized: "Home address"), text: $homeAddress)
+                AddressAutocompleteField(placeholder: String(localized: "Work / school (optional)"), text: $workAddress)
                 HStack(spacing: 10) {
-                    chip("先跳过") { mySay("地址先不填"); finishFlow() }
-                    confirm("完成设定") { mySay(placeSummary); finishFlow() }
+                    chip(String(localized: "Skip for now")) { mySay(String(localized: "Skip address for now")); finishFlow() }
+                    confirm(String(localized: "Finish setup")) { mySay(placeSummary); finishFlow() }
                 }
             }
         case .done:
             if saveFailed {
-                confirm("重试") { saveFailed = false; Task { await save() } }
+                confirm(String(localized: "Retry")) { saveFailed = false; Task { await save() } }
             } else {
-                HStack(spacing: 8) { ProgressView(); Text("正在为你布置…").foregroundStyle(.secondary).font(.subheadline) }
+                HStack(spacing: 8) { ProgressView(); Text("Setting things up…").foregroundStyle(.secondary).font(.subheadline) }
                     .frame(maxWidth: .infinity)
             }
         }
@@ -168,31 +170,31 @@ struct OnboardingView: View {
     // MARK: - Summaries (shown as the user's reply bubble)
 
     private var workSummary: String {
-        var s = "上班 \(hhmm(workStart))–\(hhmm(workEnd)),\(daysLabel(workDays))"
-        if commuteMin > 0 { s += ",通勤 \(commuteMin) 分钟" }
+        var s = String(format: String(localized: "Work %1$@–%2$@, %3$@"), hhmm(workStart), hhmm(workEnd), daysLabel(workDays))
+        if commuteMin > 0 { s += String(format: String(localized: ", %d-min commute"), commuteMin) }
         return s
     }
     private var mealSummary: String {
         var parts: [String] = []
-        if hasBreakfast { parts.append("早 \(hhmm(breakfast))") }
-        if hasLunch { parts.append("午 \(hhmm(lunch))") }
-        if hasDinner { parts.append("晚 \(hhmm(dinner))") }
-        return parts.isEmpty ? "不用特意留三餐时间" : parts.joined(separator: "、")
+        if hasBreakfast { parts.append(String(format: String(localized: "breakfast %@"), hhmm(breakfast))) }
+        if hasLunch { parts.append(String(format: String(localized: "lunch %@"), hhmm(lunch))) }
+        if hasDinner { parts.append(String(format: String(localized: "dinner %@"), hhmm(dinner))) }
+        return parts.isEmpty ? String(localized: "No set meal times") : parts.joined(separator: " · ")
     }
     private var placeSummary: String {
         var parts: [String] = []
-        if !homeAddress.trimmingCharacters(in: .whitespaces).isEmpty { parts.append("家:\(homeAddress)") }
-        if !workAddress.trimmingCharacters(in: .whitespaces).isEmpty { parts.append("公司:\(workAddress)") }
-        return parts.isEmpty ? "地址先不填" : parts.joined(separator: " / ")
+        if !homeAddress.trimmingCharacters(in: .whitespaces).isEmpty { parts.append(String(format: String(localized: "Home: %@"), homeAddress)) }
+        if !workAddress.trimmingCharacters(in: .whitespaces).isEmpty { parts.append(String(format: String(localized: "Work: %@"), workAddress)) }
+        return parts.isEmpty ? String(localized: "Skip address for now") : parts.joined(separator: " / ")
     }
 
     private func daysLabel(_ days: Set<Int>) -> String {
         let s = days.sorted()
-        if s == [0, 1, 2, 3, 4, 5, 6] { return "每天" }
-        if s == [1, 2, 3, 4, 5] { return "工作日" }
-        if s == [0, 6] { return "周末" }
-        let names = ["日", "一", "二", "三", "四", "五", "六"]
-        return "周" + s.map { names[$0] }.joined()
+        if s == [0, 1, 2, 3, 4, 5, 6] { return String(localized: "Every day") }
+        if s == [1, 2, 3, 4, 5] { return String(localized: "Weekdays") }
+        if s == [0, 6] { return String(localized: "Weekends") }
+        let names = Calendar.current.shortStandaloneWeekdaySymbols   // localized, 0=Sun
+        return s.map { names[$0] }.joined(separator: " ")
     }
 
     // MARK: - Small UI pieces
@@ -230,7 +232,7 @@ struct OnboardingView: View {
             if on.wrappedValue {
                 DatePicker("", selection: time, displayedComponents: .hourAndMinute).labelsHidden()
             } else {
-                Text("不吃").font(.caption).foregroundStyle(.secondary)
+                Text("Skip").font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -260,7 +262,7 @@ struct OnboardingView: View {
 
 private struct WeekdayPicker: View {
     @Binding var selection: Set<Int>
-    private let labels = ["日", "一", "二", "三", "四", "五", "六"]   // 0=Sun … 6=Sat
+    private let labels = Calendar.current.veryShortStandaloneWeekdaySymbols   // localized, 0=Sun … 6=Sat
 
     var body: some View {
         HStack(spacing: 6) {

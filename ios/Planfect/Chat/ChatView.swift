@@ -178,12 +178,12 @@ final class ChatViewModel: ObservableObject {
     static func seedFromOnboarding(_ lines: [(bot: Bool, text: String)], userId: UUID) {
         var chat = lines.map { ChatItem(content: .text($0.bot ? .assistant : .user, $0.text)) }
         let guide = [
-            "全部记好啦 ✨ 接下来怎么用我:",
-            "• 直接说要做的事就行——「明天下午去健身」「周五看牙」「这周写完报告」。我会排到合适的时间,并绕开你的作息。",
-            "• 拿不准我会先问你一句,点选项确认就好。",
-            "• 想看安排去下面的「Schedule」,想看时间花在哪了去「Insights」。",
-            "• 作息、地址、提醒随时在右上角头像 ▸ Profile 里改。",
-            "试试看:跟我说一件你接下来要做的事 👇",
+            String(localized: "All set ✨ Here's how to use me:"),
+            String(localized: "• Just tell me what you need — \"gym tomorrow afternoon\", \"dentist Friday\", \"finish the report this week\". I'll slot it into a good time and work around your routine."),
+            String(localized: "• If I'm unsure, I'll ask first — just tap an option."),
+            String(localized: "• See your plan in Schedule below; see where your time goes in Insights."),
+            String(localized: "• Change your routine, places, and reminders anytime under the avatar ▸ Profile."),
+            String(localized: "Give it a try: tell me one thing you need to do 👇"),
         ].joined(separator: "\n")
         chat.append(ChatItem(content: .text(.assistant, guide)))
         let payload = PersistedChat(history: [], items: chat.map(PersistedItem.init))
