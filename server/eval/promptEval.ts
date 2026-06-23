@@ -33,7 +33,7 @@ function demoContext(): PlanContext {
     ],
     locations: [], timezone: TZ, blocks: [], homeLocationId: undefined, workLocationId: undefined,
     preferredModes: ['transit', 'walking', 'driving'], preferences: [], observedHabits: 'none yet',
-    calendarBusy: [], recurring: [], isPro: true, closeFriends: [],
+    calendarBusy: [], recurring: [], isPro: true, closeFriends: [], regularFriends: [],
   };
 }
 

@@ -44,7 +44,8 @@ export interface PlanContext {
   calendarBusy: { start: number; end: number; title: string }[];   // real device-calendar events (from the request)
   recurring: RecurringRow[];  // active recurring tasks/habits
   isPro: boolean;             // active Planfect Pro subscription (gates paid features when billing is on)
-  closeFriends: { id: string; username: string; name: string }[];   // friends who let the user add to THEIR calendar
+  closeFriends: { id: string; username: string; name: string }[];   // friends who let the user add to THEIR calendar (close)
+  regularFriends: { id: string; username: string; name: string }[]; // accepted friends who have NOT made the user close
 }
 
 interface RecurringRow {
@@ -97,18 +98,23 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     .gte('start_at', fromUtc)
     .order('start_at')
     .limit(100);
-  // Friends who set ME as a "close" friend — they let me add plans to their calendar.
-  const { data: closeEdges } = await supabase
-    .from('friendships').select('owner_id')
-    .eq('friend_id', userId).eq('tier', 'close').eq('status', 'accepted');
-  const closeIds = (closeEdges ?? []).map((e: { owner_id: string }) => e.owner_id);
-  let closeFriends: { id: string; username: string; name: string }[] = [];
-  if (closeIds.length) {
+  // Accepted friends, keyed by the tier THEY grant me (their edge: owner=them, friend=me). 'close'
+  // lets me add a plan to their calendar; 'friend' (regular) does not.
+  const { data: friendEdges } = await supabase
+    .from('friendships').select('owner_id, tier')
+    .eq('friend_id', userId).eq('status', 'accepted');
+  const tierByFriend = new Map<string, string>();
+  for (const e of (friendEdges ?? []) as { owner_id: string; tier: string }[]) tierByFriend.set(e.owner_id, e.tier);
+  const closeFriends: { id: string; username: string; name: string }[] = [];
+  const regularFriends: { id: string; username: string; name: string }[] = [];
+  if (tierByFriend.size) {
     const { data: fps } = await supabase
-      .from('profiles').select('id,username,display_name').in('id', closeIds);
-    closeFriends = ((fps ?? []) as { id: string; username: string | null; display_name: string | null }[])
-      .filter((p) => p.username)
-      .map((p) => ({ id: p.id, username: p.username as string, name: p.display_name || (p.username as string) }));
+      .from('profiles').select('id,username,display_name').in('id', [...tierByFriend.keys()]);
+    for (const p of ((fps ?? []) as { id: string; username: string | null; display_name: string | null }[])) {
+      if (!p.username) continue;
+      const entry = { id: p.id, username: p.username, name: p.display_name || p.username };
+      (tierByFriend.get(p.id) === 'close' ? closeFriends : regularFriends).push(entry);
+    }
   }
 
   return {
@@ -125,6 +131,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string): Pro
     recurring: recurringRows,
     isPro: profile.data?.is_pro ?? false,
     closeFriends,
+    regularFriends,
   };
 }
 
@@ -278,13 +285,15 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     `LEARNED PREFERENCES — apply these every time; they reflect how THIS user likes things and override generic defaults: ${ctx.preferences.length ? ctx.preferences.map((p) => `- ${p.text} [pref:${p.id}]`).join(' ') : 'none yet'}`,
     `OBSERVED HABITS from their past schedule (soft hints, weaker than a stated preference or routine; use only when it fits): ${ctx.observedHabits}`,
     `Recurring tasks already set up (reference by id to change/stop): ${formatRecurring(ctx.recurring)}`,
-    `CLOSE FRIENDS who let you add plans to THEIR calendar: ${ctx.closeFriends.length ? ctx.closeFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
-    'WITH A FRIEND: when the user says a plan is together with one of the CLOSE FRIENDS listed above',
-    '(e.g. "和 @sam 一起看电影", "dinner with Alex", "和 greenleaf 吃饭"), match the name they said —',
-    'even an approximate / lowercased / casual spelling, or a display name — to the closest close',
-    'friend in that list, and set that task\'s with_friend to THAT friend\'s EXACT username from the',
-    'list (without the @). It then gets added to BOTH calendars. Only if NO close friend reasonably',
-    'matches, schedule it for the user alone and say so.',
+    `CLOSE FRIENDS — you CAN add a shared plan to their calendar: ${ctx.closeFriends.length ? ctx.closeFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
+    `OTHER FRIENDS — accepted, but they have NOT made you close, so you canNOT add to their calendar yet: ${ctx.regularFriends.length ? ctx.regularFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
+    'WITH A FRIEND: when the user says a plan is together with someone (e.g. "和 @sam 一起看电影",',
+    '"dinner with Alex", "和 greenleaf 吃饭"), match the name they said — even an approximate /',
+    'lowercased / casual spelling, or a display name — to the closest friend in the two lists above.',
+    'Then: if it matches a CLOSE friend, set that task\'s with_friend to that friend\'s EXACT username',
+    '(without @) so it lands on BOTH calendars. If it matches an OTHER friend, schedule it for the user',
+    'alone and add ONE line that they need to set you as a close friend first to plan together. If it',
+    'matches no friend at all, just schedule it for the user.',
     'RECURRING: when the user wants to do something REPEATEDLY on a schedule (每周一三五健身 / 每天背单词 /',
     'every Tuesday night), call set_recurring with days_of_week + start_local — do NOT create a separate',
     'one-off for each, and do NOT use set_routine (that is for work/sleep/meal background to avoid). To',
