@@ -260,3 +260,16 @@
 "• See your plan in Schedule below; see where your time goes in Insights." = "• 想看安排去下面的「Schedule」,想看时间花在哪了去「Insights」。";
 "• Change your routine, places, and reminders anytime under the avatar ▸ Profile." = "• 作息、地址、提醒随时在右上角头像 ▸ Profile 里改。";
 "Give it a try: tell me one thing you need to do 👇" = "试试看:跟我说一件你接下来要做的事 👇";
+
+/* AI data-use consent (App Store 5.1.1(i) / 5.1.2(i)) */
+"How Planfect uses AI" = "Planfect 如何使用 AI";
+"To turn what you type into a schedule, Planfect sends your request to a third-party AI service for processing. Here's exactly what that means." = "为了把你输入的内容变成日程,Planfect 会把你的请求发送给第三方 AI 服务进行处理。下面是具体说明。";
+"What we send" = "我们发送什么";
+"Your chat messages, plus the task, routine, and schedule details needed to plan them. Addresses you enter for travel times are sent to Google Maps." = "你的聊天消息,以及为安排它们所需的任务、作息和日程信息。你为估算通勤而输入的地址会发送给 Google Maps。";
+"Who it goes to" = "发送给谁";
+"A third-party AI provider — OpenAI, or MiniMax for users in mainland China — which processes your request to generate a plan." = "第三方 AI 服务商——OpenAI(中国大陆用户为 MiniMax)——由它处理你的请求来生成日程。";
+"What we never do" = "我们绝不会做的";
+"We don't use your data for advertising or cross-app tracking, and we never sell it." = "我们不会把你的数据用于广告或跨 App 跟踪,也绝不出售。";
+"Read our Privacy Policy" = "查看隐私政策";
+"Agree & Continue" = "同意并继续";
+"Not now" = "暂不";

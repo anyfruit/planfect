@@ -33,6 +33,34 @@ final class ChatViewModel: ObservableObject {
     private var supa: SupabaseManager?
     private var history: [JSONValue] = []   // full LLM thread, sent every turn so context persists
 
+    // MARK: - AI-consent gate (App Store 5.1.1(i) / 5.1.2(i))
+    // Nothing is sent to the third-party AI provider until the user has agreed IN-APP. `ensureConsent`
+    // gates every send/answer; the sheet (bound to `showConsent`) calls grant/decline. One-time.
+    @Published var showConsent = false
+    private var pendingAfterConsent: (() -> Void)?
+    private static let consentKey = "planfect.aiConsent.v1"
+    var hasAIConsent: Bool { UserDefaults.standard.bool(forKey: Self.consentKey) }
+
+    /// True if the user has already consented; otherwise stash `proceed`, show the sheet, return false.
+    private func ensureConsent(then proceed: @escaping () -> Void) -> Bool {
+        if hasAIConsent { return true }
+        pendingAfterConsent = proceed
+        showConsent = true
+        return false
+    }
+    /// User agreed — persist it and run whatever was waiting (the original send/answer).
+    func grantAIConsent() {
+        UserDefaults.standard.set(true, forKey: Self.consentKey)
+        showConsent = false
+        let go = pendingAfterConsent; pendingAfterConsent = nil
+        go?()
+    }
+    /// User declined — dismiss; nothing is sent.
+    func declineAIConsent() {
+        showConsent = false
+        pendingAfterConsent = nil
+    }
+
     func bind(_ supa: SupabaseManager) {
         guard self.supa == nil else { return }
         self.supa = supa
@@ -44,6 +72,7 @@ final class ChatViewModel: ObservableObject {
     func seedIfRequested() {
         guard !seeded, let msg = ProcessInfo.processInfo.environment["PLANFECT_SEED_MESSAGE"] else { return }
         seeded = true
+        UserDefaults.standard.set(true, forKey: Self.consentKey)   // auto-consent in seeded UI tests
         input = msg
         send()
     }
@@ -52,6 +81,7 @@ final class ChatViewModel: ObservableObject {
     func send() {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !sending else { return }
+        guard ensureConsent(then: { [weak self] in self?.send() }) else { return }
         input = ""
         activeQuestionID = nil   // a new message supersedes any pending question card
         items.append(.user(text))
@@ -69,6 +99,7 @@ final class ChatViewModel: ObservableObject {
 
     func answer(_ answers: [QuestionAnswer]) {
         guard !sending else { return }
+        guard ensureConsent(then: { [weak self] in self?.answer(answers) }) else { return }
         activeQuestionID = nil   // answering it now — lock the card so it can't be re-submitted
         let summary = answers.flatMap(\.selected).joined(separator: ", ")
         items.append(.user(summary.isEmpty ? String(localized: "(no selection)") : summary))
@@ -340,6 +371,10 @@ struct ChatView: View {
             Text(speech.errorMessage ?? "")
         }
         .sheet(isPresented: $vm.showPaywall) { PaywallView() }
+        .sheet(isPresented: $vm.showConsent) {
+            AIConsentView(onAgree: { vm.grantAIConsent() }, onDecline: { vm.declineAIConsent() })
+                .interactiveDismissDisabled()
+        }
     }
 
     private var inputBar: some View {

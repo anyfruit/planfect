@@ -207,6 +207,16 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-06-24_
+
+- **In-app AI data-use consent (App Review 5.1.1(i) / 5.1.2(i)).** Before any text reaches the
+  third-party AI, the app now shows a one-time in-app disclosure + consent: **what** is sent (your
+  messages plus the task / routine / schedule context), **who** it goes to (OpenAI, or MiniMax in
+  mainland China; addresses → Google Maps), and what we **never** do (no ads, no cross-app tracking,
+  no selling) — with a Privacy Policy link and an **Agree & Continue** gate that blocks every
+  send / answer until accepted (a privacy policy alone is not sufficient, per Apple). The privacy
+  policy now names each provider and confirms equivalent protection. Bilingual (EN / 中文).
+
 _2026-06-23_
 
 - **App Review 2.1 fix — onboarding now follows the device language.** The 1.0 submission was held
