@@ -93,7 +93,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string, admi
   const fromUtc = new Date(zonedToUtc({ year: ymd[0], month: ymd[1], day: ymd[2] }, 0, timezone)).toISOString();
   const { data: blocks } = await supabase
     .from('time_blocks')
-    .select('title,kind,status,start_at,end_at,task_id')
+    .select('title,kind,status,start_at,end_at,task_id,tz')
     .eq('user_id', userId)
     .gte('start_at', fromUtc)
     .order('start_at')
@@ -279,7 +279,17 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'political side. If a message is abusive or asks for any of that, do not argue or engage: decline',
     'in ONE warm line and steer back to planning (e.g. "这个我帮不上忙哈 🙂 想安排点什么吗？"). Stay',
     'kind and positive even when the user is rude.',
-    `Timezone: ${ctx.timezone}.`,
+    `Timezone: ${ctx.timezone} — where the user IS right now. Every clock time below, and every time the user says, is ALREADY on this zone's clock.`,
+    'NEVER convert or shift a clock time the user gives. "3pm" / "晚上10点" means exactly that on this',
+    'zone\'s clock — pass it verbatim as start_local (HH:MM, 24h). Do NOT adjust it for where the user is',
+    'physically, for a layover/连接航班, or because they remark something like "我说的是 LA 时间" — that',
+    'only confirms WHICH zone to label it, it is NOT a cue to do arithmetic. Storing 21:00 for a stated',
+    '22:00 (or 14:00 for a stated 15:00) is a serious error — pass the exact number they said.',
+    'PER-EVENT timezone: nearly every plan happens where the user is now — leave schedule_tasks.timezone',
+    'UNSET and the server uses this zone. ONLY set a task\'s timezone (an IANA zone) when the user is',
+    'pre-planning for somewhere they are NOT yet (at home, booking things for next week\'s NYC trip →',
+    'America/New_York). Each plan keeps its own zone forever, so the user always sees the wall-clock they',
+    'chose, even after they fly home or travel again.',
     `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
     `Already on the user's calendar (their CURRENT plans — never say a day is empty if any fall on it): ${formatBlocks(ctx.blocks, ctx.timezone)}`,
     `The user's REAL device calendar (hard commitments — schedule AROUND these, never overlap them): ${formatCalBusy(ctx.calendarBusy, ctx.timezone)}`,
@@ -405,6 +415,23 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'clear, just call update_task to fix it and confirm in one line. If you genuinely need their call, offer',
     'it as tappable options via ask_user_questions (e.g. "改到今天 14:00?" → [可以 / 换个时间]) — NEVER reply',
     'with plain text that asks the user to say "好，重新排" or otherwise resend a message. Efficiency matters.',
+    'A CORRECTION TARGETS THE ITEM NAMED. When the user restates the time of something already scheduled',
+    '("我的意思是日料三点吃", "the meeting is actually at 4"), you MUST update THAT item via update_task —',
+    'do not just shuffle other tasks around it and leave the named one at its old wrong time. If one',
+    'message moves an ANCHOR and also mentions things that depend on it ("日料三点吃，吃完再去逛街"),',
+    'FIRST update the anchor (日料 → 15:00), THEN move/place each dependent relative to the anchor\'s NEW',
+    'time — never relative to a time you only imagined it would move to.',
+    'AFTER / BEFORE another item ("吃完再…", "after X", "before my call"): anchor on that item\'s ACTUAL',
+    'time as shown in the calendar list above — for "after X" pass earliest_start = X\'s real END; for',
+    '"before X" pass deadline = X\'s real START. Do NOT pin a guessed clock time, and do NOT let the new',
+    'task overlap X. If you are also moving X this turn, compute "after/before" from X\'s NEW time. Never',
+    'tell the user something is "刚好接在X后面 / right after X" unless it truly starts at X\'s end.',
+    'BULK EDITS — when the user asks to change MANY existing items at once ("把所有日程平移一小时",',
+    '"全部改成…", "everything an hour later", "clear tomorrow"): just DO it — call update_task once per',
+    'affected item (each is listed above with its [task:id]). NEVER refuse with "没法一键 / can\'t do that',
+    'in one go" or push the work back to the user; iterating one-by-one IS the job and is invisible to',
+    'them. If there are more than you can confidently handle at once, change the ones shown above, then',
+    'say plainly how many remain and offer to continue.',
     'NEVER expose internal mechanics to the user: do not mention tool names, task ids / task_id, UUIDs,',
     '"the system", "no task_id", JSON, or how scheduling works. Those [task:…] ids are for your tool calls',
     'ONLY. Talk like a friend about the plan itself (titles, times, days) — if something cannot be done,',
@@ -627,23 +654,38 @@ export function buildHandlers(
           await supabase.from('tasks').update({ status: changes.status }).eq('id', taskId);
           if (!changes.date && !changes.start_local) return JSON.stringify({ ok: true, action: 'status', status });
         }
-        if (changes.start_local || changes.date || changes.estimated_duration_min) {
+        if (changes.start_local || changes.date || changes.estimated_duration_min || changes.timezone) {
           const { data: blocks } = await supabase
-            .from('time_blocks').select('id,kind,start_at,end_at').eq('task_id', taskId).order('start_at');
+            .from('time_blocks').select('id,kind,start_at,end_at,tz').eq('task_id', taskId).order('start_at');
           const main = (blocks ?? []).find((b) => b.kind === 'task') ?? (blocks ?? [])[0];
           if (!main) return JSON.stringify({ ok: false, error: 'task has no blocks' });
-          const cur = localParts(Date.parse(String(main.start_at)), tz);
+          // Interpret the (existing or new) wall-clock in the block's own timezone — keeps a trip
+          // event in its trip zone — unless the change explicitly moves it to another zone.
+          const blockTz = safeTimezone(changes.timezone, (main.tz as string | null) ?? tz);
+          const cur = localParts(Date.parse(String(main.start_at)), blockTz);
           const durMin = changes.estimated_duration_min
             ? Number(changes.estimated_duration_min)
             : Math.round((Date.parse(String(main.end_at)) - Date.parse(String(main.start_at))) / 60_000);
           const date = changes.date ? parseDate(String(changes.date)) : cur.date;
           if (!date) return JSON.stringify({ ok: false, error: 'invalid date' });
           const startMin = changes.start_local ? timeToMin(String(changes.start_local)) : cur.minutes;
-          const newStart = zonedToUtc(date, startMin, tz);
+          const newStart = zonedToUtc(date, startMin, blockTz);
           const newEnd = newStart + durMin * 60_000;
           await supabase.from('time_blocks').update({
-            start_at: new Date(newStart).toISOString(), end_at: new Date(newEnd).toISOString(),
+            start_at: new Date(newStart).toISOString(), end_at: new Date(newEnd).toISOString(), tz: blockTz,
           }).eq('id', main.id);
+          // Move the satellite blocks WITH the task so they stay contiguous (otherwise a moved task
+          // strands its old commute/buffer on the calendar): commute keeps its length and ends at the
+          // new start; buffer keeps its length and begins at the new end.
+          for (const b of (blocks ?? [])) {
+            if (b.id === main.id) continue;
+            const len = Date.parse(String(b.end_at)) - Date.parse(String(b.start_at));
+            const s = b.kind === 'commute' ? newStart - len : b.kind === 'buffer' ? newEnd : null;
+            if (s == null) continue;
+            await supabase.from('time_blocks').update({
+              start_at: new Date(s).toISOString(), end_at: new Date(s + len).toISOString(), tz: blockTz,
+            }).eq('id', b.id);
+          }
           return JSON.stringify({ ok: true, action: 'rescheduled', start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString() });
         }
         if (typeof changes.title === 'string' && changes.title.trim()) {
@@ -788,9 +830,13 @@ export function buildHandlers(
         // Mode for the commute block + receipt: what the model said it'd travel by, else the
         // user's preferred mode. Drives the receipt label and the transport_mode column/icon.
         const commuteMode = normalizeMode(t.transport_mode) ?? ctx.preferredModes[0] ?? 'transit';
+        // The timezone this task's wall-clock belongs to: the per-task override the model set for a
+        // trip, else the session's planning tz (the device's current zone). start_local/date are read
+        // in THIS zone and it is stored on every block so the app always renders the planned clock time.
+        const taskTz = safeTimezone(t.timezone, tz);
 
-        const { availability, busy } = planningWindowsForDate(routines, date, tz);
-        const dayBusy = demo ? [] : await loadDayBusy(supabase, userId, date, tz);
+        const { availability, busy } = planningWindowsForDate(routines, date, taskTz);
+        const dayBusy = demo ? [] : await loadDayBusy(supabase, userId, date, taskTz);
         // Routine is a soft default. A pinned explicit time (start_local) may land ANYWHERE on the
         // day — even over sleep — so it uses a full-day window; an un-pinned task stays in the awake
         // window. When overriding routine we only avoid other already-booked tasks. The agent is
@@ -799,7 +845,7 @@ export function buildHandlers(
         const overlap = t.allow_overlap === true;
         const overRoutine = t.allow_over_routine === true || pinned;
         const window = pinned
-          ? [{ start: zonedToUtc(date, 0, tz), end: zonedToUtc(date, 28 * 60, tz) }]
+          ? [{ start: zonedToUtc(date, 0, taskTz), end: zonedToUtc(date, 28 * 60, taskTz) }]
           : availability;
         // allow_overlap = the user wants this concurrently with another activity (一边…一边…),
         // so don't treat existing tasks as conflicts — just drop it at the requested time.
@@ -815,9 +861,9 @@ export function buildHandlers(
           // An explicit start_local is the time the task itself should START (you arrive/begin then);
           // pass it as pinnedStart so any commute is laid down BEFORE it. Otherwise it's just a soft
           // "not before" bound.
-          pinnedStart: t.start_local ? zonedToUtc(date, timeToMin(t.start_local), tz) : undefined,
-          earliestStart: t.start_local ? undefined : parseWhen(t.earliest_start, tz),
-          deadline: parseWhen(t.deadline, tz),
+          pinnedStart: t.start_local ? zonedToUtc(date, timeToMin(t.start_local), taskTz) : undefined,
+          earliestStart: t.start_local ? undefined : parseWhen(t.earliest_start, taskTz),
+          deadline: parseWhen(t.deadline, taskTz),
         });
         if (!placement.ok) {
           items.push({ title: t.title, start: null, end: null });
@@ -834,6 +880,7 @@ export function buildHandlers(
             title: t.title,
             start: new Date(ss[0].start).toISOString(),
             end: new Date(ss[ss.length - 1].end).toISOString(),
+            tz: taskTz,
             commute: cm
               ? { mode: commuteMode, leaveAt: new Date(cm.start).toISOString(), durationMin: clampCommuteMin((cm.end - cm.start) / 60_000) }
               : undefined,
@@ -872,6 +919,7 @@ export function buildHandlers(
               task_id: taskId,
               location_id: t.location_id ?? null,
               category: t.category ?? null,
+              tz: taskTz,
             })),
           );
         } else {
@@ -879,6 +927,7 @@ export function buildHandlers(
             task_id: taskId,
             location_id: t.location_id ?? null,
             category: t.category ?? null,
+            tz: taskTz,
           }));
         }
         if (commute) {
@@ -886,10 +935,11 @@ export function buildHandlers(
             task_id: taskId,
             destination_location_id: t.location_id ?? null,
             transport_mode: commuteMode,
+            tz: taskTz,
           }));
         }
         if (buffer) {
-          rows.push(blockRow(userId, `Buffer after ${t.title}`, 'buffer', buffer, { task_id: taskId }));
+          rows.push(blockRow(userId, `Buffer after ${t.title}`, 'buffer', buffer, { task_id: taskId, tz: taskTz }));
         }
 
         // Collaborative double-booking: if the user named a CLOSE friend, stamp a shared id on the
@@ -918,6 +968,7 @@ export function buildHandlers(
               user_id: friend.id, title: r.title as string, kind: 'task', status: 'planned',
               start_at: r.start_at as string, end_at: r.end_at as string,
               category: (r.category as string | null) ?? null, shared_event_id: sharedId,
+              tz: taskTz,
             }));
           const { error: fErr } = await friendWriter.from('time_blocks').insert(friendRows);
           if (fErr) {
@@ -943,6 +994,7 @@ export function buildHandlers(
           title: t.title,
           start: new Date(first.start).toISOString(),
           end: new Date(last.end).toISOString(),
+          tz: taskTz,
           commute: commute
             ? {
                 mode: commuteMode,
@@ -993,8 +1045,9 @@ const DEFAULT_DURATION_MIN = 60;
 interface ScheduleTaskArg {
   title: string;
   date: string; // YYYY-MM-DD, user-local
+  timezone?: string;    // IANA tz this task's clock time is in; defaults to the session planning tz
   estimated_duration_min?: number;
-  start_local?: string; // HH:MM in the user's timezone
+  start_local?: string; // HH:MM in the task's timezone
   location_id?: string | null;
   category?: string;
   commute_min?: number;
@@ -1012,6 +1065,7 @@ interface ScheduledItem {
   title: string;
   start: string | null;
   end: string | null;
+  tz?: string;   // IANA tz the item's clock time is in, so the receipt renders the planned wall-clock
   commute?: { mode: string; leaveAt: string; durationMin: number };
 }
 
@@ -1030,6 +1084,19 @@ function toRoutineInputs(rows: unknown[]): RoutineInput[] {
 function timeToMin(t: string): number {
   const [h, m] = String(t ?? '').split(':').map(Number);
   return (h || 0) * 60 + (m || 0);
+}
+
+/** Validate a model/client-supplied IANA timezone; fall back to `fallback` if missing or bogus.
+ *  Keeps a hallucinated zone (or a city name the model passed) from corrupting time math. */
+function safeTimezone(tz: unknown, fallback: string): string {
+  const s = String(tz ?? '').trim();
+  if (!s) return fallback;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: s });
+    return s;
+  } catch {
+    return fallback;
+  }
 }
 
 /**
@@ -1058,18 +1125,22 @@ function localParts(ms: number, tz: string): { date: CalendarDate; minutes: numb
   return { date: { year: m.year, month: m.month, day: m.day }, minutes: m.hour * 60 + m.minute };
 }
 
-/** Compact, timezone-local summary of existing blocks for the system prompt. */
+/** Compact summary of existing blocks for the system prompt. Each block is shown in ITS OWN stored
+ *  timezone (falling back to the session tz for legacy rows), with a short zone hint when it differs
+ *  from the session tz — so the model reads each plan at the wall-clock the user actually sees. */
 function formatBlocks(blocks: unknown[], tz: string): string {
   const list = (blocks as Array<Record<string, unknown>>) ?? [];
   if (!list.length) return 'nothing yet';
-  const span = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  });
-  const endf = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
   return list
     .map((b) => {
+      const btz = safeTimezone(b.tz, tz);
+      const span = new Intl.DateTimeFormat('en-US', {
+        timeZone: btz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      });
+      const endf = new Intl.DateTimeFormat('en-US', { timeZone: btz, hour: 'numeric', minute: '2-digit' });
       const id = b.task_id ? ` [task:${String(b.task_id)}]` : '';
-      return `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}${id}`;
+      const zone = btz !== tz ? ` (${btz})` : '';
+      return `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))}${zone} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}${id}`;
     })
     .join('; ');
 }

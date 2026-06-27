@@ -54,11 +54,32 @@ export function scheduleTask(
   const commuteMs = (req.commuteMin ?? 0) * 60_000;
   const bufferMs = (req.bufferMin ?? 0) * 60_000;
   const need = commuteMs + durationMs + bufferMs;
-  // A pinned start is the TASK's start time (arrival/appointment). The commute precedes it, so the
-  // whole block (commute + task + buffer) must begin commuteMs EARLIER — leave early, arrive on time.
-  // Without a pin, fall back to the soft earliestStart (commute then task both after it).
-  const searchEarliest = req.pinnedStart != null ? req.pinnedStart - commuteMs : req.earliestStart;
-  const slot = findSlot(free, need, { earliestStart: searchEarliest, deadline: req.deadline });
+
+  // A pinned start is the TASK's exact start time the user gave/agreed (arrival/appointment). It must
+  // land EXACTLY there — never slide to a later gap. The commute precedes it (leave early, arrive on
+  // time) and the buffer follows. If that fixed span hits a busy block, report no_slot so the caller
+  // surfaces the conflict (the agent can re-place over it / pick another time); do NOT silently move
+  // an explicit time, which would contradict the user. `busy` is what the caller wants honored — for
+  // a "do this concurrently" request it passes [] so the pin always fits.
+  if (req.pinnedStart != null) {
+    const spanStart = req.pinnedStart - commuteMs;
+    const spanEnd = req.pinnedStart + durationMs + bufferMs;
+    const fits = free.some((s) => s.start <= spanStart && spanEnd <= s.end);
+    if (!fits) return { ok: false, reason: 'no_slot' };
+    const blocks: PlacedBlock[] = [];
+    let cursor = spanStart;
+    if (commuteMs > 0) {
+      blocks.push({ kind: 'commute', start: cursor, end: cursor + commuteMs });
+      cursor += commuteMs;
+    }
+    blocks.push({ kind: 'task', start: cursor, end: cursor + durationMs });
+    cursor += durationMs;
+    if (bufferMs > 0) blocks.push({ kind: 'buffer', start: cursor, end: cursor + bufferMs });
+    return { ok: true, blocks };
+  }
+
+  // Un-pinned: first-fit after the soft earliestStart (commute then task both after it).
+  const slot = findSlot(free, need, { earliestStart: req.earliestStart, deadline: req.deadline });
   if (!slot) return { ok: false, reason: 'no_slot' };
 
   const blocks: PlacedBlock[] = [];

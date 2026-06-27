@@ -87,6 +87,10 @@ extension SupabaseManager {
         req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Tell the planner where the user IS right now so it anchors new plans to this zone (per-event
+        // timezone). Set centrally so every caller gets it without threading it through each call site.
+        var request = request
+        request.device_timezone = TimeZone.current.identifier
         req.httpBody = try JSONEncoder().encode(request)
         return try await withBackgroundTask("plan") {
             let (data, resp) = try await URLSession.shared.data(for: req)
@@ -142,7 +146,7 @@ extension SupabaseManager {
     }
 
     func fetchBlocks() async throws -> [TimeBlock] {
-        let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode,category,task_id,is_private,tasks(notes)&order=start_at")
+        let data = try await rest("GET", "time_blocks?select=id,title,kind,status,start_at,end_at,transport_mode,category,task_id,is_private,tz,tasks(notes)&order=start_at")
         return try JSONDecoder().decode([TimeBlock].self, from: data)
     }
 

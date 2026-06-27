@@ -124,12 +124,21 @@ const scheduleTasks: ToolDef = {
             title: { type: 'string' },
             date: {
               type: 'string',
-              description: 'Local calendar day to schedule on, YYYY-MM-DD (in the user timezone).',
+              description: 'Local calendar day to schedule on, YYYY-MM-DD (in this task\'s timezone).',
+            },
+            timezone: {
+              type: 'string',
+              description:
+                "IANA timezone the date + start_local are in, e.g. 'America/Los_Angeles'. OMIT for " +
+                "anything happening where the user is now — the server defaults to their current zone. " +
+                'ONLY set this when the user is planning for a DIFFERENT place/timezone than where they ' +
+                'are right now (e.g. at home pre-booking things for an upcoming trip: 下周在纽约的事 → ' +
+                "'America/New_York'). The clock time is the wall-clock in THIS zone; never pre-convert it.",
             },
             estimated_duration_min: { type: 'integer', description: 'Minutes; defaults to 60 if omitted.' },
             start_local: {
               type: 'string',
-              description: "Exact local start time as HH:MM (24h) in the user's timezone — set this to pin the task at a specific time; the server converts it to UTC. Prefer this over earliest_start for a concrete time.",
+              description: "Exact local start time as HH:MM (24h) in this task's timezone — set this to pin the task at a specific time; the server converts it to UTC. Prefer this over earliest_start for a concrete time.",
             },
             location_id: { type: ['string', 'null'] },
             category: {
@@ -203,7 +212,9 @@ const updateTask: ToolDef = {
         description:
           "What to change: { title: 'New name' } to rename, { start_local: 'HH:MM', date: " +
           "'YYYY-MM-DD' } to move it, { estimated_duration_min: 90 } to resize, { status: 'done' } to " +
-          "complete, { delete: true } to remove.",
+          "complete, { delete: true } to remove. start_local is read in the task's existing timezone; " +
+          "pass { timezone: 'America/New_York' } too only to move it to a different zone. Moving a task " +
+          'carries its commute/buffer with it automatically.',
       },
     },
   },

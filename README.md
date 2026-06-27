@@ -207,6 +207,23 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-06-26_
+
+- **Per-event timezones + scheduling-accuracy fixes (from real user reports).** A traveling user
+  saw plans drift: times were rendered in the device's *current* zone, and the model would sometimes
+  "helpfully" shift an explicit clock time. Now every block carries its own IANA zone (`time_blocks.tz`),
+  set from where the user **is when they plan** (the app sends `device_timezone` each request; the
+  planner can override per-task for a future trip). The app — day list, week timeline, receipt card,
+  notifications, and the home-screen widget — renders each plan at the **wall-clock it was planned in**
+  (with a small "PDT"-style tag when it isn't the device's zone), so "3pm in LA" keeps showing 3pm
+  after you fly home. The system prompt now forbids ever converting a stated clock time. Plus three
+  agent fixes the reports surfaced: **(1)** correcting an item's time updates *that* item (and recomputes
+  anything "after" it from its real end, no more overlaps); **(2)** "do X after Y" anchors on Y's actual
+  end instead of a guessed slot; **(3)** bulk edits ("shift everything an hour", "全部改成…") iterate
+  `update_task` per item instead of refusing. A pinned/explicit time now never silently slides — it
+  lands exactly where asked or reports the conflict — and moving a task carries its commute/buffer
+  with it (no orphaned blocks). Server tests 37/37; app + widget build clean.
+
 _2026-06-24_
 
 - **In-app AI data-use consent (App Review 5.1.1(i) / 5.1.2(i)).** Before any text reaches the

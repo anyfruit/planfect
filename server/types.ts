@@ -32,6 +32,7 @@ export interface ReceiptItem {
   title: string;
   start: string;         // ISO-8601
   end: string;           // ISO-8601
+  tz?: string;           // IANA timezone the start/end wall-clock belongs to (per-event tz)
   commute?: ReceiptCommute;
 }
 export interface Receipt {

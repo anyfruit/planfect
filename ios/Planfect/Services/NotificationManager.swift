@@ -139,7 +139,7 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             content.title = focusStyle
                 ? String(format: NSLocalizedString("🎯 %@ time", comment: ""), NSLocalizedString(TaskCategory.of(b).label, comment: ""))
                 : NSLocalizedString("⏰ Up next", comment: "")
-            content.body = "\(b.title) · \(b.start.formatted(date: .omitted, time: .shortened))"
+            content.body = "\(b.title) · \(ZonedFormat.time(b.start, b.zone))"
             content.categoryIdentifier = Self.taskCategory
 
         default:

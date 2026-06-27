@@ -12,6 +12,7 @@ struct TimeBlock: Decodable, Identifiable {
     let category: String?
     let tasks: NoteRef?         // embedded task note (PostgREST: tasks(notes))
     let is_private: Bool        // friends see this as just "Busy", even close ones
+    let tz: String?             // IANA zone this block's wall-clock belongs to (per-event tz; nil = legacy)
     // Dates are parsed ONCE at decode time. (ISO8601DateFormatter is slow; the schedule/insights
     // views read .start/.end hundreds of times per render when sorting/filtering/positioning.)
     let start: Date
@@ -20,9 +21,11 @@ struct TimeBlock: Decodable, Identifiable {
     var isDone: Bool { status == "done" }
     var notes: String { tasks?.notes ?? "" }
     var durationMin: Int { max(5, Int(end.timeIntervalSince(start) / 60)) }
+    /// The zone to render this block in: its own stored zone, or the device zone for legacy rows.
+    var zone: TimeZone { tz.flatMap(TimeZone.init(identifier:)) ?? .current }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, kind, status, start_at, end_at, transport_mode, task_id, category, tasks, is_private
+        case id, title, kind, status, start_at, end_at, transport_mode, task_id, category, tasks, is_private, tz
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -35,6 +38,7 @@ struct TimeBlock: Decodable, Identifiable {
         category = try c.decodeIfPresent(String.self, forKey: .category)
         tasks = try c.decodeIfPresent(NoteRef.self, forKey: .tasks)
         is_private = try c.decodeIfPresent(Bool.self, forKey: .is_private) ?? false
+        tz = try c.decodeIfPresent(String.self, forKey: .tz)
         start = APIDate.parse(try c.decode(String.self, forKey: .start_at)) ?? .distantPast
         end = APIDate.parse(try c.decode(String.self, forKey: .end_at)) ?? .distantPast
     }
@@ -132,6 +136,7 @@ struct PlanRequest: Encodable {
     var messages: [JSONValue]? = nil
     var conversation_id: String? = nil
     var calendar_busy: [CalendarBusy]? = nil   // real device-calendar events to schedule around
+    var device_timezone: String? = nil         // where the user IS now → the session's planning tz
 }
 
 struct PlanResponse: Decodable {
@@ -170,7 +175,10 @@ struct ReceiptItem: Codable, Identifiable {
     let title: String
     let start: String?
     let end: String?
+    let tz: String?                 // IANA zone the start/end belong to (per-event tz)
     let commute: ReceiptCommute?
+    /// The zone to render this item in: its own stored zone, or the device zone as a fallback.
+    var zone: TimeZone { tz.flatMap(TimeZone.init(identifier:)) ?? .current }
 }
 
 struct ReceiptCommute: Codable {
@@ -192,6 +200,38 @@ enum APIDate {
         plain.date(from: s) ?? withFractional.date(from: s)
     }
     static func iso(_ d: Date) -> String { plain.string(from: d) }
+}
+
+// MARK: - Per-event timezone formatting
+//
+// A block/receipt item is rendered at the WALL-CLOCK time of the zone it was planned in, NOT the
+// device's current zone — so a "3pm" plan made on a California trip keeps showing 3pm after the user
+// flies home. Formatters are cached per zone because the schedule re-renders these many times a frame.
+enum ZonedFormat {
+    private static var timeCache: [String: DateFormatter] = [:]
+    private static var dayCache: [String: DateFormatter] = [:]
+
+    /// Short time ("3:00 PM" / "15:00" per locale) in `zone`.
+    static func time(_ d: Date, _ zone: TimeZone) -> String {
+        cached(&timeCache, zone) { $0.timeStyle = .short }.string(from: d)
+    }
+    /// Full day ("Sunday, Jun 28", localized) in `zone`.
+    static func dayFull(_ d: Date, _ zone: TimeZone) -> String {
+        cached(&dayCache, zone) { $0.setLocalizedDateFormatFromTemplate("EEEEMMMd") }.string(from: d)
+    }
+    /// A short zone tag ("PDT") to disambiguate when a block isn't in the device's current zone;
+    /// nil when it matches, so same-zone plans show no clutter.
+    static func zoneHint(_ d: Date, _ zone: TimeZone) -> String? {
+        guard zone.identifier != TimeZone.current.identifier else { return nil }
+        return zone.abbreviation(for: d)
+    }
+    private static func cached(_ cache: inout [String: DateFormatter], _ zone: TimeZone,
+                               _ configure: (DateFormatter) -> Void) -> DateFormatter {
+        if let f = cache[zone.identifier] { return f }
+        let f = DateFormatter(); f.timeZone = zone; configure(f)
+        cache[zone.identifier] = f
+        return f
+    }
 }
 
 // MARK: - Type-erased JSON (faithful round-trip of /plan `messages` for the resume flow)

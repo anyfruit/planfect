@@ -150,7 +150,7 @@ struct PlanfectWidgetEntryView: View {
     // Lock screen — inline (one line above the clock).
     private var inline: some View {
         if let t = headline {
-            Label("\(shortTime(t.start)) \(t.title)", systemImage: "calendar")
+            Label("\(WidgetTimeFormat.short(t.start, t.zone)) \(t.title)", systemImage: "calendar")
         } else {
             Label("No plans yet", systemImage: "sparkles")
         }
@@ -190,9 +190,8 @@ struct PlanfectWidgetEntryView: View {
     }
 
     private func timeText(_ t: WidgetTask) -> String {
-        "\(shortTime(t.start)) – \(shortTime(t.end))"
+        "\(WidgetTimeFormat.short(t.start, t.zone)) – \(WidgetTimeFormat.short(t.end, t.zone))"
     }
-    private func shortTime(_ d: Date) -> String { d.formatted(date: .omitted, time: .shortened) }
     private func moreText(_ n: Int) -> String { String(format: NSLocalizedString("+%lld more", comment: ""), n) }
     private func remainingText(_ n: Int) -> String { String(format: NSLocalizedString("%lld left today", comment: ""), n) }
 }

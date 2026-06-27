@@ -49,6 +49,23 @@ test('a pinned start puts the commute BEFORE it — the task lands exactly at th
   assert.equal(min(p.blocks[1].end), 19 * 60);
 });
 
+test('a pinned start that collides with a busy block does NOT silently slide — it reports no_slot', () => {
+  // User pins 12:00, but a meeting already sits 11:30–13:00. We must NOT quietly move the task to
+  // after the meeting (that contradicts the explicit time); the caller surfaces the conflict instead.
+  const meeting: Interval[] = [dayWindow(DAY, 11 * 60 + 30, 13 * 60)];
+  const p = scheduleTask(availability, meeting, { durationMin: 60, pinnedStart: at(12 * 60) });
+  assert.equal(p.ok, false);
+});
+
+test('a pinned start lands exactly on the pin when that exact span is free', () => {
+  // 12:00 pin with the morning clear → task is 12:00–13:00, never nudged.
+  const p = scheduleTask(availability, [], { durationMin: 60, pinnedStart: at(12 * 60) });
+  assert.equal(p.ok, true);
+  if (!p.ok) return;
+  assert.equal(min(p.blocks[0].start), 12 * 60);
+  assert.equal(min(p.blocks[0].end), 13 * 60);
+});
+
 test('respects a deadline by failing when nothing fits in time', () => {
   // Only the morning gap (07:00–09:00) is before the deadline; a 3h task cannot fit.
   const p = scheduleTask(availability, busy, { durationMin: 180, deadline: at(9 * 60) });

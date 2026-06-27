@@ -49,6 +49,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
 
     const ctx = await loadContext(supabase, user.id, admin);
+    // Planning timezone = where the user IS right now (the device's current zone, sent each request),
+    // falling back to their saved profile tz. This is what makes per-event timezone work: plans made
+    // on a trip are anchored to the trip's zone and keep showing that wall-clock afterward. The model
+    // can still override an individual task's zone (schedule_tasks.timezone) when pre-planning for a
+    // place the user isn't in yet. Validate before trusting it so a bad header can't break time math.
+    const deviceTz = typeof body.device_timezone === 'string' ? body.device_timezone.trim() : '';
+    if (deviceTz) {
+      try { new Intl.DateTimeFormat('en-US', { timeZone: deviceTz }); ctx.timezone = deviceTz; } catch { /* keep profile tz */ }
+    }
     // Real device-calendar events the app passes in, so the planner schedules around them.
     ctx.calendarBusy = ((body.calendar_busy ?? []) as Array<{ start: string; end: string; title?: string }>)
       .map((c) => ({ start: Date.parse(c.start), end: Date.parse(c.end), title: String(c.title ?? 'Busy') }))

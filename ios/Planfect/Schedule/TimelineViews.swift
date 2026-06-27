@@ -50,16 +50,21 @@ enum TimelineLayout {
 }
 
 enum TimelineMath {
-    static func minutes(_ d: Date) -> CGFloat {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: d)
+    /// Minutes-from-midnight of `d` IN `zone` — positions a block at its own wall-clock (per-event tz),
+    /// so a trip's plan sits where its planned time is, not where the device's clock would put it.
+    static func minutes(_ d: Date, _ zone: TimeZone) -> CGFloat {
+        var cal = Calendar.current; cal.timeZone = zone
+        let c = cal.dateComponents([.hour, .minute], from: d)
         return CGFloat((c.hour ?? 0) * 60 + (c.minute ?? 0))
     }
-    static func y(_ start: Date, _ hourHeight: CGFloat) -> CGFloat { minutes(start) / 60 * hourHeight }
+    static func y(_ start: Date, _ zone: TimeZone, _ hourHeight: CGFloat) -> CGFloat {
+        minutes(start, zone) / 60 * hourHeight
+    }
     static func height(_ b: TimeBlock, _ hourHeight: CGFloat) -> CGFloat {
         max(22, CGFloat(max(15, b.durationMin)) / 60 * hourHeight)   // floor so short blocks stay tappable
     }
     static func firstHour(_ blocks: [TimeBlock]) -> Int {
-        let h = blocks.map { Calendar.current.component(.hour, from: $0.start) }.min()
+        let h = blocks.map { Int(minutes($0.start, $0.zone) / 60) }.min()
         return max(0, (h ?? 8) - 1)
     }
 }
@@ -107,7 +112,7 @@ private struct BlockCell: View {
                     .strikethrough(block.isDone)
                     .foregroundStyle(block.isDone ? Color.secondary : Color.primary)
                 if !compact {
-                    Text(block.start.formatted(date: .omitted, time: .shortened))
+                    Text(ZonedFormat.time(block.start, block.zone))
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }
@@ -175,7 +180,7 @@ struct WeekTimelineView: View {
                                     BlockCell(block: lo.block, compact: true)
                                         .frame(width: max(0, laneW - 2), height: h)
                                         .position(x: ruler + colW * CGFloat(idx) + laneW * (CGFloat(lo.lane) + 0.5),
-                                                  y: TimelineMath.y(lo.block.start, hourHeight) + h / 2)
+                                                  y: TimelineMath.y(lo.block.start, lo.block.zone, hourHeight) + h / 2)
                                         .onTapGesture { onTapBlock(lo.block) }
                                 }
                             }

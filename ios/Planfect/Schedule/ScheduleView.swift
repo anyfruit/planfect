@@ -185,6 +185,15 @@ private struct BlockRow: View {
     let block: TimeBlock
     let onToggleDone: () -> Void
 
+    // Times render in the block's OWN zone (per-event tz), with a "PDT"-style tag only when that
+    // zone differs from where the device is now — so a trip's plans keep their planned wall-clock.
+    private var timeRange: String {
+        let z = block.zone
+        let base = "\(ZonedFormat.time(block.start, z)) – \(ZonedFormat.time(block.end, z))"
+        if let hint = ZonedFormat.zoneHint(block.start, z) { return "\(base) \(hint)" }
+        return base
+    }
+
     var body: some View {
         let cat = TaskCategory.of(block)
         return HStack(spacing: 12) {
@@ -198,8 +207,7 @@ private struct BlockRow: View {
                 Text(block.title).font(.subheadline.weight(.medium)).lineLimit(1)
                     .strikethrough(block.isDone)
                     .foregroundStyle(block.isDone ? Color.secondary : Color.primary)
-                Text("\(block.start.formatted(date: .omitted, time: .shortened)) – \(block.end.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text(timeRange).font(.caption).foregroundStyle(.secondary)
             }
             Spacer()
             HStack(spacing: 3) {

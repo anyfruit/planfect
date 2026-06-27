@@ -15,7 +15,7 @@ enum WidgetBridge {
             .sorted { $0.start < $1.start }
             .prefix(50)
             .map { WidgetTask(id: $0.id.uuidString, title: $0.title, start: $0.start, end: $0.end,
-                              categoryKey: TaskCategory.bucketKey($0), isDone: $0.isDone) }
+                              categoryKey: TaskCategory.bucketKey($0), isDone: $0.isDone, tz: $0.tz) }
 
         PlanfectWidgetStore.save(Array(tasks))
         WidgetCenter.shared.reloadAllTimelines()

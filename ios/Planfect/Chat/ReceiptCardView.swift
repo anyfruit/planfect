@@ -18,7 +18,7 @@ struct ReceiptCardView: View {
                         Text(range).font(.footnote).foregroundStyle(.secondary)
                     }
                     if let c = item.commute, let leave = APIDate.parse(c.leaveAt) {
-                        Label("Leave \(leave.formatted(date: .omitted, time: .shortened)) · \(c.mode), \(c.durationMin) min",
+                        Label("Leave \(ZonedFormat.time(leave, item.zone)) · \(c.mode), \(c.durationMin) min",
                               systemImage: commuteIcon(c.mode))
                             .font(.caption).foregroundStyle(.secondary)
                     }
@@ -66,11 +66,13 @@ struct ReceiptCardView: View {
 
     private func timeRange(_ item: ReceiptItem) -> String? {
         guard let start = item.start.flatMap(APIDate.parse) else { return nil }
-        let day = start.formatted(.dateTime.weekday(.wide).month().day())
-        let from = start.formatted(date: .omitted, time: .shortened)
+        let z = item.zone   // render in the plan's own zone (per-event tz), not the device's
+        let day = ZonedFormat.dayFull(start, z)
+        let from = ZonedFormat.time(start, z)
+        let hint = ZonedFormat.zoneHint(start, z).map { " \($0)" } ?? ""
         if let end = item.end.flatMap(APIDate.parse) {
-            return "\(day) · \(from) – \(end.formatted(date: .omitted, time: .shortened))"
+            return "\(day) · \(from) – \(ZonedFormat.time(end, z))\(hint)"
         }
-        return "\(day) · \(from)"
+        return "\(day) · \(from)\(hint)"
     }
 }
