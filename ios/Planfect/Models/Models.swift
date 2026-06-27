@@ -124,9 +124,12 @@ struct FriendBlock: Decodable, Identifiable {
     let title: String
     let category: String?
     let kind: String
+    let tz: String?            // friend's per-event zone (close friends only; nil → render in device zone)
     var id: String { start_at + "|" + title }
     var start: Date { APIDate.parse(start_at) ?? .distantPast }
     var end: Date { APIDate.parse(end_at) ?? .distantPast }
+    /// Render the friend's block in the zone they planned it in, falling back to the device zone.
+    var zone: TimeZone { tz.flatMap(TimeZone.init(identifier:)) ?? .current }
 }
 
 // MARK: - /plan request & response

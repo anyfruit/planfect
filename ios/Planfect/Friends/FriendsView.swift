@@ -338,7 +338,7 @@ private struct FriendScheduleView: View {
                         Text(b.title == "Busy" ? String(localized: "Busy") : b.title)
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(b.title == "Busy" ? Color.secondary : Color.primary)
-                        Text("\(b.start.formatted(date: .omitted, time: .shortened)) – \(b.end.formatted(date: .omitted, time: .shortened))")
+                        Text(friendTimeRange(b))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
@@ -349,6 +349,15 @@ private struct FriendScheduleView: View {
 
     private func shift(_ d: Int) {
         if let nd = Calendar.current.date(byAdding: .day, value: d, to: day) { day = nd }
+    }
+
+    // Render a friend's block in the zone THEY planned it in (close friends carry it), tagging the
+    // zone when it differs from the viewer's — so a friend on a trip reads "3:00 PM PT", not shifted.
+    private func friendTimeRange(_ b: FriendBlock) -> String {
+        let z = b.zone
+        let base = "\(ZonedFormat.time(b.start, z)) – \(ZonedFormat.time(b.end, z))"
+        if let hint = ZonedFormat.zoneHint(b.start, z) { return "\(base) \(hint)" }
+        return base
     }
 
     private func load() async {

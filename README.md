@@ -222,7 +222,9 @@ _2026-06-26_
   end instead of a guessed slot; **(3)** bulk edits ("shift everything an hour", "全部改成…") iterate
   `update_task` per item instead of refusing. A pinned/explicit time now never silently slides — it
   lands exactly where asked or reports the conflict — and moving a task carries its commute/buffer
-  with it (no orphaned blocks). Server tests 37/37; app + widget build clean.
+  with it (no orphaned blocks). A friend's schedule renders in **their** planned zone too — the
+  `friend_schedule` RPC now returns `tz`, blurred by tier like the title/category (close friends only,
+  never for a private block). Server tests 37/37; app + widget build clean.
 
 _2026-06-24_
 
