@@ -410,6 +410,13 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     '{start_local:"14:00"} or {date:"2026-06-17"} to move it, {status:"done"}, {delete:true}. To SWAP or',
     'reorder two items, call update_task once for each with its new start_local. Do not delete-and-recreate',
     'when a simple move works.',
+    'IDS GO STALE: the ONLY task ids valid right now are the [task:UUID]s in the calendar list ABOVE and',
+    'any task_id returned by a tool THIS turn. This chat spans many days — an id quoted in an EARLIER turn',
+    '(including your own old tool calls) may no longer exist; never reuse one. If update_task fails, its',
+    'result includes current_tasks with the live ids — pick the right one and retry IMMEDIATELY in this',
+    'same turn. NEVER tell the user something was changed or deleted unless the tool actually returned',
+    'ok:true; if it keeps failing, say plainly that it did not work — do not invent reasons like missing',
+    'permissions, and do not claim it is already at the requested time unless the calendar list shows it.',
     'FIXING A MISTAKE — when the user says something you scheduled is wrong ("为什么排到X", "不对", "改到…",',
     '"reschedule", "时间错了"): ACT immediately, do not make them re-type a command. If the correct slot is',
     'clear, just call update_task to fix it and confirm in one line. If you genuinely need their call, offer',
@@ -632,69 +639,28 @@ export function buildHandlers(
 
     // Edit an EXISTING task (referenced by the [task:…] id shown in the calendar list): move it,
     // mark it done, or delete it. Used for "change the time of X", "X is done", "swap X and Y".
+    // Every write verifies the DB error AND the affected-row count — PostgREST reports a no-match
+    // update/delete as a bland success, which used to let the model tell the user a change landed
+    // when nothing did. Any failure returns the LIVE task list so the model can retry with a real
+    // id in the same loop: ids quoted from old chat turns go stale, and a multi-week thread is full
+    // of them. Each attempt is also logged to app_events so the next "can't change it" report is
+    // diagnosable from data.
     [TOOL_UPDATE_TASK]: async (args) => {
       if (demo) return JSON.stringify({ ok: true, action: 'noop' });
-      const taskId = String(args.task_id ?? '').trim();
-      const changes = (args.changes ?? {}) as Record<string, unknown>;
-      if (!taskId) return JSON.stringify({ ok: false, error: 'missing task_id' });
-      try {
-        if (changes.delete === true || changes.status === 'cancelled') {
-          await supabase.from('tasks').delete().eq('id', taskId);   // cascades its time_blocks
-          return JSON.stringify({ ok: true, action: 'deleted' });
-        }
-        // Rename: update the task and its task-block title(s) so the new name shows everywhere.
-        if (typeof changes.title === 'string' && changes.title.trim()) {
-          const newTitle = changes.title.trim();
-          await supabase.from('tasks').update({ title: newTitle }).eq('id', taskId);
-          await supabase.from('time_blocks').update({ title: newTitle }).eq('task_id', taskId).eq('kind', 'task');
-        }
-        if (typeof changes.status === 'string') {
-          const status = changes.status === 'done' ? 'done' : 'planned';
-          await supabase.from('time_blocks').update({ status }).eq('task_id', taskId);
-          await supabase.from('tasks').update({ status: changes.status }).eq('id', taskId);
-          if (!changes.date && !changes.start_local) return JSON.stringify({ ok: true, action: 'status', status });
-        }
-        if (changes.start_local || changes.date || changes.estimated_duration_min || changes.timezone) {
-          const { data: blocks } = await supabase
-            .from('time_blocks').select('id,kind,start_at,end_at,tz').eq('task_id', taskId).order('start_at');
-          const main = (blocks ?? []).find((b) => b.kind === 'task') ?? (blocks ?? [])[0];
-          if (!main) return JSON.stringify({ ok: false, error: 'task has no blocks' });
-          // Interpret the (existing or new) wall-clock in the block's own timezone — keeps a trip
-          // event in its trip zone — unless the change explicitly moves it to another zone.
-          const blockTz = safeTimezone(changes.timezone, (main.tz as string | null) ?? tz);
-          const cur = localParts(Date.parse(String(main.start_at)), blockTz);
-          const durMin = changes.estimated_duration_min
-            ? Number(changes.estimated_duration_min)
-            : Math.round((Date.parse(String(main.end_at)) - Date.parse(String(main.start_at))) / 60_000);
-          const date = changes.date ? parseDate(String(changes.date)) : cur.date;
-          if (!date) return JSON.stringify({ ok: false, error: 'invalid date' });
-          const startMin = changes.start_local ? timeToMin(String(changes.start_local)) : cur.minutes;
-          const newStart = zonedToUtc(date, startMin, blockTz);
-          const newEnd = newStart + durMin * 60_000;
-          await supabase.from('time_blocks').update({
-            start_at: new Date(newStart).toISOString(), end_at: new Date(newEnd).toISOString(), tz: blockTz,
-          }).eq('id', main.id);
-          // Move the satellite blocks WITH the task so they stay contiguous (otherwise a moved task
-          // strands its old commute/buffer on the calendar): commute keeps its length and ends at the
-          // new start; buffer keeps its length and begins at the new end.
-          for (const b of (blocks ?? [])) {
-            if (b.id === main.id) continue;
-            const len = Date.parse(String(b.end_at)) - Date.parse(String(b.start_at));
-            const s = b.kind === 'commute' ? newStart - len : b.kind === 'buffer' ? newEnd : null;
-            if (s == null) continue;
-            await supabase.from('time_blocks').update({
-              start_at: new Date(s).toISOString(), end_at: new Date(s + len).toISOString(), tz: blockTz,
-            }).eq('id', b.id);
-          }
-          return JSON.stringify({ ok: true, action: 'rescheduled', start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString() });
-        }
-        if (typeof changes.title === 'string' && changes.title.trim()) {
-          return JSON.stringify({ ok: true, action: 'renamed', title: changes.title.trim() });
-        }
-        return JSON.stringify({ ok: true, action: 'noop' });
-      } catch (e) {
-        return JSON.stringify({ ok: false, error: (e as Error).message });
+      // Tolerate decorated ids ("task:…", "[task:…]") and a `changes` that arrived double-encoded
+      // as a JSON string — both otherwise turn a valid edit into a silent no-op.
+      const taskId = String(args.task_id ?? '').trim().replace(/^\[?task:/i, '').replace(/\]$/, '');
+      const changes = parseChanges(args.changes);
+      const result = await applyTaskUpdate(supabase, userId, tz, taskId, changes);
+      if (analytics) {
+        try {
+          await analytics.from('app_events').insert({
+            user_id: userId, type: 'planner_update_task',
+            metadata: { task_id: taskId, changes, result: JSON.parse(result) },
+          });
+        } catch { /* observability must never break the edit */ }
       }
+      return result;
     },
 
     // Habit memory: add/remove a durable preference. Read back into the prompt on every turn.
@@ -992,6 +958,7 @@ export function buildHandlers(
         const last = sessions[sessions.length - 1];
         items.push({
           title: t.title,
+          task_id: taskId,   // so a follow-up edit THIS turn can update_task without re-reading the calendar
           start: new Date(first.start).toISOString(),
           end: new Date(last.end).toISOString(),
           tz: taskTz,
@@ -1063,6 +1030,7 @@ interface ScheduleTaskArg {
 
 interface ScheduledItem {
   title: string;
+  task_id?: string;   // persisted task id — lets a same-turn follow-up edit call update_task directly
   start: string | null;
   end: string | null;
   tz?: string;   // IANA tz the item's clock time is in, so the receipt renders the planned wall-clock
@@ -1123,6 +1091,151 @@ function localParts(ms: number, tz: string): { date: CalendarDate; minutes: numb
   const m: Record<string, number> = {};
   for (const x of p) if (x.type !== 'literal') m[x.type] = Number(x.value);
   return { date: { year: m.year, month: m.month, day: m.day }, minutes: m.hour * 60 + m.minute };
+}
+
+/** The nested `changes` object occasionally arrives double-encoded as a JSON string (provider
+ *  quirk); parse it rather than silently treating the whole edit as empty. */
+function parseChanges(raw: unknown): Record<string, unknown> {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw as Record<string, unknown>;
+  if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+    try { return JSON.parse(raw) as Record<string, unknown>; } catch { /* fall through */ }
+  }
+  return {};
+}
+
+/** The user's task blocks from yesterday onward (live ids + local times). Attached to every failed
+ *  update_task so the model can pick the RIGHT id and retry in the same loop instead of dead-ending
+ *  on an id it mis-copied or quoted from an earlier day's turn. */
+async function listUpcomingTasks(supabase: SupabaseClient, userId: string, sessionTz: string): Promise<unknown[]> {
+  const from = new Date(Date.now() - 86_400_000).toISOString();
+  const { data } = await supabase
+    .from('time_blocks')
+    .select('task_id,title,start_at,tz,status')
+    .eq('user_id', userId).eq('kind', 'task')
+    .gte('start_at', from).order('start_at').limit(25);
+  return ((data ?? []) as Array<Record<string, unknown>>)
+    .filter((b) => b.task_id)
+    .map((b) => {
+      const btz = safeTimezone(b.tz, sessionTz);
+      const fmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: btz, year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      });
+      return {
+        task_id: b.task_id, title: b.title, status: b.status,
+        start_local: fmt.format(new Date(String(b.start_at))), timezone: btz,
+      };
+    });
+}
+
+/** Apply an update_task edit with honest reporting: ok:true ONLY when rows actually changed; every
+ *  failure carries `current_tasks` (live ids) so the model self-corrects. See the handler comment. */
+async function applyTaskUpdate(
+  supabase: SupabaseClient,
+  userId: string,
+  sessionTz: string,
+  taskId: string,
+  changes: Record<string, unknown>,
+): Promise<string> {
+  const fail = async (error: string) => JSON.stringify({
+    ok: false, error,
+    current_tasks: await listUpcomingTasks(supabase, userId, sessionTz).catch(() => []),
+    hint: 'Retry NOW with the correct task_id from current_tasks. Do not tell the user it worked unless ok:true.',
+  });
+  if (!isUuid(taskId)) {
+    return await fail(`"${taskId}" is not a task id — pass the exact UUID from a [task:…] tag`);
+  }
+  try {
+    const { data: blocks, error: selErr } = await supabase
+      .from('time_blocks').select('id,kind,title,start_at,end_at,tz')
+      .eq('task_id', taskId).eq('user_id', userId).order('start_at');
+    if (selErr) return await fail(`lookup failed: ${selErr.message}`);
+    if (!blocks?.length) {
+      return await fail('no task with that id on the calendar — ids from earlier chat turns may be stale');
+    }
+    const title0 = String(blocks[0].title ?? '');
+
+    if (changes.delete === true || changes.status === 'cancelled') {
+      // tasks.delete cascades the blocks; sweep any block without a tasks row (legacy/mirrored)
+      // and confirm SOMETHING was actually removed before reporting the deletion.
+      const del = await supabase.from('tasks').delete().eq('id', taskId).eq('user_id', userId).select('id');
+      if (del.error) return await fail(`delete failed: ${del.error.message}`);
+      const sweep = await supabase.from('time_blocks').delete().eq('task_id', taskId).eq('user_id', userId).select('id');
+      if (sweep.error && !del.data?.length) return await fail(`delete failed: ${sweep.error.message}`);
+      if (!(del.data?.length || sweep.data?.length)) return await fail('delete matched nothing');
+      return JSON.stringify({ ok: true, action: 'deleted', title: title0 });
+    }
+
+    let renamed: string | undefined;
+    if (typeof changes.title === 'string' && changes.title.trim()) {
+      const newTitle = changes.title.trim();
+      const t = await supabase.from('tasks').update({ title: newTitle }).eq('id', taskId).eq('user_id', userId).select('id');
+      if (t.error) return await fail(`rename failed: ${t.error.message}`);
+      const b = await supabase.from('time_blocks').update({ title: newTitle })
+        .eq('task_id', taskId).eq('user_id', userId).eq('kind', 'task').select('id');
+      if (b.error) return await fail(`rename failed: ${b.error.message}`);
+      if (!t.data?.length && !b.data?.length) return await fail('rename matched nothing');
+      renamed = newTitle;
+    }
+
+    if (typeof changes.status === 'string') {
+      const status = changes.status === 'done' ? 'done' : 'planned';
+      const b = await supabase.from('time_blocks').update({ status }).eq('task_id', taskId).eq('user_id', userId).select('id');
+      if (b.error) return await fail(`status update failed: ${b.error.message}`);
+      if (!b.data?.length) return await fail('status update matched nothing');
+      await supabase.from('tasks').update({ status: changes.status }).eq('id', taskId).eq('user_id', userId);
+      if (!changes.date && !changes.start_local && !changes.estimated_duration_min && !changes.timezone) {
+        return JSON.stringify({ ok: true, action: 'status', status, title: renamed ?? title0 });
+      }
+    }
+
+    if (changes.start_local || changes.date || changes.estimated_duration_min || changes.timezone) {
+      const main = blocks.find((b) => b.kind === 'task') ?? blocks[0];
+      // Interpret the (existing or new) wall-clock in the block's own timezone — keeps a trip
+      // event in its trip zone — unless the change explicitly moves it to another zone.
+      const blockTz = safeTimezone(changes.timezone, (main.tz as string | null) ?? sessionTz);
+      const cur = localParts(Date.parse(String(main.start_at)), blockTz);
+      const durMin = changes.estimated_duration_min
+        ? Number(changes.estimated_duration_min)
+        : Math.round((Date.parse(String(main.end_at)) - Date.parse(String(main.start_at))) / 60_000);
+      const date = changes.date ? parseDate(String(changes.date)) : cur.date;
+      if (!date) return await fail(`invalid date "${changes.date}" — expected YYYY-MM-DD`);
+      if (changes.start_local !== undefined && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(String(changes.start_local).trim())) {
+        return await fail(`invalid start_local "${changes.start_local}" — expected HH:MM (24h)`);
+      }
+      const startMin = changes.start_local ? timeToMin(String(changes.start_local).trim()) : cur.minutes;
+      const newStart = zonedToUtc(date, startMin, blockTz);
+      const newEnd = newStart + durMin * 60_000;
+      const upd = await supabase.from('time_blocks').update({
+        start_at: new Date(newStart).toISOString(), end_at: new Date(newEnd).toISOString(), tz: blockTz,
+      }).eq('id', main.id).eq('user_id', userId).select('id');
+      if (upd.error) return await fail(`move failed: ${upd.error.message}`);
+      if (!upd.data?.length) return await fail('move matched nothing');
+      // Move the satellite blocks WITH the task so they stay contiguous (otherwise a moved task
+      // strands its old commute/buffer on the calendar): commute keeps its length and ends at the
+      // new start; buffer keeps its length and begins at the new end.
+      for (const b of blocks) {
+        if (b.id === main.id) continue;
+        const len = Date.parse(String(b.end_at)) - Date.parse(String(b.start_at));
+        const s = b.kind === 'commute' ? newStart - len : b.kind === 'buffer' ? newEnd : null;
+        if (s == null) continue;
+        await supabase.from('time_blocks').update({
+          start_at: new Date(s).toISOString(), end_at: new Date(s + len).toISOString(), tz: blockTz,
+        }).eq('id', b.id).eq('user_id', userId);
+      }
+      return JSON.stringify({
+        ok: true, action: 'rescheduled', title: renamed ?? title0,
+        start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString(), timezone: blockTz,
+      });
+    }
+
+    if (renamed) return JSON.stringify({ ok: true, action: 'renamed', title: renamed });
+    return await fail(
+      "nothing to apply — pass changes like {start_local:'HH:MM'}, {date:'YYYY-MM-DD'}, {estimated_duration_min:90}, {status:'done'}, or {delete:true}",
+    );
+  } catch (e) {
+    return await fail((e as Error).message);
+  }
 }
 
 /** Compact summary of existing blocks for the system prompt. Each block is shown in ITS OWN stored

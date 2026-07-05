@@ -207,6 +207,25 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-07-05_
+
+- **"改不了也删不掉" fixed: update_task is now honest, self-healing, and observable (from a real
+  user report).** A user asked to move an interview from 3:30 to 3:00 — the assistant claimed
+  success, then spent four turns inventing excuses ("no permission") while the calendar never
+  changed. Root cause chain: in a weeks-long thread the model reused a **stale [task:id] from an
+  old turn**; the handler then reported "ok" even when a write **matched zero rows or errored**
+  (PostgREST treats both as bland success), so the model's false "已调到 ✅" entered the thread and
+  it kept believing itself. Fixes: every `update_task` write now checks the DB error **and** the
+  affected-row count (no more silent no-ops); any failure returns `current_tasks` — the live ids +
+  times — so the model retries with the right id **in the same turn**; `schedule_tasks` returns each
+  new `task_id` so same-turn follow-up edits never depend on old context; decorated ids
+  (`task:UUID`) and a string-encoded `changes` are tolerated; the prompt forbids claiming success
+  without `ok:true` and warns that ids from earlier turns go stale. Every edit attempt is logged to
+  `app_events` (`planner_update_task`, args + result), so the next report is a query, not an
+  archaeology dig. Verified end-to-end against the deployed function (schedule → move → delete all
+  land in the DB), plus contract checks for the stale-id / decorated-id / string-changes /
+  empty-changes paths.
+
 _2026-06-26_
 
 - **Per-event timezones + scheduling-accuracy fixes (from real user reports).** A traveling user

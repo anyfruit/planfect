@@ -30,6 +30,7 @@ export interface ReceiptCommute {
 }
 export interface ReceiptItem {
   title: string;
+  task_id?: string;      // persisted task id, so a same-turn follow-up edit can update_task directly
   start: string;         // ISO-8601
   end: string;           // ISO-8601
   tz?: string;           // IANA timezone the start/end wall-clock belongs to (per-event tz)

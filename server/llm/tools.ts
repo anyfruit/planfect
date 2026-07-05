@@ -199,13 +199,16 @@ const updateTask: ToolDef = {
   description:
     'Modify an EXISTING scheduled task, referenced by the [task:…] id shown in the calendar list: ' +
     'rename it, move it, mark it done, or delete it. Use for "rename X" / "改名 / 改成…", "change the ' +
-    'time of X", "X is done", "delete X", or to swap/reorder two items (call once per item).',
+    'time of X", "X is done", "delete X", or to swap/reorder two items (call once per item). ' +
+    'Use ONLY ids from the calendar list above or a task_id a tool returned THIS turn — ids from ' +
+    'earlier chat turns go stale. On failure the result includes current_tasks (the live ids): ' +
+    'retry immediately with the right one, and never claim success unless ok:true came back.',
   parameters: {
     type: 'object',
     additionalProperties: false,
-    required: ['task_id'],
+    required: ['task_id', 'changes'],
     properties: {
-      task_id: { type: 'string', description: 'The id from a [task:…] tag in the calendar list.' },
+      task_id: { type: 'string', description: 'The UUID from a [task:…] tag in the calendar list (or a task_id returned this turn).' },
       changes: {
         type: 'object',
         additionalProperties: true,
@@ -215,6 +218,15 @@ const updateTask: ToolDef = {
           "complete, { delete: true } to remove. start_local is read in the task's existing timezone; " +
           "pass { timezone: 'America/New_York' } too only to move it to a different zone. Moving a task " +
           'carries its commute/buffer with it automatically.',
+        properties: {
+          title: { type: 'string', description: 'New name for the task.' },
+          start_local: { type: 'string', description: "New local start time, HH:MM (24h), in the task's timezone." },
+          date: { type: 'string', description: 'New local calendar day, YYYY-MM-DD.' },
+          estimated_duration_min: { type: 'integer', description: 'New length in minutes.' },
+          status: { type: 'string', enum: ['done', 'planned', 'cancelled'], description: "'done' to complete; 'cancelled' deletes." },
+          delete: { type: 'boolean', description: 'true to remove the task and its blocks.' },
+          timezone: { type: 'string', description: 'IANA zone — ONLY to move the task to a different timezone.' },
+        },
       },
     },
   },
