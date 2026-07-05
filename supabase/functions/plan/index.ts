@@ -33,7 +33,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const body = await req.json();
     const conversationId: string | undefined = body.conversation_id;
-    const messages: LLMMessage[] = body.messages ?? [{ role: 'user', content: String(body.text ?? '') }];
+    let messages: LLMMessage[] = body.messages ?? [{ role: 'user', content: String(body.text ?? '') }];
+    // The app replays the WHOLE chat every turn, and threads live for weeks — a 30k-token history
+    // slows every model step, costs real tokens, and feeds the model stale ids/dates from old days
+    // (the "couldn't change my plan" incident). Planning needs only the recent turns: keep the tail,
+    // cutting at a USER-turn boundary so no assistant tool call is separated from its results.
+    const MAX_THREAD_MESSAGES = 40;
+    if (messages.length > MAX_THREAD_MESSAGES) {
+      let cut = messages.length - MAX_THREAD_MESSAGES;
+      while (cut < messages.length && messages[cut].role !== 'user') cut++;
+      if (cut < messages.length) messages = messages.slice(cut);
+    }
 
     // Provider + model come from runtime_config (the dashboard's model switcher, surface 'app'),
     // falling back to env then a default. If the chosen provider has no key configured, fall back to

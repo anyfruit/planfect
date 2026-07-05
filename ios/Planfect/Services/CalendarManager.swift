@@ -63,6 +63,7 @@ final class CalendarManager {
             if let b = wanted[bid] {
                 if eventDiffers(ev, from: b) {
                     ev.title = b.title; ev.startDate = b.start; ev.endDate = b.end
+                    ev.notes = Self.calendarNotes(for: b)
                     try? store.save(ev, span: .thisEvent, commit: false)
                 }
             } else {
@@ -76,7 +77,7 @@ final class CalendarManager {
             ev.startDate = b.start
             ev.endDate = b.end
             ev.url = URL(string: Self.marker + bid)
-            ev.notes = "Planned by Planfect ✨"
+            ev.notes = Self.calendarNotes(for: b)
             try? store.save(ev, span: .thisEvent, commit: false)
         }
         try? store.commit()
@@ -84,10 +85,19 @@ final class CalendarManager {
 
     // MARK: - helpers
 
+    private static let attribution = "Planned by Planfect ✨"
+
+    /// The mirrored event's notes: the user's own note first (so it shows in Calendar), then our
+    /// attribution line. Kept in `eventDiffers` so editing a note in the app updates Calendar too.
+    private static func calendarNotes(for b: TimeBlock) -> String {
+        b.notes.isEmpty ? attribution : b.notes + "\n\n" + attribution
+    }
+
     private func eventDiffers(_ ev: EKEvent, from b: TimeBlock) -> Bool {
         ev.title != b.title
             || abs((ev.startDate ?? .distantPast).timeIntervalSince(b.start)) > 1
             || abs((ev.endDate ?? .distantPast).timeIntervalSince(b.end)) > 1
+            || (ev.notes ?? "") != Self.calendarNotes(for: b)
     }
 
     private func blockId(of ev: EKEvent) -> String? {

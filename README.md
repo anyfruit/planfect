@@ -209,6 +209,30 @@ reflect the current state.
 
 _2026-07-05_
 
+- **"排好了 ✅" must now be true: an integrity check bounces success claims with no actual write.**
+  A user confirmed a duration card, got "Golf practice 今天 3:00–4:00pm ✅" — and the Schedule tab
+  stayed empty: the model had skipped the tool call entirely. `runPlanner` now tracks whether ANY
+  write landed in the turn (placed `schedule_tasks` items, or `ok:true` from
+  `update_task`/`set_recurring`/`set_routine`); a final reply that *claims* a calendar change
+  (✅/已安排/排好/改到/scheduled/booked/…) with no write gets bounced back once with an automated
+  integrity note — the model then really schedules it (receipt and all) or answers honestly.
+  Unit-tested with the mock planner (fires once, never on real writes).
+
+- **Apple Calendar mirror now follows edits, deletes, and notes.** The reconcile logic was fine but
+  only ran on `scheduled` responses and after opening the Schedule tab — a chat edit ("改到3点",
+  delete) came back as a plain message and Apple Calendar kept the old time until the next tab
+  visit; user notes never synced at all. The chat now refreshes mirrors (reminders + calendar) after
+  message-type turns too, and mirrored events carry the block's note (compared in the diff, so
+  editing a note updates Calendar).
+
+- **~35% smaller prompt + capped thread = faster, cheaper turns, verified by eval.** The system
+  prompt went 6.7k → 4.4k tokens with every rule kept (the eval suite gates it: 23/24 before, 23/24
+  after, and the one flaky boundary case got an explicit rule — a stated day-part now overrides the
+  activity's natural window). The replayed chat history is capped server-side at the last 40
+  messages (cut at a user-turn boundary), so weeks-old threads stop costing ~30k input tokens per
+  step and can't feed the model stale task ids. Friend lookups joined the parallel context batch and
+  per-task analytics writes are fire-and-forget.
+
 - **Single occurrences of a recurring habit are now editable in chat ("下周三那次健身取消").**
   Occurrence blocks materialized from a recurring rule have no `tasks` row, so the calendar list
   showed them with **no id at all** — the model literally could not move, complete, or cancel one,

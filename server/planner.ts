@@ -6,7 +6,13 @@
 import { type PlannerLLM, type LLMMessage, type ToolDef } from './llm/types.ts';
 import { type Question, type Receipt, type ReceiptItem } from './types.ts';
 import { type UsageSink, type UsageContext, makeUsageEvent } from './usage.ts';
-import { TOOL_ASK_USER_QUESTIONS, TOOL_SCHEDULE_TASKS } from './llm/tools.ts';
+import {
+  TOOL_ASK_USER_QUESTIONS,
+  TOOL_SCHEDULE_TASKS,
+  TOOL_UPDATE_TASK,
+  TOOL_SET_RECURRING,
+  TOOL_SET_ROUTINE,
+} from './llm/tools.ts';
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<string> | string;
 export type ToolHandlers = Record<string, ToolHandler>;
@@ -35,6 +41,8 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
   const scheduledItems: ReceiptItem[] = [];
   const assumptions: string[] = [];
   let scheduled = false;
+  let wroteOk = false;   // any calendar write that actually landed this turn (see integrity check)
+  let nudged = false;    // the integrity check fires at most once per turn
 
   for (let step = 0; step < maxSteps; step++) {
     const t0 = now();
@@ -50,8 +58,25 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
 
     // No tool calls → the model is done.
     if (res.toolCalls.length === 0) {
+      const placed = scheduledItems.filter((it) => it && it.start != null);
+      // Integrity check: the reply CLAIMS a calendar change ("排好了 ✅", "moved", …) but no write
+      // actually landed this turn — seen in the wild after an answered confirmation card, where the
+      // model skipped the tool call and told the user it was scheduled while the calendar stayed
+      // empty. Give it ONE corrective step to really do it (or rephrase honestly); the note stays in
+      // the thread as a lasting example. Never triggers when any write succeeded.
+      if (!nudged && !wroteOk && placed.length === 0 && claimsCalendarChange(res.text)) {
+        nudged = true;
+        msgs.push({
+          role: 'user',
+          content:
+            '[Integrity check — automated, the user did NOT see your draft: nothing was written to ' +
+            'the calendar this turn (no schedule_tasks / update_task succeeded), but your reply ' +
+            'implies a change happened. Either ACTUALLY do it now by calling the right tool with the ' +
+            'agreed details, or reply honestly that it is not done. Do not mention this note.]',
+        });
+        continue;
+      }
       if (scheduled) {
-        const placed = scheduledItems.filter((it) => it && it.start != null);
         if (placed.length > 0) {
           return { type: 'scheduled', receipt: { summary: res.text ?? '', items: placed, assumptions }, messages: msgs };
         }
@@ -87,6 +112,12 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
         if (parsed && Array.isArray(parsed.items)) scheduledItems.push(...(parsed.items as ReceiptItem[]));
         if (parsed && Array.isArray(parsed.assumptions)) assumptions.push(...(parsed.assumptions as string[]));
       }
+      // Track real calendar writes for the integrity check (a success CLAIM with none of these
+      // this turn gets bounced back to the model).
+      if (call.name === TOOL_UPDATE_TASK || call.name === TOOL_SET_RECURRING || call.name === TOOL_SET_ROUTINE) {
+        const parsed = safeParse(result) as { ok?: unknown } | null;
+        if (parsed?.ok === true) wroteOk = true;
+      }
       msgs.push({ role: 'tool', toolCallId: call.id, content: result });
     }
 
@@ -110,6 +141,15 @@ function safeParse(s: string): { items?: unknown; assumptions?: unknown } | null
   } catch {
     return null;
   }
+}
+
+/** Does a final reply read like "the calendar was changed"? (✅ / 已安排 / 排好 / 改到 / scheduled /
+ *  booked / moved / deleted, …). Used ONLY to decide whether an integrity re-check is needed when
+ *  no write actually landed — a false positive just costs one extra (honest) model step. */
+export function claimsCalendarChange(text: string | undefined): boolean {
+  if (!text) return false;
+  return /✅|已(安排|排|调|改|取消|删|挪|订|定)|安排好|排(好|上)了|(改|调|挪|移)(到|好)|取消了|删(掉|好)?了|定好了|(re)?scheduled|booked|moved (it|to)|deleted|cancell?ed|added to your (calendar|schedule)|all set/i
+    .test(text);
 }
 
 /** Tool result synthesized for a clarifying question the user never answered (see sanitizeThread). */

@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { runPlanner, sanitizeThread, type PlannerDeps } from './planner.ts';
+import { runPlanner, sanitizeThread, claimsCalendarChange, type PlannerDeps } from './planner.ts';
 import { MockPlanner } from './llm/mock.ts';
 import { MemoryUsageSink } from './usage.ts';
-import { PLANNER_TOOLS, TOOL_ASK_USER_QUESTIONS, TOOL_SCHEDULE_TASKS } from './llm/tools.ts';
+import { PLANNER_TOOLS, TOOL_ASK_USER_QUESTIONS, TOOL_SCHEDULE_TASKS, TOOL_UPDATE_TASK } from './llm/tools.ts';
 import { type LLMMessage, type LLMStepResult } from './llm/types.ts';
 
 function step(partial: Partial<LLMStepResult>): LLMStepResult {
@@ -161,4 +161,79 @@ test('planner returns a plain message when the model just talks', async () => {
   const r = await runPlanner([{ role: 'user', content: 'How does Thursday look?' }], deps);
   assert.equal(r.type, 'message');
   if (r.type === 'message') assert.match(r.text, /Thursday/);
+});
+
+// ---- integrity check: a success CLAIM with no actual write gets bounced back once ----------
+
+test('integrity check: "scheduled ✅" with no write → one corrective step → real schedule lands', async () => {
+  // The golf-practice bug: after an answered confirmation, the model REPLIED "排好了" without ever
+  // calling schedule_tasks. The guard must hand it one corrective step, after which it commits.
+  const script: LLMStepResult[] = [
+    step({ text: 'Golf practice 今天 3:00–4:00pm ⛳✅', finishReason: 'stop' }),
+    step({
+      finishReason: 'tool_calls',
+      toolCalls: [{ id: 'c9', name: TOOL_SCHEDULE_TASKS, arguments: { tasks: [{ title: 'Golf practice' }] } }],
+    }),
+  ];
+  const llm = new MockPlanner(script);
+  const deps: PlannerDeps = {
+    llm, model: 'gpt-5.4', system: 'You are Planfect.', tools: PLANNER_TOOLS,
+    handlers: {
+      [TOOL_SCHEDULE_TASKS]: () => JSON.stringify({
+        items: [{ title: 'Golf practice', start: '2026-07-03T19:00:00Z', end: '2026-07-03T20:00:00Z' }],
+        assumptions: [],
+      }),
+    },
+    context: { userId: 'u1' },
+  };
+  const r = await runPlanner([{ role: 'user', content: '60 分钟就够' }], deps);
+  assert.equal(r.type, 'scheduled');
+  if (r.type === 'scheduled') assert.equal(r.receipt.items[0].title, 'Golf practice');
+  // The corrective note is in the thread (a lasting in-context example against claiming success).
+  assert.ok(r.messages.some((m) => m.role === 'user' && String(m.content).startsWith('[Integrity check')));
+});
+
+test('integrity check: fires at most once — a repeat offender reply is returned as-is', async () => {
+  const script: LLMStepResult[] = [
+    step({ text: '已安排好啦 ✅', finishReason: 'stop' }),
+    step({ text: '真的已安排好啦 ✅', finishReason: 'stop' }),
+  ];
+  const llm = new MockPlanner(script);
+  const usage = new MemoryUsageSink();
+  const deps: PlannerDeps = {
+    llm, model: 'gpt-5.4', system: 'You are Planfect.', tools: PLANNER_TOOLS,
+    handlers: {}, context: { userId: 'u1' }, usage,
+  };
+  const r = await runPlanner([{ role: 'user', content: '排一下' }], deps);
+  assert.equal(r.type, 'message');
+  assert.equal(usage.events.length, 2);   // exactly one extra step, not a loop
+});
+
+test('integrity check: does NOT fire when a write actually landed (update_task ok:true)', async () => {
+  const script: LLMStepResult[] = [
+    step({
+      finishReason: 'tool_calls',
+      toolCalls: [{ id: 'c1', name: TOOL_UPDATE_TASK, arguments: { task_id: 't1', changes: { start_local: '15:00' } } }],
+    }),
+    step({ text: '改到 15:00 啦 ✅', finishReason: 'stop' }),
+  ];
+  const llm = new MockPlanner(script);
+  const deps: PlannerDeps = {
+    llm, model: 'gpt-5.4', system: 'You are Planfect.', tools: PLANNER_TOOLS,
+    handlers: { [TOOL_UPDATE_TASK]: () => JSON.stringify({ ok: true, action: 'rescheduled' }) },
+    context: { userId: 'u1' },
+  };
+  const r = await runPlanner([{ role: 'user', content: '改到下午3点' }], deps);
+  assert.equal(r.type, 'message');
+  if (r.type === 'message') assert.match(r.text, /15:00/);
+  assert.ok(!r.messages.some((m) => m.role === 'user' && String(m.content).startsWith('[Integrity check')));
+});
+
+test('claimsCalendarChange: matches success claims, passes honest/neutral text', () => {
+  for (const t of ['排好了 ✅', '已安排', '改到 15:00 啦', 'Scheduled for Friday 3pm', 'moved it to 4', '已取消']) {
+    assert.equal(claimsCalendarChange(t), true, t);
+  }
+  for (const t of ['今天下午有空吗？', '这个我帮不上忙哈 🙂', '你想排在几点？', 'Thursday looks open.']) {
+    assert.equal(claimsCalendarChange(t), false, t);
+  }
 });

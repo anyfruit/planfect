@@ -139,17 +139,17 @@ final class ChatViewModel: ObservableObject {
                 if let r = resp.receipt {
                     items.append(.receipt(r))
                 } else { items.append(.assistant(String(localized: "Scheduled."))) }
-                // Refresh reminders + mirror the new plan into Apple Calendar (if synced).
-                if let blocks = try? await supa.fetchBlocks() {
-                    await NotificationManager.shared.reschedule(for: blocks)
-                    await CalendarManager.shared.syncToCalendar(blocks)
-                }
+                await refreshMirrors()
             case "upgrade":
                 items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Upgrade to Planfect Pro to keep planning.")))
                 showPaywall = true
             default:
                 // A blank server reply must never render as an empty bubble — fall back to a word.
                 items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Done.")))
+                // A plain-text turn can still have MOVED or DELETED plans (update_task edits come
+                // back as type "message") — refresh mirrors here too, or Apple Calendar and the
+                // reminders keep the old time until the user happens to open the Schedule tab.
+                await refreshMirrors()
             }
         } catch {
             // If the app was backgrounded mid-request the connection drops — but the planner often
@@ -157,7 +157,7 @@ final class ChatViewModel: ObservableObject {
             // and say so honestly instead of a scary raw error.
             if let ue = error as? URLError,
                [.networkConnectionLost, .cancelled, .timedOut, .notConnectedToInternet].contains(ue.code) {
-                if let blocks = try? await supa.fetchBlocks() { await NotificationManager.shared.reschedule(for: blocks) }
+                await refreshMirrors()
                 items.append(.assistant("Sent — but the connection dropped when you switched away. I've refreshed; check Schedule to see if it landed, or resend."))
             } else {
                 items.append(.assistant("⚠️ \(error.localizedDescription)"))
@@ -171,6 +171,14 @@ final class ChatViewModel: ObservableObject {
     private func nonEmpty(_ s: String?) -> String? {
         let t = (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         return t.isEmpty ? nil : t
+    }
+
+    /// Re-read the schedule and update everything that mirrors it (local reminders + the Planfect
+    /// calendar in Apple Calendar). Cheap no-op when calendar sync is off.
+    private func refreshMirrors() async {
+        guard let supa, let blocks = try? await supa.fetchBlocks() else { return }
+        await NotificationManager.shared.reschedule(for: blocks)
+        await CalendarManager.shared.syncToCalendar(blocks)
     }
 
     // MARK: - Local persistence (so the transcript survives relaunch / view rebuilds)
