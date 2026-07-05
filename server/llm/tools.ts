@@ -197,18 +197,20 @@ const scheduleTasks: ToolDef = {
 const updateTask: ToolDef = {
   name: TOOL_UPDATE_TASK,
   description:
-    'Modify an EXISTING scheduled task, referenced by the [task:…] id shown in the calendar list: ' +
-    'rename it, move it, mark it done, or delete it. Use for "rename X" / "改名 / 改成…", "change the ' +
-    'time of X", "X is done", "delete X", or to swap/reorder two items (call once per item). ' +
-    'Use ONLY ids from the calendar list above or a task_id a tool returned THIS turn — ids from ' +
-    'earlier chat turns go stale. On failure the result includes current_tasks (the live ids): ' +
-    'retry immediately with the right one, and never claim success unless ok:true came back.',
+    'Modify an EXISTING item on the calendar, referenced by the [task:…] id shown in the calendar ' +
+    'list — or by a [block:…] id to touch ONE occurrence of a recurring habit (or a friend-shared ' +
+    'plan) while the habit itself stays. Rename it, move it, mark it done, or delete it: "rename X" ' +
+    '/ "改名 / 改成…", "change the time of X", "X is done", "delete X", "下周三那次健身取消", or ' +
+    'swap/reorder two items (call once per item). Use ONLY ids from the calendar list above or ones ' +
+    'a tool returned THIS turn — ids from earlier chat turns go stale. On failure the result ' +
+    'includes current_tasks (the live ids, task_id or block_id): retry immediately with the right ' +
+    'one, and never claim success unless ok:true came back.',
   parameters: {
     type: 'object',
     additionalProperties: false,
     required: ['task_id', 'changes'],
     properties: {
-      task_id: { type: 'string', description: 'The UUID from a [task:…] tag in the calendar list (or a task_id returned this turn).' },
+      task_id: { type: 'string', description: 'The UUID from a [task:…] or [block:…] tag in the calendar list (or an id returned this turn).' },
       changes: {
         type: 'object',
         additionalProperties: true,

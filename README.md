@@ -209,6 +209,19 @@ reflect the current state.
 
 _2026-07-05_
 
+- **Single occurrences of a recurring habit are now editable in chat ("下周三那次健身取消").**
+  Occurrence blocks materialized from a recurring rule have no `tasks` row, so the calendar list
+  showed them with **no id at all** — the model literally could not move, complete, or cancel one,
+  the same dead end just fixed for one-off tasks. Now task-less blocks (recurring occurrences,
+  friend-shared plans) carry a `[block:UUID]` tag; `update_task` resolves either id kind and edits
+  exactly that one block — the rule and all other weeks stay, and `materializeRecurring`'s
+  `materialized_until` invariant guarantees a deleted/moved occurrence is never resurrected (same
+  honesty + `current_tasks` self-heal + `app_events` logging as task edits). Also anchored Mon–Sun
+  **week arithmetic in the prompt** (pre-computed "next week starts …" dates, like 明天/后天):
+  MiniMax-M3 had resolved 再下周三 said on a Sunday to the wrong week; the two new pinned-Sunday
+  eval scenarios (`EVAL_ONLY=wednesday`) now pass 2/2, and the live flow confirms create → move one
+  → cancel one → no resurrection, with absolute dates in every receipt.
+
 - **"改不了也删不掉" fixed: update_task is now honest, self-healing, and observable (from a real
   user report).** A user asked to move an interview from 3:30 to 3:00 — the assistant claimed
   success, then spent four turns inventing excuses ("no permission") while the calendar never

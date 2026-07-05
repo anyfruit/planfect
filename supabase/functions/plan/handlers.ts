@@ -93,7 +93,7 @@ export async function loadContext(supabase: SupabaseClient, userId: string, admi
   const fromUtc = new Date(zonedToUtc({ year: ymd[0], month: ymd[1], day: ymd[2] }, 0, timezone)).toISOString();
   const { data: blocks } = await supabase
     .from('time_blocks')
-    .select('title,kind,status,start_at,end_at,task_id,tz')
+    .select('id,title,kind,status,start_at,end_at,task_id,recurring_id,tz')
     .eq('user_id', userId)
     .gte('start_at', fromUtc)
     .order('start_at')
@@ -192,8 +192,9 @@ function dateStr(d: CalendarDate): string {
   return `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`;
 }
 
-/** Create a recurring task's occurrences as time_blocks through a rolling horizon (idempotent via
- *  `materialized_until`, so a deleted occurrence is never resurrected). */
+/** Create a recurring task's occurrences as time_blocks through a rolling horizon. INVARIANT:
+ *  days ≤ `materialized_until` are NEVER regenerated, so an occurrence the user deleted or moved
+ *  (block-scope update_task) stays deleted/moved — do not "backfill gaps" here. */
 async function materializeRecurring(supabase: SupabaseClient, userId: string, rt: RecurringRow, tz: string): Promise<void> {
   if (!rt.active || !rt.days_of_week?.length) return;
   const today = localParts(Date.now(), tz).date;
@@ -255,6 +256,13 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     new Intl.DateTimeFormat('en-CA', { timeZone: ctx.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
   const tomorrow = dstamp(new Date(now.getTime() + 86_400_000));
   const dayAfter = dstamp(new Date(now.getTime() + 2 * 86_400_000));
+  // Anchor the Mon–Sun week arithmetic too: models botch 下周X/再下周X on boundary days (esp.
+  // Sunday), so hand them the concrete Mondays to count from instead of a convention to reason out.
+  const dowIdx = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    .indexOf(new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'short' }).format(now));
+  const daysToNextMon = ((8 - dowIdx) % 7) || 7;   // Sun→1, Mon→7, Tue→6, … (next week's Monday)
+  const nextMon = dstamp(new Date(now.getTime() + daysToNextMon * 86_400_000));
+  const monAfter = dstamp(new Date(now.getTime() + (daysToNextMon + 7) * 86_400_000));
   return [
     'You are Planfect — a warm, sharp day-planning companion. The whole point of this app: the user',
     'fires off a quick fragment ("gym", "call dentist", "groceries sat") and you just handle it.',
@@ -410,13 +418,19 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     '{start_local:"14:00"} or {date:"2026-06-17"} to move it, {status:"done"}, {delete:true}. To SWAP or',
     'reorder two items, call update_task once for each with its new start_local. Do not delete-and-recreate',
     'when a simple move works.',
-    'IDS GO STALE: the ONLY task ids valid right now are the [task:UUID]s in the calendar list ABOVE and',
-    'any task_id returned by a tool THIS turn. This chat spans many days — an id quoted in an EARLIER turn',
-    '(including your own old tool calls) may no longer exist; never reuse one. If update_task fails, its',
-    'result includes current_tasks with the live ids — pick the right one and retry IMMEDIATELY in this',
-    'same turn. NEVER tell the user something was changed or deleted unless the tool actually returned',
-    'ok:true; if it keeps failing, say plainly that it did not work — do not invent reasons like missing',
-    'permissions, and do not claim it is already at the requested time unless the calendar list shows it.',
+    'A [block:UUID] tag marks ONE occurrence of a recurring habit (or a plan a friend shared): pass that',
+    'id to update_task the same way to move / complete / cancel JUST that occurrence — the habit itself',
+    'and all other weeks stay ("下周三健身取消" / "把明天的健身挪到晚上" = a [block:…] edit). To stop or',
+    'change the WHOLE habit, use set_recurring (delete by its [recurring:id]) — never delete occurrences',
+    'one by one for that.',
+    'IDS GO STALE: the ONLY ids valid right now are the [task:UUID] / [block:UUID] tags in the calendar',
+    'list ABOVE and any task_id returned by a tool THIS turn. This chat spans many days — an id quoted in',
+    'an EARLIER turn (including your own old tool calls) may no longer exist; never reuse one. If',
+    'update_task fails, its result includes current_tasks with the live ids (task_id or block_id — pass',
+    'whichever is present) — pick the right one and retry IMMEDIATELY in this same turn. NEVER tell the',
+    'user something was changed or deleted unless the tool actually returned ok:true; if it keeps failing,',
+    'say plainly that it did not work — do not invent reasons like missing permissions, and do not claim',
+    'it is already at the requested time unless the calendar list shows it.',
     'FIXING A MISTAKE — when the user says something you scheduled is wrong ("为什么排到X", "不对", "改到…",',
     '"reschedule", "时间错了"): ACT immediately, do not make them re-type a command. If the correct slot is',
     'clear, just call update_task to fix it and confirm in one line. If you genuinely need their call, offer',
@@ -502,6 +516,12 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'When the user answers "another time", propose a genuinely different option — a different part of',
     'the day or another day — not just a slightly later slot.',
     `Today is ${weekday}, ${ymd} (${ctx.timezone}). Tomorrow (明天) is ${tomorrow}. The day after tomorrow (后天) is ${dayAfter}.`,
+    `Weeks run MONDAY–Sunday. NEXT week (下周) starts ${nextMon}; the week AFTER next (再下周 / 下下周)`,
+    `starts ${monAfter}. So 下周X = that weekday in the week starting ${nextMon}, and 再下周X = that`,
+    `weekday in the week starting ${monAfter} — count from these anchors, NEVER re-derive the week`,
+    'yourself (on a Sunday the current week ends TODAY: 下周三 is only 3 days away, 再下周三 is 10).',
+    '这周X / this Xday = that weekday inside the current Mon–Sun week. Always state the absolute date',
+    'in your confirmation so the user can catch a mis-count.',
     'This "Today" date is GROUND TRUTH and matches the [Now: …] stamp on the latest user message.',
     'This conversation may span MULTIPLE real days: earlier turns (and any date THEY mention, or any',
     'date in an existing calendar entry) can be from previous days — NEVER infer the current date from',
@@ -597,7 +617,7 @@ export function buildHandlers(
       const end = endRaw.includes('T') ? endRaw : `${endRaw}T23:59:59.999Z`; // include the whole end day
       const { data } = await supabase
         .from('time_blocks')
-        .select('start_at,end_at,kind,title,status,task_id')
+        .select('id,start_at,end_at,kind,title,status,task_id,recurring_id')
         .eq('user_id', userId)
         .gte('start_at', start)
         .lte('start_at', end)
@@ -647,9 +667,9 @@ export function buildHandlers(
     // diagnosable from data.
     [TOOL_UPDATE_TASK]: async (args) => {
       if (demo) return JSON.stringify({ ok: true, action: 'noop' });
-      // Tolerate decorated ids ("task:…", "[task:…]") and a `changes` that arrived double-encoded
-      // as a JSON string — both otherwise turn a valid edit into a silent no-op.
-      const taskId = String(args.task_id ?? '').trim().replace(/^\[?task:/i, '').replace(/\]$/, '');
+      // Tolerate decorated ids ("task:…", "[task:…]", "[block:…]") and a `changes` that arrived
+      // double-encoded as a JSON string — both otherwise turn a valid edit into a silent no-op.
+      const taskId = String(args.task_id ?? '').trim().replace(/^\[?(task|block):/i, '').replace(/\]$/, '');
       const changes = parseChanges(args.changes);
       const result = await applyTaskUpdate(supabase, userId, tz, taskId, changes);
       if (analytics) {
@@ -1110,11 +1130,10 @@ async function listUpcomingTasks(supabase: SupabaseClient, userId: string, sessi
   const from = new Date(Date.now() - 86_400_000).toISOString();
   const { data } = await supabase
     .from('time_blocks')
-    .select('task_id,title,start_at,tz,status')
+    .select('id,task_id,recurring_id,title,start_at,tz,status')
     .eq('user_id', userId).eq('kind', 'task')
     .gte('start_at', from).order('start_at').limit(25);
   return ((data ?? []) as Array<Record<string, unknown>>)
-    .filter((b) => b.task_id)
     .map((b) => {
       const btz = safeTimezone(b.tz, sessionTz);
       const fmt = new Intl.DateTimeFormat('en-CA', {
@@ -1122,7 +1141,12 @@ async function listUpcomingTasks(supabase: SupabaseClient, userId: string, sessi
         hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
       });
       return {
-        task_id: b.task_id, title: b.title, status: b.status,
+        // One-off plans are addressed by task_id; a recurring occurrence / shared block by its
+        // OWN block id — pass whichever is present as update_task's task_id.
+        ...(b.task_id
+          ? { task_id: b.task_id }
+          : { block_id: b.id, ...(b.recurring_id ? { recurring_occurrence: true } : {}) }),
+        title: b.title, status: b.status,
         start_local: fmt.format(new Date(String(b.start_at))), timezone: btz,
       };
     });
@@ -1143,19 +1167,41 @@ async function applyTaskUpdate(
     hint: 'Retry NOW with the correct task_id from current_tasks. Do not tell the user it worked unless ok:true.',
   });
   if (!isUuid(taskId)) {
-    return await fail(`"${taskId}" is not a task id — pass the exact UUID from a [task:…] tag`);
+    return await fail(`"${taskId}" is not an id — pass the exact UUID from a [task:…] or [block:…] tag`);
   }
   try {
-    const { data: blocks, error: selErr } = await supabase
+    // Resolve the id: first as a task id (one-off plans — may own satellite commute/buffer blocks),
+    // else as a SINGLE block id (a recurring occurrence or a friend-shared block, which have no
+    // tasks row). Block scope edits exactly one row and leaves the recurring rule untouched.
+    let scope: 'task' | 'block' = 'task';
+    const byTask = await supabase
       .from('time_blocks').select('id,kind,title,start_at,end_at,tz')
       .eq('task_id', taskId).eq('user_id', userId).order('start_at');
-    if (selErr) return await fail(`lookup failed: ${selErr.message}`);
-    if (!blocks?.length) {
-      return await fail('no task with that id on the calendar — ids from earlier chat turns may be stale');
+    if (byTask.error) return await fail(`lookup failed: ${byTask.error.message}`);
+    let blocks = byTask.data ?? [];
+    if (!blocks.length) {
+      const byBlock = await supabase
+        .from('time_blocks').select('id,kind,title,start_at,end_at,tz')
+        .eq('id', taskId).eq('user_id', userId);
+      if (byBlock.error) return await fail(`lookup failed: ${byBlock.error.message}`);
+      blocks = byBlock.data ?? [];
+      scope = 'block';
+    }
+    if (!blocks.length) {
+      return await fail('no task or calendar item with that id — ids from earlier chat turns may be stale');
     }
     const title0 = String(blocks[0].title ?? '');
 
     if (changes.delete === true || changes.status === 'cancelled') {
+      if (scope === 'block') {
+        // Remove just this occurrence. The recurring rule stays, and materializeRecurring never
+        // re-creates a day it already covered (materialized_until), so it won't resurrect.
+        const del = await supabase.from('time_blocks').delete()
+          .eq('id', String(blocks[0].id)).eq('user_id', userId).select('id');
+        if (del.error) return await fail(`delete failed: ${del.error.message}`);
+        if (!del.data?.length) return await fail('delete matched nothing');
+        return JSON.stringify({ ok: true, action: 'deleted', scope: 'single occurrence', title: title0 });
+      }
       // tasks.delete cascades the blocks; sweep any block without a tasks row (legacy/mirrored)
       // and confirm SOMETHING was actually removed before reporting the deletion.
       const del = await supabase.from('tasks').delete().eq('id', taskId).eq('user_id', userId).select('id');
@@ -1169,21 +1215,30 @@ async function applyTaskUpdate(
     let renamed: string | undefined;
     if (typeof changes.title === 'string' && changes.title.trim()) {
       const newTitle = changes.title.trim();
-      const t = await supabase.from('tasks').update({ title: newTitle }).eq('id', taskId).eq('user_id', userId).select('id');
-      if (t.error) return await fail(`rename failed: ${t.error.message}`);
-      const b = await supabase.from('time_blocks').update({ title: newTitle })
-        .eq('task_id', taskId).eq('user_id', userId).eq('kind', 'task').select('id');
+      if (scope === 'task') {
+        const t = await supabase.from('tasks').update({ title: newTitle }).eq('id', taskId).eq('user_id', userId).select('id');
+        if (t.error) return await fail(`rename failed: ${t.error.message}`);
+      }
+      const b = scope === 'task'
+        ? await supabase.from('time_blocks').update({ title: newTitle })
+          .eq('task_id', taskId).eq('user_id', userId).eq('kind', 'task').select('id')
+        : await supabase.from('time_blocks').update({ title: newTitle })
+          .eq('id', String(blocks[0].id)).eq('user_id', userId).select('id');
       if (b.error) return await fail(`rename failed: ${b.error.message}`);
-      if (!t.data?.length && !b.data?.length) return await fail('rename matched nothing');
+      if (!b.data?.length) return await fail('rename matched nothing');
       renamed = newTitle;
     }
 
     if (typeof changes.status === 'string') {
       const status = changes.status === 'done' ? 'done' : 'planned';
-      const b = await supabase.from('time_blocks').update({ status }).eq('task_id', taskId).eq('user_id', userId).select('id');
+      const b = scope === 'task'
+        ? await supabase.from('time_blocks').update({ status }).eq('task_id', taskId).eq('user_id', userId).select('id')
+        : await supabase.from('time_blocks').update({ status }).eq('id', String(blocks[0].id)).eq('user_id', userId).select('id');
       if (b.error) return await fail(`status update failed: ${b.error.message}`);
       if (!b.data?.length) return await fail('status update matched nothing');
-      await supabase.from('tasks').update({ status: changes.status }).eq('id', taskId).eq('user_id', userId);
+      if (scope === 'task') {
+        await supabase.from('tasks').update({ status: changes.status }).eq('id', taskId).eq('user_id', userId);
+      }
       if (!changes.date && !changes.start_local && !changes.estimated_duration_min && !changes.timezone) {
         return JSON.stringify({ ok: true, action: 'status', status, title: renamed ?? title0 });
       }
@@ -1225,6 +1280,7 @@ async function applyTaskUpdate(
       }
       return JSON.stringify({
         ok: true, action: 'rescheduled', title: renamed ?? title0,
+        ...(scope === 'block' ? { scope: 'single occurrence' } : {}),
         start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString(), timezone: blockTz,
       });
     }
@@ -1251,7 +1307,9 @@ function formatBlocks(blocks: unknown[], tz: string): string {
         timeZone: btz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
       });
       const endf = new Intl.DateTimeFormat('en-US', { timeZone: btz, hour: 'numeric', minute: '2-digit' });
-      const id = b.task_id ? ` [task:${String(b.task_id)}]` : '';
+      // Task-backed blocks carry [task:…]; blocks WITHOUT a tasks row (a recurring occurrence, a
+      // plan a friend shared in) carry [block:…] so the model can still edit/delete that ONE item.
+      const id = b.task_id ? ` [task:${String(b.task_id)}]` : b.id ? ` [block:${String(b.id)}]` : '';
       const zone = btz !== tz ? ` (${btz})` : '';
       return `${span.format(new Date(String(b.start_at)))}–${endf.format(new Date(String(b.end_at)))}${zone} ${String(b.title)}${b.status === 'done' ? ' (done)' : ''}${id}`;
     })

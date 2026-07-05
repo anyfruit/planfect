@@ -291,6 +291,32 @@ const SCENARIOS: Scenario[] = [
       return f;
     },
   },
+  // Mon–Sun week arithmetic on the nastiest boundary: NOW is pinned to a SUNDAY (6/21), the last
+  // day of its week — 下周三 must be the imminent Wednesday (6/24), 再下周三 one more week out (7/1).
+  {
+    name: 'next-week-wednesday', text: '下周三下午三点开会',
+    note: 'said on a Sunday: 下周三 = Wed of the FOLLOWING Mon–Sun week = 6/24, 15:00',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.date !== '2026-06-24') f.push(`date ${p.date}≠2026-06-24`);
+      if (p.hour !== 15) f.push(`hour ${p.hour}≠15`);
+      return f;
+    },
+  },
+  {
+    name: 'week-after-next-wednesday', text: '再下周三下午三点开会',
+    note: 'said on a Sunday: 再下周三 = Wed of the week AFTER next = 7/1, 15:00',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.date !== '2026-07-01') f.push(`date ${p.date}≠2026-07-01`);
+      if (p.hour !== 15) f.push(`hour ${p.hour}≠15`);
+      return f;
+    },
+  },
 ];
 
 // ---- run ----
@@ -306,9 +332,13 @@ const system = buildSystemPrompt(ctx, NOW);
 const llm = createPlanner(PROVIDER, { apiKey });
 const handlers = buildHandlers(supabase, 'eval', ctx, undefined, undefined, undefined, false, true);
 
+// EVAL_ONLY=<substring> runs just the matching scenarios (quick iteration on one behavior).
+const only = Deno.env.get('EVAL_ONLY');
+const scenarios = only ? SCENARIOS.filter((s) => s.name.includes(only)) : SCENARIOS;
+
 console.log(`\nPrompt eval — ${PROVIDER}:${MODEL} — pinned now = ${nowStamp} ${TZ} (today ${TODAY})\n`);
 let passed = 0;
-for (const s of SCENARIOS) {
+for (const s of scenarios) {
   let r: PlannerResult | null = null;
   let failures: string[];
   try {
@@ -324,4 +354,4 @@ for (const s of SCENARIOS) {
     if (r.type === 'message') console.log(`        💬 ${r.text.slice(0, 120)}`);
   }
 }
-console.log(`\n${passed}/${SCENARIOS.length} passed  (${PROVIDER}:${MODEL})\n`);
+console.log(`\n${passed}/${scenarios.length} passed  (${PROVIDER}:${MODEL})\n`);
