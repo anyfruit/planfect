@@ -6,8 +6,10 @@ import SwiftUI
 struct PlanEntry: TimelineEntry {
     let date: Date
     let current: WidgetTask?       // task in progress at `date`
-    let upcoming: [WidgetTask]     // soonest tasks after `date`
-    let remaining: Int             // total upcoming (for the "+N more" hint)
+    let upcoming: [WidgetTask]     // soonest tasks after `date` (may spill into tomorrow)
+    let remainingToday: Int        // upcoming NOT done, on the entry's calendar day only
+    let doneToday: Int             // finished today (for the lock-screen gauge / large header)
+    let totalToday: Int            // all of today's tasks
 }
 
 struct Provider: TimelineProvider {
@@ -18,7 +20,7 @@ struct Provider: TimelineProvider {
                        end: now.addingTimeInterval(5400), categoryKey: "health", isDone: false),
             WidgetTask(id: "p2", title: "Gym", start: now.addingTimeInterval(9000),
                        end: now.addingTimeInterval(12600), categoryKey: "fitness", isDone: false),
-        ], remaining: 2)
+        ], remainingToday: 2, doneToday: 1, totalToday: 3)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (PlanEntry) -> Void) {
@@ -29,6 +31,7 @@ struct Provider: TimelineProvider {
         let tasks = PlanfectWidgetStore.load()
         let now = Date()
         // Recompute "current / next" at each upcoming boundary so the widget advances on its own.
+        // (In-progress bars tick live via ProgressView(timerInterval:) — no extra entries needed.)
         var bounds: Set<Date> = [now]
         for t in tasks {
             if t.start > now { bounds.insert(t.start) }
@@ -44,9 +47,17 @@ struct Provider: TimelineProvider {
     }
 
     private func entry(at date: Date, tasks: [WidgetTask]) -> PlanEntry {
+        let cal = Calendar.current
+        let today = tasks.filter { cal.isDate($0.start, inSameDayAs: date) }
         let current = tasks.first { $0.start <= date && $0.end > date && !$0.isDone }
         let upcoming = tasks.filter { $0.start > date && !$0.isDone }
-        return PlanEntry(date: date, current: current, upcoming: Array(upcoming.prefix(3)), remaining: upcoming.count)
+        return PlanEntry(
+            date: date,
+            current: current,
+            upcoming: Array(upcoming.prefix(6)),
+            remainingToday: upcoming.filter { cal.isDate($0.start, inSameDayAs: date) }.count,
+            doneToday: today.filter(\.isDone).count,
+            totalToday: today.count)
     }
 }
 
@@ -62,6 +73,7 @@ struct PlanfectWidgetEntryView: View {
         case .accessoryCircular: circular
         case .accessoryRectangular: rectangular
         case .systemMedium: medium
+        case .systemLarge: large
         default: small
         }
     }
@@ -69,22 +81,29 @@ struct PlanfectWidgetEntryView: View {
     private var hasNothing: Bool { entry.current == nil && entry.upcoming.isEmpty }
     private var headline: WidgetTask? { entry.current ?? entry.upcoming.first }
 
-    // Home screen — small: the one thing happening now or next.
+    // Home screen — small: the one thing happening now or next, with live progress.
     private var small: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
             Spacer(minLength: 6)
             if let t = headline {
-                Text(entry.current != nil ? "Now" : "Next")
+                let isNow = entry.current != nil
+                Text(isNow ? "Now" : "Next")
                     .font(.caption2.weight(.heavy)).foregroundStyle(CategoryStyle.of(t.categoryKey).color)
                 Text(t.title).font(.headline).lineLimit(2).minimumScaleFactor(0.8)
                 Text(timeText(t)).font(.caption).foregroundStyle(.secondary)
+                if isNow {
+                    // Ticks on its own — WidgetKit animates timerInterval progress without new entries.
+                    ProgressView(timerInterval: t.start...t.end, countsDown: false, label: {}, currentValueLabel: {})
+                        .tint(CategoryStyle.of(t.categoryKey).color)
+                        .padding(.top, 3)
+                }
             } else {
                 emptyState
             }
             Spacer(minLength: 4)
-            if entry.remaining > (entry.current == nil ? 1 : 0) {
-                Text(moreText(entry.remaining - (entry.current == nil ? 1 : 0)))
+            if entry.remainingToday > (entry.current == nil ? 1 : 0) {
+                Text(moreText(entry.remainingToday - (entry.current == nil ? 1 : 0)))
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
@@ -98,8 +117,8 @@ struct PlanfectWidgetEntryView: View {
             HStack {
                 header
                 Spacer()
-                if entry.remaining > 0 {
-                    Text(remainingText(entry.remaining)).font(.caption2).foregroundStyle(.secondary)
+                if entry.remainingToday > 0 {
+                    Text(remainingText(entry.remainingToday)).font(.caption2).foregroundStyle(.secondary)
                 }
             }
             if hasNothing {
@@ -107,6 +126,34 @@ struct PlanfectWidgetEntryView: View {
             } else {
                 let rows = ([entry.current].compactMap { $0 } + entry.upcoming).prefix(3)
                 ForEach(Array(rows)) { t in agendaRow(t, isNow: t.id == entry.current?.id) }
+                Spacer(minLength: 0)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .containerBackground(for: .widget) { gradient }
+    }
+
+    // Home screen — large: the day at a glance (agenda + done count).
+    private var large: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                header
+                Spacer()
+                if entry.totalToday > 0 {
+                    Text(doneText(entry.doneToday, entry.totalToday))
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            if hasNothing {
+                Spacer(); emptyState.frame(maxWidth: .infinity, alignment: .center); Spacer()
+            } else {
+                if let t = entry.current {
+                    agendaRow(t, isNow: true)
+                    ProgressView(timerInterval: t.start...t.end, countsDown: false, label: {}, currentValueLabel: {})
+                        .tint(CategoryStyle.of(t.categoryKey).color)
+                        .padding(.leading, 12)
+                }
+                ForEach(entry.upcoming) { t in agendaRow(t, isNow: false) }
                 Spacer(minLength: 0)
             }
         }
@@ -150,19 +197,28 @@ struct PlanfectWidgetEntryView: View {
     // Lock screen — inline (one line above the clock).
     private var inline: some View {
         if let t = headline {
-            Label("\(WidgetTimeFormat.short(t.start, t.zone)) \(t.title)", systemImage: "calendar")
+            Label("\(timePrefix(t)) \(t.title)", systemImage: "calendar")
         } else {
             Label("No plans yet", systemImage: "sparkles")
         }
     }
 
-    // Lock screen — circular: count of what's left.
+    // Lock screen — circular: today's progress ring (done / total), falling back to a count.
     private var circular: some View {
         ZStack {
             AccessoryWidgetBackground()
-            VStack(spacing: 0) {
-                Image(systemName: "calendar").font(.caption2)
-                Text("\(entry.remaining)").font(.system(.title3, design: .rounded).weight(.semibold))
+            if entry.totalToday > 0 {
+                Gauge(value: Double(entry.doneToday), in: 0...Double(max(entry.totalToday, 1))) {
+                    Image(systemName: "calendar")
+                } currentValueLabel: {
+                    Text("\(entry.remainingToday)").font(.system(.title3, design: .rounded).weight(.semibold))
+                }
+                .gaugeStyle(.accessoryCircularCapacity)
+            } else {
+                VStack(spacing: 0) {
+                    Image(systemName: "calendar").font(.caption2)
+                    Text("0").font(.system(.title3, design: .rounded).weight(.semibold))
+                }
             }
         }
         .containerBackground(for: .widget) { Color.clear }
@@ -189,11 +245,21 @@ struct PlanfectWidgetEntryView: View {
                        startPoint: .top, endPoint: .bottom)
     }
 
+    /// "3:00 – 4:00 PM", prefixed with a localized weekday ("Tue 9:00 –…") when the item is not on
+    /// the entry's day — so a late-evening "Next" pointing at tomorrow can't read as today.
     private func timeText(_ t: WidgetTask) -> String {
-        "\(WidgetTimeFormat.short(t.start, t.zone)) – \(WidgetTimeFormat.short(t.end, t.zone))"
+        "\(timePrefix(t)) – \(WidgetTimeFormat.short(t.end, t.zone))"
+    }
+    private func timePrefix(_ t: WidgetTask) -> String {
+        let time = WidgetTimeFormat.short(t.start, t.zone)
+        if Calendar.current.isDate(t.start, inSameDayAs: entry.date) { return time }
+        return "\(WidgetTimeFormat.dayShort(t.start, t.zone)) \(time)"
     }
     private func moreText(_ n: Int) -> String { String(format: NSLocalizedString("+%lld more", comment: ""), n) }
     private func remainingText(_ n: Int) -> String { String(format: NSLocalizedString("%lld left today", comment: ""), n) }
+    private func doneText(_ done: Int, _ total: Int) -> String {
+        String(format: NSLocalizedString("%lld of %lld done", comment: ""), done, total)
+    }
 }
 
 // MARK: - Widget
@@ -206,7 +272,8 @@ struct PlanfectWidget: Widget {
         }
         .configurationDisplayName("Planfect")
         .description("Your next plans, at a glance.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryInline, .accessoryCircular, .accessoryRectangular])
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge,
+                            .accessoryInline, .accessoryCircular, .accessoryRectangular])
     }
 }
 

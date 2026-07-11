@@ -207,6 +207,19 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-07-11_
+
+- **v1.0.2 (build 11) shipped to the App Store — widget upgrade included.** The widget now shows a
+  **live progress bar** for the plan in progress (WidgetKit `timerInterval`, no timeline churn), a
+  new **systemLarge all-day agenda** with a done-count header, a **lock-screen progress ring**
+  (done/total today with remaining in the center), and day-aware labels — a late-evening "Next"
+  pointing at tomorrow now reads "周二 9:00" instead of masquerading as today; "N left today" counts
+  only today. Release automation now lives entirely in CLI: ASC-API-created provisioning profiles
+  (app + widget) with the imported distribution cert, manual-signing export, `altool` upload, and an
+  API script that creates the version, writes bilingual release notes, attaches the build, and
+  submits for review with auto-release on approval. This build also carries the Calendar-sync and
+  integrity-check fixes below to real users.
+
 _2026-07-05_
 
 - **"排好了 ✅" must now be true: an integrity check bounces success claims with no actual write.**

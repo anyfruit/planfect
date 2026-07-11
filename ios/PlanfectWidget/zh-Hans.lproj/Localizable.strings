@@ -8,3 +8,4 @@
 "Your next plans, at a glance." = "一眼看到接下来的安排。";
 "+%lld more" = "还有 %lld 项";
 "%lld left today" = "今天还剩 %lld 项";
+"%lld of %lld done" = "已完成 %lld/%lld 项";

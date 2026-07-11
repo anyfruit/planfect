@@ -19,12 +19,21 @@ struct WidgetTask: Codable, Identifiable, Hashable {
 /// plan made in another timezone. Cached per zone (the widget formats these on every refresh).
 enum WidgetTimeFormat {
     private static var cache: [String: DateFormatter] = [:]
+    private static func formatter(_ zone: TimeZone, _ kind: String) -> DateFormatter {
+        let key = "\(kind)|\(zone.identifier)"
+        if let f = cache[key] { return f }
+        let nf = DateFormatter()
+        nf.timeZone = zone
+        if kind == "day" { nf.setLocalizedDateFormatFromTemplate("EEE") } else { nf.timeStyle = .short }
+        cache[key] = nf
+        return nf
+    }
     static func short(_ d: Date, _ zone: TimeZone) -> String {
-        let f = cache[zone.identifier] ?? {
-            let nf = DateFormatter(); nf.timeStyle = .short; nf.timeZone = zone
-            cache[zone.identifier] = nf; return nf
-        }()
-        return f.string(from: d)
+        formatter(zone, "time").string(from: d)
+    }
+    /// Localized short weekday ("Tue" / "周二") — shown when an item is not on the entry's day.
+    static func dayShort(_ d: Date, _ zone: TimeZone) -> String {
+        formatter(zone, "day").string(from: d)
     }
 }
 
