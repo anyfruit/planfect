@@ -2,6 +2,7 @@ import { revalidatePath } from 'next/cache';
 import {
   getModelComparison, getDau, getUsageDailyTotal, getUsageBySource, getRecentDemoConversations,
   getRuntimeConfig, setRuntimeConfig,
+  getAgentTurnDays, getUpdateTaskHealth, getStepLatency,
 } from '../lib/metrics';
 import { sortByCost, totals, dailyGrandTotals, formatUsd, formatTokens, formatNumber, pct } from '../lib/format';
 import type { DemoConversationRow } from '../lib/types';
@@ -39,13 +40,16 @@ async function switchModel(formData: FormData) {
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const [models, dau, dailyRows, bySource, demos, cfg] = await Promise.all([
+  const [models, dau, dailyRows, bySource, demos, cfg, turnDays, updHealth, stepLat] = await Promise.all([
     getModelComparison(),
     getDau(30),
     getUsageDailyTotal(30),
     getUsageBySource(),
     getRecentDemoConversations(50),
     getRuntimeConfig(),
+    getAgentTurnDays(14),
+    getUpdateTaskHealth(14),
+    getStepLatency(14),
   ]);
   const appChoice = `${cfg.planner_provider_app ?? 'openai'}:${cfg.planner_model_app ?? 'gpt-5.1-chat-latest'}`;
   const demoChoice = `${cfg.planner_provider_demo ?? 'openai'}:${cfg.planner_model_demo ?? 'gpt-5.1-chat-latest'}`;
@@ -78,6 +82,63 @@ export default async function DashboardPage() {
         <ModelPicker surface="app" label="📱 App · /plan" current={appChoice} />
         <ModelPicker surface="demo" label="🌐 Demo · /plan-demo" current={demoChoice} />
       </div>
+
+      <h2>🔍 Agent observability</h2>
+      <p style={hint}>
+        Behavior of the planner agent itself, last 14 days. A <b>turn</b> is one /plan request; <b>steps</b> are
+        model calls inside it; <b>nudges</b> are integrity-check corrections (the model claimed success or
+        a broken system without a matching write — bounced once and re-checked).
+      </p>
+
+      <h3 style={{ marginBottom: 4 }}>Turns per day (app)</h3>
+      <Table head={['Day', 'Turns', '📅 Scheduled', '❓ Questions', '💬 Message', 'Errors', 'Avg steps', 'Avg / p95 latency', 'Nudges']}>
+        {turnDays.length === 0 && <tr><Td colSpan={9}>No plan_turn events yet — they start recording with the next app conversation.</Td></tr>}
+        {turnDays.map((d) => (
+          <tr key={d.day}>
+            <Td>{d.day}</Td>
+            <Td>{d.turns}</Td>
+            <Td>{d.scheduled}</Td>
+            <Td>{d.questions}</Td>
+            <Td>{d.plain}</Td>
+            <Td>{d.errors > 0 ? <b style={{ color: '#c00' }}>{d.errors}</b> : 0}</Td>
+            <Td>{d.avgSteps.toFixed(1)}</Td>
+            <Td>{(d.avgMs / 1000).toFixed(1)}s / {(d.p95Ms / 1000).toFixed(1)}s</Td>
+            <Td>{d.nudges > 0 ? <b style={{ color: '#c60' }}>{d.nudges}</b> : 0}</Td>
+          </tr>
+        ))}
+      </Table>
+
+      <h3 style={{ marginBottom: 4 }}>Step latency &amp; prompt-cache by model</h3>
+      <Table head={['Provider', 'Model', 'Steps', 'p50', 'p95', 'Cache hit']}>
+        {stepLat.length === 0 && <tr><Td colSpan={6}>No steps recorded in the window.</Td></tr>}
+        {stepLat.map((m) => (
+          <tr key={m.provider + m.model}>
+            <Td>{m.provider}</Td>
+            <Td>{m.model}</Td>
+            <Td>{formatNumber(m.steps)}</Td>
+            <Td>{Math.round(m.p50Ms)} ms</Td>
+            <Td>{Math.round(m.p95Ms)} ms</Td>
+            <Td>{m.cacheHitPct == null ? '—' : m.cacheHitPct.toFixed(0) + '%'}</Td>
+          </tr>
+        ))}
+      </Table>
+
+      <h3 style={{ marginBottom: 4 }}>Calendar-edit reliability (update_task)</h3>
+      <p style={hint}>
+        {updHealth.total === 0
+          ? 'No edit attempts in the window.'
+          : `${updHealth.ok}/${updHealth.total} edits succeeded (${((updHealth.ok / updHealth.total) * 100).toFixed(0)}%). Failures return live ids so the model retries in-turn.`}
+      </p>
+      {updHealth.topErrors.length > 0 && (
+        <Table head={['Top error', 'Count']}>
+          {updHealth.topErrors.map((e) => (
+            <tr key={e.error}>
+              <Td><span style={{ color: '#666' }}>{e.error}</span></Td>
+              <Td>{e.n}</Td>
+            </tr>
+          ))}
+        </Table>
+      )}
 
       <h2>App vs demo</h2>
       <p style={hint}>Where the spend goes: the signed-in app vs the public web demo (anonymous, no DB writes).</p>

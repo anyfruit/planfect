@@ -15,6 +15,13 @@ import { buildHandlers, loadContext, buildSystemPrompt, SupabaseUsageSink, getPl
 declare const Deno: { env: { get(k: string): string | undefined }; serve(h: (r: Request) => Promise<Response>): void };
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  // Per-turn observability (dashboard "agent health"): one plan_turn app_event per request —
+  // result type, model steps, integrity-nudge count, end-to-end latency, and errors.
+  const t0 = Date.now();
+  let obs: SupabaseClient | null = null;
+  let obsUserId: string | null = null;
+  let obsProvider = '';
+  let obsModel = '';
   try {
     // Authenticate as the caller (their JWT) so RLS applies; derive user_id server-side.
     const authHeader = req.headers.get('Authorization') ?? '';
@@ -28,8 +35,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
       auth: { persistSession: false },
     });
+    obs = admin;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return json({ error: 'unauthorized' }, 401);
+    obsUserId = user.id;
 
     const body = await req.json();
     const conversationId: string | undefined = body.conversation_id;
@@ -57,6 +66,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       model = Deno.env.get('PLANNER_MODEL') || 'gpt-5.1-chat-latest';
       apiKey = Deno.env.get('OPENAI_API_KEY');
     }
+    obsProvider = provider;
+    obsModel = model;
 
     const ctx = await loadContext(supabase, user.id, admin);
     // Planning timezone = where the user IS right now (the device's current zone, sent each request),
@@ -107,6 +118,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    // Baselines for the per-turn deltas: the app replays the whole thread, so new steps/nudges
+    // this turn = counts in the result thread minus counts in the input thread.
+    const inSteps = countAssistant(messages);
+    const inNudges = countNudges(messages);
+
     const result = await runPlanner(messages, {
       llm: createPlanner(provider, { apiKey: apiKey ?? '' }),
       model,
@@ -118,13 +134,46 @@ Deno.serve(async (req: Request): Promise<Response> => {
       maxSteps: 14,
     });
 
+    logTurn(admin, user.id, {
+      ok: true,
+      type: result.type,
+      steps: countAssistant(result.messages) - inSteps,
+      nudges: countNudges(result.messages) - inNudges,
+      ms: Date.now() - t0,
+      provider,
+      model,
+    });
+
     // NOTE (Phase 2): also persist `messages` into the `messages` table here so the
     // conversation + clarifying-question state survives across the ask -> answer round trip.
     return json(result);
   } catch (e) {
+    if (obs) {
+      logTurn(obs, obsUserId, {
+        ok: false, error: (e as Error).message, ms: Date.now() - t0,
+        provider: obsProvider, model: obsModel,
+      });
+    }
     return json({ error: (e as Error).message }, 500);
   }
 });
+
+/** Model steps in a thread (assistant turns — includes tool-calling steps). */
+function countAssistant(msgs: LLMMessage[]): number {
+  return msgs.filter((m) => m.role === 'assistant').length;
+}
+
+/** Integrity-check nudges in a thread (they persist across turns, so callers diff before/after). */
+function countNudges(msgs: LLMMessage[]): number {
+  return msgs.filter((m) => m.role === 'user' && typeof m.content === 'string' &&
+    m.content.startsWith('[Integrity check')).length;
+}
+
+/** Fire-and-forget plan_turn app_event — observability must never fail or slow a turn. */
+function logTurn(admin: SupabaseClient, userId: string | null, meta: Record<string, unknown>): void {
+  admin.from('app_events').insert({ user_id: userId, type: 'plan_turn', metadata: meta })
+    .then(() => {}, () => {});
+}
 
 /** Count the user's AI-usage events this calendar month (the free-tier budget unit). */
 async function freeUsageThisMonth(admin: SupabaseClient, userId: string): Promise<number> {

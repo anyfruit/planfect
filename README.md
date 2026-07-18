@@ -209,6 +209,11 @@ reflect the current state.
 
 _2026-07-18_
 
+- **Agent observability in the dashboard.** Every `/plan` request now logs one `plan_turn`
+  app_event (result type, model steps, integrity-nudge count, end-to-end ms, errors — fire-and-
+  forget), and the dashboard grew a "🔍 Agent observability" section: turns/day with outcome mix
+  and p95 latency, per-model step latency + prompt-cache hit rate (surfaced immediately: M3 is
+  p50 3.5s / p95 7.2s with only 60% cache hit), and update_task edit reliability with top errors.
 - **kimi-k2.6-nothink: the fast Kimi.** k2.6 burns ~1000 reasoning tokens per step (~8 s); Kimi's
   `thinking: {type: "disabled"}` flag cuts the same model to **~1.3–2.3 s/step at half a cent a
   turn** with correct results on both the incident scenario and a 3-task brain-dump (natural
