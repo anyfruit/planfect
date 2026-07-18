@@ -142,6 +142,8 @@ struct WeekTimelineView: View {
     private var days: [Date] {
         (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: weekStart) }
     }
+    /// Hour the view opens at: an hour before the week's earliest event, or 7 AM when empty.
+    private var startHour: Int { TimelineMath.firstHour(blocks) }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -152,7 +154,9 @@ struct WeekTimelineView: View {
                         VStack(spacing: 1) {
                             Text(d.formatted(.dateTime.weekday(.narrow)))
                                 .font(.caption2).foregroundStyle(.secondary)
-                            Text(d.formatted(.dateTime.day()))
+                            // Bare day number: .dateTime.day() localizes to "19日" in zh, which
+                            // truncates to "1…" in the 24pt circle.
+                            Text(String(Calendar.current.component(.day, from: d)))
                                 .font(.caption.weight(isToday(d) ? .bold : .regular))
                                 .foregroundStyle(isToday(d) ? Color.accentColor : .primary)
                                 .frame(width: 24, height: 24)
@@ -189,7 +193,15 @@ struct WeekTimelineView: View {
                     .frame(height: hourHeight * 24)
                     .padding(.vertical, 6)
                 }
-                .onAppear { proxy.scrollTo(TimelineMath.firstHour(blocks), anchor: .top) }
+                // Open at the first event (or working hours when empty), not 12 AM. scrollTo in a
+                // bare onAppear is a no-op — layout isn't done yet — so defer a tick; and blocks
+                // load async, so also re-anchor when the earliest hour changes (initial load / week
+                // flips), which leaves a user's manual scrolling alone otherwise.
+                .onAppear {
+                    let h = startHour
+                    DispatchQueue.main.async { proxy.scrollTo(h, anchor: .top) }
+                }
+                .onChange(of: startHour) { _, h in proxy.scrollTo(h, anchor: .top) }
             }
         }
     }
@@ -263,7 +275,8 @@ private struct DayCell: View {
     let today: Bool
     var body: some View {
         VStack(spacing: 4) {
-            Text(day.formatted(.dateTime.day()))
+            // Bare number — .dateTime.day() is "19日" in zh, which truncates in the 28pt circle.
+            Text(String(Calendar.current.component(.day, from: day)))
                 .font(.callout.weight(today ? .bold : .regular))
                 .foregroundStyle(today ? Color.white : .primary)
                 .frame(width: 28, height: 28)

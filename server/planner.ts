@@ -41,8 +41,9 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
   const scheduledItems: ReceiptItem[] = [];
   const assumptions: string[] = [];
   let scheduled = false;
-  let wroteOk = false;   // any calendar write that actually landed this turn (see integrity check)
-  let nudged = false;    // the integrity check fires at most once per turn
+  let wroteOk = false;        // any calendar write that actually landed this turn (see integrity check)
+  let attemptedWrite = false; // any write tool CALLED this turn, even if it failed (see integrity check)
+  let nudged = false;         // the integrity checks fire at most once per turn, combined
 
   for (let step = 0; step < maxSteps; step++) {
     const t0 = now();
@@ -76,6 +77,25 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
         });
         continue;
       }
+      // Mirror-image check: the reply REFUSES, blaming a broken/unresponsive system ("我加不了，
+      // 目前系统对周一的更新没有反应，等系统恢复正常再处理？") — without having attempted a single
+      // write this turn. Seen in the wild on a fresh "周一五点有面试": the model invented an outage
+      // and told the user to wait, though the very same request succeeded seconds later. An honest
+      // failure report after a REAL attempt is untouched — attemptedWrite guards this branch.
+      if (!nudged && !attemptedWrite && !wroteOk && placed.length === 0 && claimsSystemFailure(res.text)) {
+        nudged = true;
+        msgs.push({
+          role: 'user',
+          content:
+            '[Integrity check — automated, the user did NOT see your draft: your reply claims the ' +
+            'request cannot be done or that the system is broken/unresponsive, but you did not attempt ' +
+            'ANY tool call this turn. The system is fully operational — never blame it, and never ask ' +
+            'the user to wait, retry later, or resend. Call the right tool NOW (schedule_tasks for a ' +
+            'new plan, update_task to change an existing one); only if the tool itself then fails may ' +
+            'you report that plainly, with its actual error. Do not mention this note.]',
+        });
+        continue;
+      }
       if (scheduled) {
         if (placed.length > 0) {
           return { type: 'scheduled', receipt: { summary: res.text ?? '', items: placed, assumptions }, messages: msgs };
@@ -105,6 +125,12 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
         result = handler ? await handler(call.arguments) : `error: no handler for ${call.name}`;
       } catch (e) {
         result = `error: ${(e as Error).message}`;
+      }
+      if (
+        call.name === TOOL_SCHEDULE_TASKS || call.name === TOOL_UPDATE_TASK ||
+        call.name === TOOL_SET_RECURRING || call.name === TOOL_SET_ROUTINE
+      ) {
+        attemptedWrite = true;
       }
       if (call.name === TOOL_SCHEDULE_TASKS) {
         scheduled = true;
@@ -150,6 +176,18 @@ export function claimsCalendarChange(text: string | undefined): boolean {
   if (!text) return false;
   return /✅|已(安排|排|调|改|取消|删|挪|订|定)|安排好|排(好|上)了|(改|调|挪|移)(到|好)|取消了|删(掉|好)?了|定好了|(re)?scheduled|booked|moved (it|to)|deleted|cancell?ed|added to your (calendar|schedule)|all set/i
     .test(text);
+}
+
+/** Does a final reply read like "I can't do it / the system is broken"? (加不了 / 改不动 / 系统没有
+ *  反应 / 等系统恢复 / "not responding" / "try again later", …). Used ONLY to decide whether an
+ *  integrity re-check is needed when the model refused WITHOUT attempting any write — a false
+ *  positive just costs one extra (honest) model step. */
+export function claimsSystemFailure(text: string | undefined): boolean {
+  if (!text) return false;
+  return (
+    /(系统|服务|后台).{0,12}(没有?(反|响)应|故障|异常|出(了)?问题|维护|不可用|崩|挂)|等(系统|服务|它)?.{0,8}恢复|(加|改|排|删|动|挪|移|更新?)不(了|动|掉)|无法(添加|修改|更新|安排|处理|排|删除)|没法(加|改|排|安排|处理|删)|暂时?(不支持|无法|没法)/.test(text) ||
+    /(system|server|backend).{0,24}(down|not respond|unrespons|broken|unavailable|error|acting up)|not responding|try (again )?later|temporarily unavailable|can'?t (add|schedule|update|change|move|delete) (it|that|this|the)/i.test(text)
+  );
 }
 
 /** Tool result synthesized for a clarifying question the user never answered (see sanitizeThread). */

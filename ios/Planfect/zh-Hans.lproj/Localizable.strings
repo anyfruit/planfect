@@ -24,6 +24,12 @@
 "New chat" = "新对话";
 "Start a new chat?" = "开始新对话?";
 "This clears the current conversation." = "这会清空当前对话。";
+"Copy" = "复制";
+"Good to know" = "小提示";
+"Everything below is yours to tune — app language, the mic's speech-to-text language, your routine (wake, sleep, and meal times), reminders, and calendar sync. Planfect plans around whatever you set." = "下面这些都可以随时调:界面语言、语音输入的识别语言、作息(起床、睡觉、吃饭时间)、提醒和日历同步。Planfect 会围绕你的设置来安排。";
+"Got it" = "知道了";
+"Resend" = "重新发送";
+"Scroll to latest" = "回到最新消息";
 
 /* Chat fallbacks (shown only if the server reply is blank/edge-case) */
 "Scheduled." = "已安排好啦。";
@@ -259,6 +265,7 @@
 "• If I'm unsure, I'll ask first — just tap an option." = "• 拿不准我会先问你一句,点选项确认就好。";
 "• See your plan in Schedule below; see where your time goes in Insights." = "• 想看安排去下面的「Schedule」,想看时间花在哪了去「Insights」。";
 "• Change your routine, places, and reminders anytime under the avatar ▸ Profile." = "• 作息、地址、提醒随时在右上角头像 ▸ Profile 里改。";
+"• Profile is also where you set the app language, the voice-input language, and your wake / sleep / meal times — all adjustable." = "• 界面语言、语音输入的识别语言、起床/睡觉/吃饭时间也都在 Profile 里,想调就调。";
 "Give it a try: tell me one thing you need to do 👇" = "试试看:跟我说一件你接下来要做的事 👇";
 
 /* AI data-use consent (App Store 5.1.1(i) / 5.1.2(i)) */

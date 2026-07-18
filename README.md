@@ -209,6 +209,32 @@ reflect the current state.
 
 _2026-07-18_
 
+- **Integrity guard now catches fabricated "system down" refusals (deployed).** A user asked for
+  "周一五点有面试" and the planner replied it *couldn't* — "目前系统对周一的更新没有反应,等系统恢复
+  正常再处理?" — without attempting a single tool call (the same request then succeeded seconds
+  later; `app_events`/`usage_events` confirmed no write was ever tried). The existing integrity
+  check only bounced false *success* claims, so [planner.ts](server/planner.ts) gained the mirror
+  image: a final reply matching `claimsSystemFailure` (加不了 / 改不动 / 系统没反应 / "not
+  responding" / "try later") with **zero write attempts** that turn gets one corrective step —
+  honest failure reports after a real attempt pass through untouched. The system prompt also states
+  outright that the system is never down and each new message is a fresh request. +3 unit tests (44
+  pass); `/plan` redeployed.
+- **Chat: copy, resend, retry, and a jump-to-latest that survives long scrollback.** Long-press any
+  bubble to copy it; long-press your own to resend it verbatim — no more retyping a failed message.
+  A failed turn now renders with a Retry button that re-runs the request (safe: history only
+  advances on success). And the jump-to-latest button — shipped in build 11 but reported "missing" —
+  actually vanished whenever you scrolled far up: the bottom sentinel that measured "at bottom" sat
+  inside a `LazyVStack`, got lazily unloaded, and its preference reverted to the default `true`. The
+  measurement now lives on the never-unloaded content container ([ChatView.swift](ios/Planfect/Chat/ChatView.swift)).
+- **Week view opens where the events are, and dates are readable in Chinese.** The week grid always
+  opened at 12 AM (the `scrollTo` in a bare `onAppear` ran before layout and blocks load async — it
+  now defers a tick and re-anchors when the earliest hour changes; empty weeks open at 7 AM), and
+  the column headers rendered "1…" because `.dateTime.day()` localizes to "19日" in zh and truncated
+  in the 24 pt circle — now a bare day number in week *and* month views
+  ([TimelineViews.swift](ios/Planfect/Schedule/TimelineViews.swift)).
+- **Settings discoverability.** A one-time dismissible "Good to know / 小提示" card at the top of
+  Profile spells out what's tunable (app language, voice-input language, wake/sleep/meal times,
+  reminders, calendar sync), and the onboarding how-to gained the same pointer.
 - **No more phantom "已取消" alerts.** Opening the Friends tab (or Schedule/Insights) could pop an
   error alert saying just "已取消"/"cancelled" — that was SwiftUI cancelling an in-flight load when
   the tab switched, and the `NSURLErrorCancelled` surfacing as if it were a real failure. A shared

@@ -22,6 +22,7 @@ struct ProfileView: View {
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10
     @AppStorage(SpeechRecognizer.langKey) private var voiceLang = ""
     @AppStorage(CalendarManager.syncKey) private var calendarSync = false
+    @AppStorage("planfect.settingsTip.dismissed") private var settingsTipDismissed = false
     @EnvironmentObject private var appLang: LanguageManager
 
     private enum PlaceKind: String, Identifiable { case home, work; var id: String { rawValue } }
@@ -53,6 +54,23 @@ struct ProfileView: View {
                             Text(supa.isPro ? "Active" : "Free").foregroundStyle(.secondary)
                             Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
                         }
+                    }
+                }
+
+                // One-time discovery tip: users kept missing that language, voice language, and the
+                // routine's meal/sleep times are all adjustable here.
+                if !settingsTipDismissed {
+                    Section {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label("Good to know", systemImage: "lightbulb.fill")
+                                .font(.subheadline.weight(.semibold)).foregroundStyle(.tint)
+                            Text("Everything below is yours to tune — app language, the mic's speech-to-text language, your routine (wake, sleep, and meal times), reminders, and calendar sync. Planfect plans around whatever you set.")
+                                .font(.footnote).foregroundStyle(.secondary)
+                            Button("Got it") { withAnimation { settingsTipDismissed = true } }
+                                .font(.footnote.weight(.semibold))
+                                .buttonStyle(.bordered).controlSize(.small)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
 

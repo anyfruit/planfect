@@ -12,9 +12,11 @@ struct ChatItem: Identifiable {
         case receipt(Receipt)
     }
     let content: Content
+    var isError = false   // a failed turn — rendered with a Retry button
 
     static func user(_ s: String) -> ChatItem { .init(content: .text(.user, s)) }
     static func assistant(_ s: String) -> ChatItem { .init(content: .text(.assistant, s)) }
+    static func error(_ s: String) -> ChatItem { .init(content: .text(.assistant, s), isError: true) }
     static func questions(_ q: [PlanQuestion]) -> ChatItem { .init(content: .questions(q)) }
     static func receipt(_ r: Receipt) -> ChatItem { .init(content: .receipt(r)) }
 }
@@ -97,6 +99,26 @@ final class ChatViewModel: ObservableObject {
         clearPersisted()
     }
 
+    /// Re-run the last failed turn. The failed request never advanced `history` (it only updates on
+    /// a successful response), so re-running it verbatim is safe — no duplicated user turn.
+    func retry() {
+        guard !sending else { return }
+        if let last = items.last, last.isError { items.removeLast() }   // clear the error bubble
+        persist()
+        Task { await run(PlanRequest(messages: history)) }
+    }
+
+    /// Send an earlier message again verbatim (long-press a bubble ▸ Resend).
+    func resend(_ text: String) {
+        guard !sending, !text.isEmpty else { return }
+        guard ensureConsent(then: { [weak self] in self?.resend(text) }) else { return }
+        activeQuestionID = nil
+        items.append(.user(text))
+        history.append(.object(["role": .string("user"), "content": .string(text)]))
+        persist()
+        Task { await run(PlanRequest(messages: history)) }
+    }
+
     func answer(_ answers: [QuestionAnswer]) {
         guard !sending else { return }
         guard ensureConsent(then: { [weak self] in self?.answer(answers) }) else { return }
@@ -160,7 +182,7 @@ final class ChatViewModel: ObservableObject {
                 await refreshMirrors()
                 items.append(.assistant("Sent — but the connection dropped when you switched away. I've refreshed; check Schedule to see if it landed, or resend."))
             } else {
-                items.append(.assistant("⚠️ \(error.localizedDescription)"))
+                items.append(.error("⚠️ \(error.localizedDescription)"))
             }
         }
         persist()
@@ -222,6 +244,7 @@ final class ChatViewModel: ObservableObject {
             String(localized: "• If I'm unsure, I'll ask first — just tap an option."),
             String(localized: "• See your plan in Schedule below; see where your time goes in Insights."),
             String(localized: "• Change your routine, places, and reminders anytime under the avatar ▸ Profile."),
+            String(localized: "• Profile is also where you set the app language, the voice-input language, and your wake / sleep / meal times — all adjustable."),
             String(localized: "Give it a try: tell me one thing you need to do 👇"),
         ].joined(separator: "\n")
         chat.append(ChatItem(content: .text(.assistant, guide)))
@@ -244,6 +267,7 @@ private struct PersistedItem: Codable {
     var text: String?
     var questions: [PlanQuestion]?
     var receipt: Receipt?
+    var isError: Bool?      // optional so transcripts saved before this field decode fine
 
     init(_ item: ChatItem) {
         switch item.content {
@@ -251,11 +275,12 @@ private struct PersistedItem: Codable {
         case .questions(let q): kind = "questions"; role = "assistant"; questions = q
         case .receipt(let r): kind = "receipt"; role = "assistant"; receipt = r
         }
+        if item.isError { isError = true }
     }
 
     func toChatItem() -> ChatItem? {
         switch kind {
-        case "text": return ChatItem(content: .text(role == "user" ? .user : .assistant, text ?? ""))
+        case "text": return ChatItem(content: .text(role == "user" ? .user : .assistant, text ?? ""), isError: isError ?? false)
         case "questions": return questions.map { ChatItem(content: .questions($0)) }
         case "receipt": return receipt.map { ChatItem(content: .receipt($0)) }
         default: return nil
@@ -282,7 +307,9 @@ struct ChatView: View {
                             ForEach(vm.items) { item in
                                 ChatRow(item: item,
                                         questionsLocked: item.id != vm.activeQuestionID || vm.sending,
-                                        onAnswer: vm.answer)
+                                        onAnswer: vm.answer,
+                                        onResend: vm.resend,
+                                        onRetry: vm.retry)
                             }
                             if vm.sending {
                                 HStack(alignment: .top, spacing: 8) {
@@ -296,13 +323,17 @@ struct ChatView: View {
                                 }
                             }
                             Color.clear.frame(height: 1).id("bottom")
-                                .background(GeometryReader { g in
-                                    Color.clear.preference(
-                                        key: AtBottomKey.self,
-                                        value: g.frame(in: .named("chatScroll")).maxY <= outer.size.height + 60)
-                                })
                         }
                         .padding()
+                        // Measure the WHOLE content, not a bottom sentinel row: in a LazyVStack the
+                        // sentinel unloads once the user scrolls far up, its preference reverts to
+                        // the default (true), and the jump-to-latest button vanished exactly when it
+                        // was needed. The container itself is never lazily unloaded.
+                        .background(GeometryReader { g in
+                            Color.clear.preference(
+                                key: AtBottomKey.self,
+                                value: g.frame(in: .named("chatScroll")).maxY <= outer.size.height + 60)
+                        })
                     }
                     .coordinateSpace(name: "chatScroll")
                     .scrollDismissesKeyboard(.interactively)
@@ -445,11 +476,25 @@ private struct ChatRow: View {
     let item: ChatItem
     let questionsLocked: Bool   // for a .questions row: superseded / mid-request → not answerable
     let onAnswer: ([QuestionAnswer]) -> Void
+    let onResend: (String) -> Void
+    let onRetry: () -> Void
 
     var body: some View {
         switch item.content {
-        case .text(.user, let s): Bubble(text: s, mine: true)
-        case .text(.assistant, let s): withAvatar { Bubble(text: s, mine: false) }
+        case .text(.user, let s): Bubble(text: s, mine: true, onResend: onResend)
+        case .text(.assistant, let s):
+            withAvatar {
+                VStack(alignment: .leading, spacing: 8) {
+                    Bubble(text: s, mine: false)
+                    if item.isError {
+                        Button { onRetry() } label: {
+                            Label("Retry", systemImage: "arrow.clockwise")
+                                .font(.footnote.weight(.semibold))
+                        }
+                        .buttonStyle(.bordered).controlSize(.small)
+                    }
+                }
+            }
         case .questions(let qs): withAvatar { QuestionCardView(questions: qs, locked: questionsLocked, onSubmit: onAnswer) }
         case .receipt(let r): withAvatar { ReceiptCardView(receipt: r) }
         }
@@ -479,6 +524,7 @@ struct BotAvatar: View {
 private struct Bubble: View {
     let text: String
     let mine: Bool
+    var onResend: ((String) -> Void)? = nil   // user bubbles: long-press ▸ Resend
     var body: some View {
         HStack {
             if mine { Spacer(minLength: 44) }
@@ -498,6 +544,18 @@ private struct Bubble: View {
                 }
                 .clipShape(.rect(topLeadingRadius: 20, bottomLeadingRadius: mine ? 20 : 7,
                                  bottomTrailingRadius: mine ? 7 : 20, topTrailingRadius: 20))
+                // Long-press: copy any bubble; resend user ones — so a failed message never has to
+                // be retyped by hand.
+                .contextMenu {
+                    Button { UIPasteboard.general.string = text } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                    if let onResend {
+                        Button { onResend(text) } label: {
+                            Label("Resend", systemImage: "arrow.up.circle")
+                        }
+                    }
+                }
             if !mine { Spacer(minLength: 44) }
         }
     }
