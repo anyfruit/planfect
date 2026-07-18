@@ -209,6 +209,13 @@ reflect the current state.
 
 _2026-07-18_
 
+- **Overnight context reset.** The chat thread used to live forever — the only trims were the
+  server's 40-message tail cap and a manual "New chat", so weeks-old turns (stale dates, an old
+  fabricated refusal) kept poisoning the model. Now, crossing 4 AM local time after the last
+  exchange clears the LLM history (checked on app open and before each send): the visible
+  transcript stays, a subtle "新的一天 / New day" divider marks the seam, and preferences /
+  routine / schedule are unaffected (they live server-side). DEBUG hook `PLANFECT_STALE_CHAT=1`
+  forces it for testing; verified in the simulator.
 - **Agent observability in the dashboard.** Every `/plan` request now logs one `plan_turn`
   app_event (result type, model steps, integrity-nudge count, end-to-end ms, errors — fire-and-
   forget), and the dashboard grew a "🔍 Agent observability" section: turns/day with outcome mix

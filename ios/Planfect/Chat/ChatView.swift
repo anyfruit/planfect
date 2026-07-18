@@ -10,6 +10,7 @@ struct ChatItem: Identifiable {
         case text(Role, String)
         case questions([PlanQuestion])
         case receipt(Receipt)
+        case divider(String)   // a context seam ("New day") — visible transcript keeps flowing
     }
     let content: Content
     var isError = false   // a failed turn — rendered with a Retry button
@@ -19,6 +20,7 @@ struct ChatItem: Identifiable {
     static func error(_ s: String) -> ChatItem { .init(content: .text(.assistant, s), isError: true) }
     static func questions(_ q: [PlanQuestion]) -> ChatItem { .init(content: .questions(q)) }
     static func receipt(_ r: Receipt) -> ChatItem { .init(content: .receipt(r)) }
+    static func divider(_ s: String) -> ChatItem { .init(content: .divider(s)) }
 }
 
 @MainActor
@@ -34,6 +36,7 @@ final class ChatViewModel: ObservableObject {
 
     private var supa: SupabaseManager?
     private var history: [JSONValue] = []   // full LLM thread, sent every turn so context persists
+    private var lastMessageAt: Date?        // when the conversation last changed (drives the overnight reset)
 
     // MARK: - AI-consent gate (App Store 5.1.1(i) / 5.1.2(i))
     // Nothing is sent to the third-party AI provider until the user has agreed IN-APP. `ensureConsent`
@@ -80,10 +83,36 @@ final class ChatViewModel: ObservableObject {
     }
     #endif
 
+    /// Overnight context reset: once we cross 4 AM local time after the last exchange, the LLM
+    /// thread is stale — planning talk is day-scoped, and old turns (yesterday's dates, an old
+    /// refusal) poison the model. Clear ONLY the model's history; the visible transcript stays,
+    /// with a subtle "New day" divider marking the seam. Preferences/routine/schedule all live
+    /// server-side, so nothing real is forgotten.
+    private func resetContextIfStale() {
+        guard !history.isEmpty else { return }
+        #if DEBUG
+        let force = ProcessInfo.processInfo.environment["PLANFECT_STALE_CHAT"] == "1"
+        #else
+        let force = false
+        #endif
+        if !force {
+            guard let last = lastMessageAt else { return }
+            let cal = Calendar.current
+            var anchor = cal.date(bySettingHour: 4, minute: 0, second: 0, of: Date()) ?? Date()
+            if anchor > Date() { anchor = cal.date(byAdding: .day, value: -1, to: anchor) ?? anchor }
+            guard last < anchor else { return }
+        }
+        history = []
+        activeQuestionID = nil
+        items.append(.divider(String(localized: "New day")))
+        persist()
+    }
+
     func send() {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !sending else { return }
         guard ensureConsent(then: { [weak self] in self?.send() }) else { return }
+        resetContextIfStale()   // covers the app staying alive across the night
         input = ""
         activeQuestionID = nil   // a new message supersedes any pending question card
         items.append(.user(text))
@@ -215,11 +244,14 @@ final class ChatViewModel: ObservableObject {
               let saved = try? JSONDecoder().decode(PersistedChat.self, from: data) else { return }
         history = saved.history
         items = saved.items.compactMap { $0.toChatItem() }
+        lastMessageAt = saved.lastMessageAt
+        resetContextIfStale()   // opening the app the next morning shows the seam right away
     }
 
     private func persist() {
         guard let url = storageURL() else { return }
-        let payload = PersistedChat(history: history, items: items.map(PersistedItem.init))
+        lastMessageAt = Date()
+        let payload = PersistedChat(history: history, items: items.map(PersistedItem.init), lastMessageAt: lastMessageAt)
         if let data = try? JSONEncoder().encode(payload) { try? data.write(to: url) }
     }
 
@@ -259,10 +291,11 @@ final class ChatViewModel: ObservableObject {
 private struct PersistedChat: Codable {
     var history: [JSONValue]
     var items: [PersistedItem]
+    var lastMessageAt: Date? = nil   // optional so files saved before this field decode fine
 }
 
 private struct PersistedItem: Codable {
-    var kind: String        // "text" | "questions" | "receipt"
+    var kind: String        // "text" | "questions" | "receipt" | "divider"
     var role: String        // "user" | "assistant" (text only)
     var text: String?
     var questions: [PlanQuestion]?
@@ -274,6 +307,7 @@ private struct PersistedItem: Codable {
         case .text(let r, let s): kind = "text"; role = (r == .user ? "user" : "assistant"); text = s
         case .questions(let q): kind = "questions"; role = "assistant"; questions = q
         case .receipt(let r): kind = "receipt"; role = "assistant"; receipt = r
+        case .divider(let s): kind = "divider"; role = "assistant"; text = s
         }
         if item.isError { isError = true }
     }
@@ -283,6 +317,7 @@ private struct PersistedItem: Codable {
         case "text": return ChatItem(content: .text(role == "user" ? .user : .assistant, text ?? ""), isError: isError ?? false)
         case "questions": return questions.map { ChatItem(content: .questions($0)) }
         case "receipt": return receipt.map { ChatItem(content: .receipt($0)) }
+        case "divider": return ChatItem(content: .divider(text ?? ""))
         default: return nil
         }
     }
@@ -497,7 +532,18 @@ private struct ChatRow: View {
             }
         case .questions(let qs): withAvatar { QuestionCardView(questions: qs, locked: questionsLocked, onSubmit: onAnswer) }
         case .receipt(let r): withAvatar { ReceiptCardView(receipt: r) }
+        case .divider(let s):
+            HStack(spacing: 10) {
+                seamLine
+                Text(s).font(.caption2).foregroundStyle(.tertiary).fixedSize()
+                seamLine
+            }
+            .padding(.vertical, 4)
         }
+    }
+
+    private var seamLine: some View {
+        Rectangle().fill(Color(.separator).opacity(0.6)).frame(height: 0.5).frame(maxWidth: .infinity)
     }
 
     @ViewBuilder private func withAvatar<V: View>(@ViewBuilder _ content: () -> V) -> some View {
