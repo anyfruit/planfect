@@ -67,6 +67,10 @@ export const PRICING: Record<string, ModelPrice> = {
   'minimax:MiniMax-M3': { inputPerM: 0.29, outputPerM: 1.17, cachedInputPerM: 0.058 },
   'minimax:MiniMax-M2.7': { inputPerM: 0.29, outputPerM: 1.17, cachedInputPerM: 0.058 },
   'minimax:MiniMax-M2.7-highspeed': { inputPerM: 0.58, outputPerM: 2.33, cachedInputPerM: 0.058 },
+  // Kimi / Moonshot (api.moonshot.cn) — platform.kimi.com list (2026-07), CNY at ¥7.2/$.
+  // k2.6: ¥6.5 in / ¥1.1 cached / ¥27 out; k3 (flagship): ¥20 in / ¥2 cached / ¥100 out.
+  'kimi:kimi-k2.6': { inputPerM: 0.90, outputPerM: 3.75, cachedInputPerM: 0.15 },
+  'kimi:kimi-k3': { inputPerM: 2.78, outputPerM: 13.89, cachedInputPerM: 0.28 },
 };
 
 /** Strip a dated snapshot suffix so a vendor-returned id matches PRICING:

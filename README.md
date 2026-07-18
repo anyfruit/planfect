@@ -209,6 +209,15 @@ reflect the current state.
 
 _2026-07-18_
 
+- **Kimi (Moonshot) wired in as a fifth provider.** `createPlanner('kimi')` hits the
+  OpenAI-compatible `api.moonshot.cn/v1` (mainland key), with `KIMI_API_KEY` set as a Supabase
+  secret and `kimi-k2.6` / `kimi-k3` priced in [usage.ts](server/usage.ts) and selectable from the
+  dashboard's model switcher. E2E-tested against the real API with the planner loop + scheduling
+  engine on the incident scenario ("周一五点有面试", today anchored Sat 7/18): k2.6 scheduled it
+  correctly (Mon 17:00) in one step, ~7.8 s, $0.0034/turn; k3 also correct but ~29 s — k2.6 is the
+  usable default, k3 a quality benchmark. Production stays on MiniMax-M3 until switched in the
+  dashboard.
+
 - **Integrity guard now catches fabricated "system down" refusals (deployed).** A user asked for
   "周一五点有面试" and the planner replied it *couldn't* — "目前系统对周一的更新没有反应,等系统恢复
   正常再处理?" — without attempting a single tool call (the same request then succeeded seconds

@@ -15,6 +15,8 @@ const MODEL_OPTIONS: [string, string][] = [
   ['anthropic', 'claude-sonnet-4-6'],
   ['minimax', 'MiniMax-M3'],
   ['minimax', 'MiniMax-M2.7-highspeed'],
+  ['kimi', 'kimi-k2.6'],
+  ['kimi', 'kimi-k3'],
 ];
 
 // Server action: flip the active model for a surface ('app' | 'demo'). Behind the dashboard's

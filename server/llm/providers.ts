@@ -35,6 +35,11 @@ export function createPlanner(provider: LLMProvider, cfg: ProviderConfig): Plann
       // MiniMax open platform — OpenAI-compatible chat completions. M3 is a reasoning model and
       // wraps its chain-of-thought in <think>…</think> inside content; the adapter strips that.
       return new OpenAICompatiblePlanner('minimax', cfg.apiKey, cfg.baseURL ?? 'https://api.minimaxi.com/v1');
+    case 'kimi':
+      // Moonshot AI (Kimi) — OpenAI-compatible. This key is a mainland-platform key (api.moonshot.cn);
+      // the .ai host is a separate account system. Reasoning models return their chain-of-thought in
+      // a separate reasoning_content field, which the adapter already ignores (it reads content).
+      return new OpenAICompatiblePlanner('kimi', cfg.apiKey, cfg.baseURL ?? 'https://api.moonshot.cn/v1');
     case 'anthropic':
       return new AnthropicPlanner(cfg.apiKey, cfg.baseURL ?? 'https://api.anthropic.com/v1');
   }
