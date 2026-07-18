@@ -60,7 +60,7 @@ class OpenAICompatiblePlanner implements PlannerLLM {
   }
 
   async step(input: LLMStepInput): Promise<LLMStepResult> {
-    const body = {
+    const body: Record<string, unknown> = {
       model: input.model,
       messages: [
         { role: 'system', content: input.system },
@@ -72,6 +72,14 @@ class OpenAICompatiblePlanner implements PlannerLLM {
       })),
       tool_choice: 'auto',
     };
+    // Kimi: a "-nothink" model suffix selects the same model with thinking disabled — the fast
+    // option (k2.6 otherwise spends ~1000 reasoning tokens per step; disabling cuts a planning
+    // step from ~8s to ~1-2s at the same per-token price). Usage/pricing still record correctly:
+    // the API reports the base model id back.
+    if (this.provider === 'kimi' && String(body.model).endsWith('-nothink')) {
+      body.model = String(body.model).slice(0, -'-nothink'.length);
+      body.thinking = { type: 'disabled' };
+    }
     const res = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },

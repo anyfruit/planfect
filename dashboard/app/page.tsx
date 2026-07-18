@@ -15,8 +15,9 @@ const MODEL_OPTIONS: [string, string][] = [
   ['anthropic', 'claude-sonnet-4-6'],
   ['minimax', 'MiniMax-M3'],
   ['minimax', 'MiniMax-M2.7-highspeed'],
-  ['kimi', 'kimi-k2.6'],
-  ['kimi', 'kimi-k3'],
+  ['kimi', 'kimi-k2.6-nothink'],   // k2.6, thinking disabled — ~1-2s/step (fast default)
+  ['kimi', 'kimi-k2.6'],           // k2.6 with reasoning — ~8s/step, deeper deliberation
+  ['kimi', 'kimi-k3'],             // flagship — highest quality, ~30s/step (benchmark only)
 ];
 
 // Server action: flip the active model for a surface ('app' | 'demo'). Behind the dashboard's

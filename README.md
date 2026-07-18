@@ -209,6 +209,12 @@ reflect the current state.
 
 _2026-07-18_
 
+- **kimi-k2.6-nothink: the fast Kimi.** k2.6 burns ~1000 reasoning tokens per step (~8 s); Kimi's
+  `thinking: {type: "disabled"}` flag cuts the same model to **~1.3–2.3 s/step at half a cent a
+  turn** with correct results on both the incident scenario and a 3-task brain-dump (natural
+  time-of-day picks intact). The adapter maps a `-nothink` model-name suffix to that flag, and the
+  dashboard switcher now lists it as the recommended fast option (k3 stays as a ~30 s quality
+  benchmark; `reasoning_effort` only supports "max" today).
 - **Kimi (Moonshot) wired in as a fifth provider.** `createPlanner('kimi')` hits the
   OpenAI-compatible `api.moonshot.cn/v1` (mainland key), with `KIMI_API_KEY` set as a Supabase
   secret and `kimi-k2.6` / `kimi-k3` priced in [usage.ts](server/usage.ts) and selectable from the
