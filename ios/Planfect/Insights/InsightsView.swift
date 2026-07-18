@@ -154,7 +154,7 @@ struct InsightsView: View {
         analyzing = true; analysisError = nil
         Task {
             do { analysis = try await supa.analyzeInsights(currentSummary()) }
-            catch { analysisError = error.localizedDescription }
+            catch { analysisError = error.uiMessage }
             analyzing = false
         }
     }

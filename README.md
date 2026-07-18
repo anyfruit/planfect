@@ -207,6 +207,15 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-07-18_
+
+- **No more phantom "已取消" alerts.** Opening the Friends tab (or Schedule/Insights) could pop an
+  error alert saying just "已取消"/"cancelled" — that was SwiftUI cancelling an in-flight load when
+  the tab switched, and the `NSURLErrorCancelled` surfacing as if it were a real failure. A shared
+  `Error.uiMessage` helper ([ErrorPresentation.swift](ios/Planfect/Shared/ErrorPresentation.swift))
+  now swallows cancellation errors (`CancellationError`, `NSURLErrorCancelled`,
+  `NSUserCancelledError`) across every alert-driven catch site; real errors still surface unchanged.
+
 _2026-07-11_
 
 - **v1.0.2 (build 11) shipped to the App Store — widget upgrade included.** The widget now shows a

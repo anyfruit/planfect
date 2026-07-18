@@ -114,7 +114,7 @@ struct ProfileEditView: View {
                 onSaved()
                 dismiss()
             } catch {
-                self.error = error.localizedDescription
+                self.error = error.uiMessage
             }
         }
     }

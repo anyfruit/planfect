@@ -95,13 +95,13 @@ struct FriendsView: View {
     private func load() async {
         loading = true; defer { loading = false }
         do { data = try await supa.friendsList() }
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.uiMessage }
     }
 
     private func act(_ work: @escaping () async throws -> Void) {
         Task {
             do { try await work(); await load() }
-            catch { self.error = error.localizedDescription }
+            catch { self.error = error.uiMessage }
         }
     }
 }
@@ -202,7 +202,7 @@ private struct FriendDetailView: View {
         Task {
             defer { working = false }
             do { try await supa.setFriendTier(friend.id, close: isClose); onChange() }
-            catch { self.error = error.localizedDescription; close = !isClose }   // revert on failure
+            catch { self.error = error.uiMessage; close = !isClose }   // revert on failure
         }
     }
 
@@ -211,7 +211,7 @@ private struct FriendDetailView: View {
         Task {
             defer { working = false }
             do { try await supa.removeFriend(friend.id); onChange(); dismiss() }
-            catch { self.error = error.localizedDescription }
+            catch { self.error = error.uiMessage }
         }
     }
 }
@@ -278,13 +278,13 @@ private struct AddFriendView: View {
         guard !Task.isCancelled else { return }
         searching = true; defer { searching = false }
         do { results = try await supa.searchUsers(q) }
-        catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+        catch { self.error = error.uiMessage }
     }
 
     private func act(_ u: FriendProfile, _ work: @escaping () async throws -> Void) {
         Task {
             do { try await work(); actedOn.insert(u.id) }
-            catch { self.error = error.localizedDescription }
+            catch { self.error = error.uiMessage }
         }
     }
 }
@@ -365,6 +365,6 @@ private struct FriendScheduleView: View {
         let start = Calendar.current.startOfDay(for: day)
         let end = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? start
         do { blocks = try await supa.friendSchedule(friend.id, from: start, to: end) }
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.uiMessage }
     }
 }

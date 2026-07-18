@@ -76,7 +76,7 @@ struct BlockDetailView: View {
                                     do {
                                         let cleaned = try await supa.tidyNote(notes, title: title)
                                         if !cleaned.isEmpty { notes = cleaned }
-                                    } catch { self.error = error.localizedDescription }
+                                    } catch { self.error = error.uiMessage }
                                     tidying = false
                                 }
                             } label: {
@@ -142,7 +142,7 @@ struct BlockDetailView: View {
                 onChange()
                 dismiss()
             } catch {
-                self.error = error.localizedDescription
+                self.error = error.uiMessage
                 saving = false
             }
         }
@@ -152,7 +152,7 @@ struct BlockDetailView: View {
         saving = true; error = nil
         Task {
             do { try await supa.deleteBlock(block); onChange(); dismiss() }
-            catch { self.error = error.localizedDescription; saving = false }
+            catch { self.error = error.uiMessage; saving = false }
         }
     }
 }

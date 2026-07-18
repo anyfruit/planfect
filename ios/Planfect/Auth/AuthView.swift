@@ -96,7 +96,7 @@ struct AuthView: View {
                     try await supa.signIn(email: email, password: password)
                 }
             } catch {
-                self.error = error.localizedDescription
+                self.error = error.uiMessage
             }
             loading = false
         }

@@ -74,7 +74,7 @@ struct RoutineEditView: View {
                 onChange()
                 dismiss()
             } catch {
-                self.error = error.localizedDescription
+                self.error = error.uiMessage
                 saving = false
             }
         }
@@ -85,7 +85,7 @@ struct RoutineEditView: View {
         saving = true; error = nil
         Task {
             do { try await supa.deleteRoutine(e.id); onChange(); dismiss() }
-            catch { self.error = error.localizedDescription; saving = false }
+            catch { self.error = error.uiMessage; saving = false }
         }
     }
 

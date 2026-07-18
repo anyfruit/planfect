@@ -14,9 +14,11 @@
 		13E3AECF6C678EF805266A85 /* ProfileEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A06501C277CA116C17EA7B26 /* ProfileEditView.swift */; };
 		23860187D734A6C56CCAF2B3 /* SupabaseManager+Friends.swift in Sources */ = {isa = PBXBuildFile; fileRef = F469ADAFC2822CB9EFD73800 /* SupabaseManager+Friends.swift */; };
 		23A3E72400211ABBBAE89556 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97D82409A559BA08A144C75 /* PaywallView.swift */; };
+		2641D2751E182AB714239454 /* ErrorPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DC6A69918A7252A76A7BAF /* ErrorPresentation.swift */; };
 		2AE67964FCA94900030BE7B3 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E578E174CF9A1913F0BA58AD /* WidgetModel.swift */; };
 		2E5CEC9A67376063A8A9BC88 /* QuestionCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */; };
 		3AA3CCBC58CFEF4BA471B50E /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6265160A353BD5092527B6F7 /* NotificationManager.swift */; };
+		3BF70DC93210881D62CA4FED /* ErrorPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DC6A69918A7252A76A7BAF /* ErrorPresentation.swift */; };
 		3E052B0B02889D9551FA9FEC /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 8196F83EE93AA52225BBD3B4 /* Localizable.strings */; };
 		44CC0A70B510F089C44D053A /* PlanfectWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 8AD4441B7C166052676F36B9 /* PlanfectWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4D6C451AADFA2AC95823B319 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E578E174CF9A1913F0BA58AD /* WidgetModel.swift */; };
@@ -87,6 +89,7 @@
 		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
 		52A0479DD6B7754763783FB7 /* AIConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConsentView.swift; sourceTree = "<group>"; };
 		53231E7C6831A414F46B4E6B /* PlanfectWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PlanfectWidget.entitlements; sourceTree = "<group>"; };
+		53DC6A69918A7252A76A7BAF /* ErrorPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorPresentation.swift; sourceTree = "<group>"; };
 		54521C45A418BBBD81C4174E /* SupabaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseManager.swift; sourceTree = "<group>"; };
 		5D5BABC304FF3DC8A6517433 /* ShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSheet.swift; sourceTree = "<group>"; };
 		621776B04C4F2726894FCEB9 /* PlanfectWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanfectWidget.swift; sourceTree = "<group>"; };
@@ -256,6 +259,7 @@
 			isa = PBXGroup;
 			children = (
 				A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */,
+				53DC6A69918A7252A76A7BAF /* ErrorPresentation.swift */,
 				E578E174CF9A1913F0BA58AD /* WidgetModel.swift */,
 			);
 			path = Shared;
@@ -422,6 +426,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				CF5D067CFABE1F792684331B /* CategoryStyle.swift in Sources */,
+				3BF70DC93210881D62CA4FED /* ErrorPresentation.swift in Sources */,
 				9291AE3AEBA6BF925BA6E1B5 /* PlanfectWidget.swift in Sources */,
 				4D6C451AADFA2AC95823B319 /* WidgetModel.swift in Sources */,
 			);
@@ -441,6 +446,7 @@
 				D347F1657CA06B0BF94D5B1A /* CalendarManager.swift in Sources */,
 				82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */,
 				C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */,
+				2641D2751E182AB714239454 /* ErrorPresentation.swift in Sources */,
 				123D1230375971B7E2ADEF6D /* FriendsView.swift in Sources */,
 				5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */,
 				C0FA7555B4D949CB2AB2C388 /* LanguageManager.swift in Sources */,

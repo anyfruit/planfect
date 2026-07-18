@@ -22,20 +22,20 @@ final class ScheduleViewModel: ObservableObject {
             await NotificationManager.shared.reschedule(for: blocks)
             await CalendarManager.shared.syncToCalendar(blocks)
         }
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.uiMessage }
         loading = false
     }
 
     func toggleDone(_ block: TimeBlock) async {
         guard let supa else { return }
         do { try await supa.setBlockDone(block.id, !block.isDone); await load() }
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.uiMessage }
     }
 
     func delete(_ block: TimeBlock) async {
         guard let supa else { return }
         do { try await supa.deleteBlock(block); await load() }
-        catch { self.error = error.localizedDescription }
+        catch { self.error = error.uiMessage }
     }
 }
 
