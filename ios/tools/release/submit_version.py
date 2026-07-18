@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
-"""Create App Store version 1.0.2, set What's New, attach build 11, submit for review
-(auto-release after approval). Idempotent-ish: reuses an existing 1.0.2 version if present."""
+"""Create the App Store version, set What's New, attach the build, submit for review
+(auto-release after approval). Idempotent-ish: reuses an existing version if present.
+EDIT VERSION / BUILD_NO / WHATS_NEW below before each release."""
 import os, time, pathlib, sys, json
 import jwt, urllib.request
 
 APP_ID = "6781118366"
-VERSION = "1.0.2"
-BUILD_NO = "11"
+VERSION = "1.0.3"
+BUILD_NO = "12"
 WHATS_NEW = {
     "zh-Hans": (
-        "• 修改/删除日程更可靠了：对话里说“改到3点”“删掉”会立即生效，重复日程也能单独调整某一次\n"
-        "• 对话中的改动和备注现在会实时同步到 Apple 日历\n"
-        "• 回复速度明显更快\n"
-        "• 小组件升级：进行中日程实时进度条、锁屏当日完成度圆环、新增大号全天视图"
+        "• 对话升级：长按消息可复制或重新发送，发送失败一键重试；翻看历史时“回到最新”按钮不再消失\n"
+        "• 周视图打开直接定位到你的日程，中文日期显示完整不再省略\n"
+        "• 修复了好友页等偶发的“已取消”报错弹窗\n"
+        "• “我的”页新增小提示：界面语言、语音识别语言、吃饭作息时间等都可以随时调整\n"
+        "• 规划助手更可靠：不再偶发“系统没反应”之类的错误借口"
     ),
     "en-US": (
-        "• Editing and deleting plans in chat is far more reliable — including a single occurrence of a repeating habit\n"
-        "• Chat edits and notes now sync to Apple Calendar instantly\n"
-        "• Noticeably faster replies\n"
-        "• Widget upgrades: live progress for the current plan, a lock-screen daily progress ring, and a new large all-day view"
+        "• Chat upgrades: long-press to copy or resend a message, one-tap retry on failures, and the jump-to-latest button no longer disappears in long conversations\n"
+        "• Week view now opens right at your events, with dates fully readable in Chinese\n"
+        "• Fixed occasional \"Cancelled\" error pop-ups on the Friends tab and elsewhere\n"
+        "• A new tip in Profile shows everything you can tune — app language, voice-input language, meal and sleep times\n"
+        "• A more reliable planner that never makes up \"system not responding\" excuses"
     ),
 }
 
@@ -46,9 +49,9 @@ def api(method, path, payload=None, ok404=False):
         print(f"HTTP {e.code} on {method} {path}\n{body[:1200]}", file=sys.stderr)
         raise
 
-# 1. The processed build 11.
+# 1. The processed build.
 builds = api("GET", f"/v1/builds?filter[app]={APP_ID}&filter[version]={BUILD_NO}&limit=1")["data"]
-if not builds: sys.exit("build 11 not found on ASC yet")
+if not builds: sys.exit(f"build {BUILD_NO} not found on ASC yet")
 build = builds[0]
 state = build["attributes"]["processingState"]
 print("build:", build["id"], state)
