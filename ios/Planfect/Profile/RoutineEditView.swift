@@ -105,7 +105,7 @@ struct RoutineEditView: View {
 /// Shared S–M–T–W–T–F–S day selector (0=Sun … 6=Sat).
 struct WeekdayChips: View {
     @Binding var selection: Set<Int>
-    private let labels = ["S", "M", "T", "W", "T", "F", "S"]
+    private let labels = Calendar.current.veryShortStandaloneWeekdaySymbols   // index 0 = Sunday, localized
 
     var body: some View {
         HStack(spacing: 6) {

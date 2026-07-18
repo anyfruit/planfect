@@ -209,6 +209,28 @@ reflect the current state.
 
 _2026-07-18_
 
+- **Full-app audit: 4-track parallel review, 25+ fixes, prompt tuned to a measured 24/24.**
+  Four parallel review agents swept iOS, the server/edge functions, and the prompt/tool definitions.
+  Highest-impact finds, all fixed and deployed: the **public web demo had been crashing on every
+  request** since friends shipped (`demoContext` missing the new friend fields — confirmed live,
+  now scheduling again); **provider HTTP errors were swallowed** as successful empty replies
+  (outages invisible, now thrown and logged as failed turns); `get_schedule` cut off evenings for
+  US timezones (UTC bounds); recurring materialization could double-insert under concurrency and
+  lose windows on failed inserts (optimistic lock + rollback); unvalidated `start_local` ("7pm")
+  pinned tasks at midnight; midnight-crossing pinned tasks could double-book (28h busy window);
+  moving a split task stranded its later sessions. iOS: retry-after-reset lost the message,
+  offline sends claimed "maybe landed", cross-timezone blocks landed in the wrong day column
+  (grouping now follows each block's own wall-clock, matching its y-position), pending question
+  cards locked forever after relaunch, notification dedup poisoned under denied permission,
+  far-future events duplicated in Apple Calendar on every sync, background requests could be
+  watchdog-killed, widget "today" stats went stale past midnight, plus a dozen smaller fixes
+  (silent Schedule errors, stale friend-day pages, zh localization gaps, category misclassifying
+  看病 as leisure). **Prompt**: contradictions resolved (act-vs-ask ladder, sleep/past exceptions
+  folded into the explicit-time rule), duplicates merged, tool descriptions aligned with handlers
+  (ask_user_questions no longer invites duration/venue questions), the per-user data block moved
+  into the cacheable position, 大后天 precomputed, and 下周/再下周 replaced with literal date
+  tables. Measured on the live model (kimi-k2.6-nothink) with `server/eval/promptEval.ts`:
+  **20/24 before → 24/24 after, twice in a row** (gpt-5.1 scored 22/24 on the same suite).
 - **Overnight context reset.** The chat thread used to live forever — the only trims were the
   server's 40-message tail cap and a manual "New chat", so weeks-old turns (stale dates, an old
   fabricated refusal) kept poisoning the model. Now, crossing 4 AM local time after the last

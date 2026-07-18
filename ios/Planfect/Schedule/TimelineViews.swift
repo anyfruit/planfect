@@ -63,6 +63,15 @@ enum TimelineMath {
     static func height(_ b: TimeBlock, _ hourHeight: CGFloat) -> CGFloat {
         max(22, CGFloat(max(15, b.durationMin)) / 60 * hourHeight)   // floor so short blocks stay tappable
     }
+    /// Does this block belong on `day` (a device-local date)? Compared by the BLOCK's own
+    /// wall-clock date — the same axis its vertical position uses — so a trip event planned for
+    /// "Mon 7 PM PT" sits in Monday's column at 19:00, not shifted a day by the viewer's zone.
+    static func sameCalendarDay(_ b: TimeBlock, as day: Date) -> Bool {
+        var bc = Calendar.current; bc.timeZone = b.zone
+        let x = bc.dateComponents([.year, .month, .day], from: b.start)
+        let y = Calendar.current.dateComponents([.year, .month, .day], from: day)
+        return x.year == y.year && x.month == y.month && x.day == y.day
+    }
     static func firstHour(_ blocks: [TimeBlock]) -> Int {
         let h = blocks.map { Int(minutes($0.start, $0.zone) / 60) }.min()
         return max(0, (h ?? 8) - 1)
@@ -177,7 +186,7 @@ struct WeekTimelineView: View {
                         GeometryReader { geo in
                             let colW = (geo.size.width - ruler) / 7
                             ForEach(Array(days.enumerated()), id: \.offset) { idx, d in
-                                let dayBlocks = blocks.filter { Calendar.current.isDate($0.start, inSameDayAs: d) }
+                                let dayBlocks = blocks.filter { TimelineMath.sameCalendarDay($0, as: d) }
                                 ForEach(TimelineLayout.lanes(for: dayBlocks)) { lo in
                                     let laneW = colW / CGFloat(lo.laneCount)
                                     let h = TimelineMath.height(lo.block, hourHeight)
@@ -242,7 +251,7 @@ struct MonthGridView: View {
 
     // Up to four distinct category colors present that day (preserving schedule order).
     private func categoryColors(for day: Date) -> [Color] {
-        let dayBlocks = blocks.filter { cal.isDate($0.start, inSameDayAs: day) }.sorted { $0.start < $1.start }
+        let dayBlocks = blocks.filter { TimelineMath.sameCalendarDay($0, as: day) }.sorted { $0.start < $1.start }
         var seen: [String] = []
         for b in dayBlocks where !seen.contains(TaskCategory.key(b)) { seen.append(TaskCategory.key(b)) }
         return seen.prefix(4).map { TaskCategory.color(forKey: $0) }

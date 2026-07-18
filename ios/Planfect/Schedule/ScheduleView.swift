@@ -83,6 +83,9 @@ struct ScheduleView: View {
             if tab == 1 { Task { await vm.load() } }
         }
         .refreshable { await vm.load() }
+        .alert("Schedule", isPresented: Binding(get: { vm.error != nil }, set: { if !$0 { vm.error = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(vm.error ?? "") }
         .sheet(item: $selectedBlock) { block in
             BlockDetailView(block: block) { Task { await vm.load() } }
         }
@@ -144,6 +147,9 @@ struct ScheduleView: View {
     }
 
     private func blocks(in scope: ScheduleScope) -> [TimeBlock] {
+        // Day scope matches by the block's OWN wall-clock date (same axis the row renders its
+        // time in); week/month use the instant range, then group per-day the same way.
+        if scope == .day { return vm.blocks.filter { TimelineMath.sameCalendarDay($0, as: anchor) } }
         let (start, end) = Self.range(scope, anchor)
         return vm.blocks.filter { $0.start >= start && $0.start < end }
     }

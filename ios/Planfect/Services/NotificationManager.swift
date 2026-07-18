@@ -72,10 +72,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
 
         let sig = "\(enabled)|\(leadMinutes)|" + blocks.lazy
             .filter { !$0.isDone }
-            .map { "\($0.id.uuidString):\(Int($0.start.timeIntervalSince1970))" }
+            .map { "\($0.id.uuidString):\(Int($0.start.timeIntervalSince1970)):\($0.title.hashValue)" }
             .joined(separator: ",")
         if sig == lastSignature { return }
-        lastSignature = sig
 
         center.removeAllPendingNotificationRequests()
         guard enabled else { return }
@@ -99,6 +98,9 @@ final class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         guard status == .authorized || status == .provisional else { return }
 
         for item in planned { try? await center.add(item.request) }
+        // Only remember the state we actually scheduled — setting it before the permission guard
+        // used to make the next run (after the user enabled notifications) a no-op.
+        lastSignature = sig
     }
 
     #if DEBUG

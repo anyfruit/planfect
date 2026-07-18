@@ -334,7 +334,7 @@ struct ProfileView: View {
         if s == [1, 2, 3, 4, 5] { return "Weekdays" }
         if s == [0, 6] { return "Weekends" }
         let names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        return s.map { names[$0] }.joined(separator: " ")
+        return s.filter { (0..<7).contains($0) }.map { names[$0] }.joined(separator: " ")
     }
 
     private func icon(_ kind: String) -> String {

@@ -86,6 +86,13 @@ class OpenAICompatiblePlanner implements PlannerLLM {
       body: JSON.stringify(body),
     });
     const json = (await res.json()) as any;
+    // Surface provider failures (bad key, rate limit, context overflow) as thrown errors: parsing
+    // an error body as a normal step used to return an EMPTY final reply recorded as success —
+    // outages were invisible on the dashboard and the user just saw a blank bubble.
+    if (!res.ok || json.error) {
+      const msg = json.error?.message ?? json.error ?? `HTTP ${res.status}`;
+      throw new Error(`${this.provider} error: ${typeof msg === 'string' ? msg : JSON.stringify(msg)}`);
+    }
     const choice = json.choices?.[0] ?? {};
     const msg = choice.message ?? {};
     const toolCalls: ToolCall[] = (msg.tool_calls ?? []).map((tc: any) => ({
@@ -161,6 +168,10 @@ class AnthropicPlanner implements PlannerLLM {
       body: JSON.stringify(body),
     });
     const json = (await res.json()) as any;
+    if (!res.ok || json.type === 'error') {
+      const msg = json.error?.message ?? `HTTP ${res.status}`;
+      throw new Error(`anthropic error: ${msg}`);
+    }
     const blocks: any[] = json.content ?? [];
     const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('');
     const toolCalls: ToolCall[] = blocks
@@ -190,6 +201,8 @@ function toAnthropicMessages(messages: LLMMessage[]): any[] {
       const content: any[] = [];
       if (m.content) content.push({ type: 'text', text: m.content });
       for (const c of m.toolCalls ?? []) content.push({ type: 'tool_use', id: c.id, name: c.name, input: c.arguments });
+      // content: [] is rejected by the Messages API — give an empty historical turn a placeholder.
+      if (!content.length) content.push({ type: 'text', text: '(no reply)' });
       return { role: 'assistant', content };
     }
     // 'system' is passed separately on Anthropic; treat any stray one as user context.

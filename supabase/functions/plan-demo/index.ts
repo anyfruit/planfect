@@ -76,6 +76,8 @@ function demoContext(tz: string): PlanContext {
     calendarBusy: [],
     recurring: [],
     isPro: true,
+    closeFriends: [],
+    regularFriends: [],
   };
 }
 
@@ -97,8 +99,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
 
-    const ip = (req.headers.get('x-forwarded-for')?.split(',')[0] ?? '').trim()
-      || req.headers.get('cf-connecting-ip') || 'anon';
+    // Trust order: platform header first, then the LAST x-forwarded-for hop (appended by our
+    // proxy) — the FIRST hop is client-supplied, letting an abuser mint a fresh identity per call.
+    const xff = req.headers.get('x-forwarded-for')?.split(',') ?? [];
+    const ip = (req.headers.get('cf-connecting-ip') ?? '').trim()
+      || (xff[xff.length - 1] ?? '').trim() || 'anon';
     if (rateLimited(ip)) {
       return json({ type: 'message', text: "Demo's catching its breath — give it a few seconds and try again. 🙂" }, 429);
     }
@@ -118,9 +123,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ? (body.messages as LLMMessage[])
       : [{ role: 'user', content: String((body as { text?: unknown }).text ?? '') } as LLMMessage];
     const messages: LLMMessage[] = raw
-      .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+      .filter((m): m is LLMMessage & { role: 'user' | 'assistant'; content: string } =>
+        !!m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
       .slice(-12)
-      .map((m) => ({ role: m.role, content: (m.content as string).slice(0, 280) }));
+      .map((m) => ({ role: m.role, content: m.content.slice(0, 280) }));
     if (!messages.some((m) => m.role === 'user' && (m.content as string).trim())) {
       return json({ error: 'empty message' }, 400);
     }

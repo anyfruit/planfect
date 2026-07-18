@@ -281,3 +281,7 @@
 "Read our Privacy Policy" = "查看隐私政策";
 "Agree & Continue" = "同意并继续";
 "Not now" = "暂不";
+
+/* Audit fixes (2026-07-18) */
+"No internet connection — check your network and tap Retry." = "没有网络连接 — 请检查网络后点「重试」。";
+"Sent — but the connection dropped when you switched away. I've refreshed; check Schedule to see if it landed, or resend." = "已发送 — 但你切走时连接断开了。我已刷新;去「日程」看看是否已排上,或重新发送。";

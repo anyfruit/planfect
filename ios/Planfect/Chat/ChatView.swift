@@ -132,7 +132,17 @@ final class ChatViewModel: ObservableObject {
     /// a successful response), so re-running it verbatim is safe — no duplicated user turn.
     func retry() {
         guard !sending else { return }
-        if let last = items.last, last.isError { items.removeLast() }   // clear the error bubble
+        if let i = items.lastIndex(where: { $0.isError }) { items.remove(at: i) }   // clear the error bubble
+        // After an overnight reset the failed turn is no longer in history — replaying an empty
+        // thread would send the model nothing. Fall back to resending the last visible user text.
+        if history.isEmpty {
+            let lastUserText: String? = items.reversed().compactMap {
+                if case .text(.user, let t) = $0.content { return t } else { return nil }
+            }.first
+            persist()
+            if let t = lastUserText { resend(t) }
+            return
+        }
         persist()
         Task { await run(PlanRequest(messages: history)) }
     }
@@ -156,6 +166,7 @@ final class ChatViewModel: ObservableObject {
         items.append(.user(summary.isEmpty ? String(localized: "(no selection)") : summary))
         guard let askId = JSONValue.askToolCallId(in: history) else {
             items.append(.assistant(String(localized: "Sorry — I lost the thread of that question. Mind rephrasing?")))
+            persist()
             return
         }
         let answerArray: [JSONValue] = answers.map { a in
@@ -206,10 +217,13 @@ final class ChatViewModel: ObservableObject {
             // If the app was backgrounded mid-request the connection drops — but the planner often
             // finished server-side anyway. Pull the latest schedule so a plan that DID land shows up,
             // and say so honestly instead of a scary raw error.
-            if let ue = error as? URLError,
-               [.networkConnectionLost, .cancelled, .timedOut, .notConnectedToInternet].contains(ue.code) {
+            if (error as? URLError)?.code == .notConnectedToInternet {
+                // Never left the device — say so plainly, with a Retry.
+                items.append(.error(String(localized: "No internet connection — check your network and tap Retry.")))
+            } else if let ue = error as? URLError,
+               [.networkConnectionLost, .cancelled, .timedOut].contains(ue.code) {
                 await refreshMirrors()
-                items.append(.assistant("Sent — but the connection dropped when you switched away. I've refreshed; check Schedule to see if it landed, or resend."))
+                items.append(.assistant(String(localized: "Sent — but the connection dropped when you switched away. I've refreshed; check Schedule to see if it landed, or resend.")))
             } else {
                 items.append(.error("⚠️ \(error.localizedDescription)"))
             }
@@ -236,6 +250,7 @@ final class ChatViewModel: ObservableObject {
 
     func clearPersisted() {
         items = []; history = []
+        markdownCache.removeAll()
         if let url = storageURL() { try? FileManager.default.removeItem(at: url) }
     }
 
@@ -246,6 +261,11 @@ final class ChatViewModel: ObservableObject {
         items = saved.items.compactMap { $0.toChatItem() }
         lastMessageAt = saved.lastMessageAt
         resetContextIfStale()   // opening the app the next morning shows the seam right away
+        // A pending question card must stay answerable across relaunch: the ask tool-call is still
+        // open in history, but activeQuestionID is in-memory only — restore it.
+        if case .questions = items.last?.content, JSONValue.askToolCallId(in: history) != nil {
+            activeQuestionID = items.last?.id
+        }
     }
 
     private func persist() {

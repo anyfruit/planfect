@@ -72,8 +72,12 @@ extension SupabaseManager {
     /// off keeps running for the ~30 s iOS grants after they switch apps — instead of being suspended
     /// mid-flight (which surfaced as a "network connection lost" error even when the server finished).
     func withBackgroundTask<T>(_ name: String, _ work: () async throws -> T) async rethrows -> T {
-        let id = await UIApplication.shared.beginBackgroundTask(withName: name)
-        defer { Task { @MainActor in if id != .invalid { UIApplication.shared.endBackgroundTask(id) } } }
+        // The expiration handler releases the assertion when the ~30s grant runs out — without it
+        // the watchdog TERMINATES the app mid-request instead of suspending it.
+        let holder = BackgroundTaskHolder()
+        let id = await UIApplication.shared.beginBackgroundTask(withName: name) { holder.end() }
+        await holder.set(id)
+        defer { Task { await holder.end() } }
         return try await work()
     }
 
@@ -406,5 +410,19 @@ extension SupabaseManager {
                           userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode)"])
         }
         return data
+    }
+}
+
+
+/// Ends a UIKit background task exactly once, from either the normal path or the expiration handler.
+private actor BackgroundTaskHolder {
+    private var id: UIBackgroundTaskIdentifier = .invalid
+    func set(_ new: UIBackgroundTaskIdentifier) { id = new }
+    nonisolated func end() { Task { await self.endInternal() } }
+    private func endInternal() async {
+        guard id != .invalid else { return }
+        let ended = id
+        id = .invalid
+        await MainActor.run { UIApplication.shared.endBackgroundTask(ended) }
     }
 }

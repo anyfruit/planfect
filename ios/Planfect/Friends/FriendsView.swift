@@ -274,9 +274,9 @@ private struct AddFriendView: View {
     private func runSearch() async {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard q.count >= 2 else { results = []; return }
+        searching = true; defer { searching = false }
         try? await Task.sleep(nanoseconds: 300_000_000)        // debounce; .task(id:) cancels the prior
         guard !Task.isCancelled else { return }
-        searching = true; defer { searching = false }
         do { results = try await supa.searchUsers(q) }
         catch { self.error = error.uiMessage }
     }
@@ -312,7 +312,7 @@ private struct FriendScheduleView: View {
             content
         }
         .navigationTitle(friend.name).navigationBarTitleDisplayMode(.inline)
-        .task(id: day) { await load() }
+        .task(id: day) { blocks = []; await load() }   // clear so the old day never shows under the new header
         .alert("Schedule", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK", role: .cancel) {}
         } message: { Text(error ?? "") }

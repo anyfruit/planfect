@@ -90,6 +90,7 @@ struct AuthView: View {
         error = nil
         Task {
             do {
+                let email = email.trimmingCharacters(in: .whitespacesAndNewlines)
                 if isSignUp {
                     try await supa.signUp(email: email, password: password)
                 } else {

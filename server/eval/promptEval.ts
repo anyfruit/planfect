@@ -41,7 +41,7 @@ const nowStamp = new Intl.DateTimeFormat('en-US', {
   timeZone: TZ, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
 }).format(NOW);
 function messageFor(text: string): LLMMessage[] {
-  return [{ role: 'user', content: `[Now: ${nowStamp} ${TZ}. Resolve 今天/明天/后天/这周/dates from THIS; ignore any dates mentioned earlier in this chat.]\n${text}` }];
+  return [{ role: 'user', content: `[Now: ${nowStamp} ${TZ}. Resolve 今天/明天/后天/这周/dates from THIS; ignore any dates mentioned earlier in this chat — they may be from previous days.]\n${text}` }];
 }
 
 /** Local Y-M-D + hour of an ISO instant, in TZ. */
@@ -322,7 +322,7 @@ const SCENARIOS: Scenario[] = [
 // ---- run ----
 const PROVIDER = (Deno.env.get('EVAL_PROVIDER') ?? 'minimax') as LLMProvider;
 const MODEL = Deno.env.get('EVAL_MODEL') ?? 'MiniMax-M2.7-highspeed';
-const KEYENV: Record<string, string> = { openai: 'OPENAI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', qwen: 'QWEN_API_KEY', minimax: 'MINIMAX_API_KEY' };
+const KEYENV: Record<string, string> = { openai: 'OPENAI_API_KEY', anthropic: 'ANTHROPIC_API_KEY', qwen: 'QWEN_API_KEY', minimax: 'MINIMAX_API_KEY', kimi: 'KIMI_API_KEY' };
 const apiKey = Deno.env.get(KEYENV[PROVIDER]);
 if (!apiKey) { console.error(`Missing ${KEYENV[PROVIDER]} for provider ${PROVIDER}`); Deno.exit(1); }
 

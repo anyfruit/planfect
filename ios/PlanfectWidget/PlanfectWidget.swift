@@ -37,10 +37,11 @@ struct Provider: TimelineProvider {
             if t.start > now { bounds.insert(t.start) }
             if t.end > now { bounds.insert(t.end) }
         }
-        let ordered = bounds.sorted().prefix(16)
-        let entries = ordered.map { entry(at: $0, tasks: tasks) }
         let cal = Calendar.current
         let nextMidnight = cal.startOfDay(for: cal.date(byAdding: .day, value: 1, to: now) ?? now)
+        bounds.insert(nextMidnight)   // "today" stats roll over at 00:00 even with no task boundary
+        let ordered = bounds.sorted().prefix(16)
+        let entries = ordered.map { entry(at: $0, tasks: tasks) }
         let reloadAt = ordered.last.flatMap { $0 > now ? $0.addingTimeInterval(1) : nil } ?? nextMidnight
         completion(Timeline(entries: entries.isEmpty ? [entry(at: now, tasks: tasks)] : entries,
                             policy: .after(reloadAt)))
@@ -252,7 +253,11 @@ struct PlanfectWidgetEntryView: View {
     }
     private func timePrefix(_ t: WidgetTask) -> String {
         let time = WidgetTimeFormat.short(t.start, t.zone)
-        if Calendar.current.isDate(t.start, inSameDayAs: entry.date) { return time }
+        // Same-day check in the TASK's zone (the same zone the time is shown in) — a cross-tz task
+        // used to show a bare, seemingly-past clock time with no day hint.
+        var cal = Calendar.current; cal.timeZone = t.zone
+        if t.zone == .current, cal.isDate(t.start, inSameDayAs: entry.date) { return time }
+        if t.zone != .current { return "\(WidgetTimeFormat.dayShort(t.start, t.zone)) \(time)" }
         return "\(WidgetTimeFormat.dayShort(t.start, t.zone)) \(time)"
     }
     private func moreText(_ n: Int) -> String { String(format: NSLocalizedString("+%lld more", comment: ""), n) }

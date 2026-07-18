@@ -49,12 +49,13 @@ final class CalendarManager {
         guard enabled, await ensureAccess(), let cal = planfectCalendar() else { return }
         let now = Date()
         // Mirror real task plans only (skip routine / buffer / commute), from ~now forward.
-        let wanted = Dictionary(
-            blocks.filter { $0.kind == "task" && $0.end > now.addingTimeInterval(-3600) }.map { ($0.id.uuidString, $0) },
-            uniquingKeysWith: { a, _ in a })
-
         let windowStart = now.addingTimeInterval(-3600)
         let windowEnd = Calendar.current.date(byAdding: .day, value: 120, to: now) ?? now.addingTimeInterval(120 * 86_400)
+        // Bound `wanted` to the same window as the events query — a block beyond it can't be "seen",
+        // so it would be re-inserted as a fresh duplicate on every sync.
+        let wanted = Dictionary(
+            blocks.filter { $0.kind == "task" && $0.end > windowStart && $0.start < windowEnd }.map { ($0.id.uuidString, $0) },
+            uniquingKeysWith: { a, _ in a })
         let pred = store.predicateForEvents(withStart: windowStart, end: windowEnd, calendars: [cal])
         var seen = Set<String>()
         for ev in store.events(matching: pred) {

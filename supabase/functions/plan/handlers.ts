@@ -215,8 +215,20 @@ async function materializeRecurring(supabase: SupabaseClient, userId: string, rt
       });
     }
   }
-  if (rows.length) await supabase.from('time_blocks').insert(rows);
-  await supabase.from('recurring_tasks').update({ materialized_until: dateStr(horizon) }).eq('id', rt.id);
+  // Claim the window FIRST with an optimistic lock on materialized_until (two concurrent /plan
+  // requests both read the same horizon and would double-insert every occurrence), then insert.
+  // If the claim loses the race, another request is doing this window — skip. If the insert then
+  // fails, roll the horizon back so the window can be retried instead of being lost forever.
+  let claim = supabase.from('recurring_tasks').update({ materialized_until: dateStr(horizon) }).eq('id', rt.id);
+  claim = rt.materialized_until == null ? claim.is('materialized_until', null) : claim.eq('materialized_until', rt.materialized_until);
+  const { data: claimed, error: claimErr } = await claim.select('id');
+  if (claimErr || !claimed?.length) return;
+  if (rows.length) {
+    const { error: insErr } = await supabase.from('time_blocks').insert(rows);
+    if (insErr) {
+      await supabase.from('recurring_tasks').update({ materialized_until: rt.materialized_until ?? null }).eq('id', rt.id);
+    }
+  }
 }
 
 interface HabitRow { category?: string | null; start_at: string; end_at: string }
@@ -251,26 +263,37 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
   }).format(now);
   const weekday = new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'long' }).format(now);
   // Pre-compute the next two days so the model never has to do (and botch) the arithmetic.
+  // Calendar-day arithmetic anchored at local noon — adding k*24h to `now` mislabels days around
+  // DST transitions (23/25-hour days), and the prompt calls these anchors GROUND TRUTH.
+  const todayYmd = parseDate(ymd)!;
+  const plusDays = (n: number) => new Date(zonedToUtc(addDays(todayYmd, n), 12 * 60, ctx.timezone));
   const dstamp = (d: Date) =>
     `${new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'long' }).format(d)} ` +
     new Intl.DateTimeFormat('en-CA', { timeZone: ctx.timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-  const tomorrow = dstamp(new Date(now.getTime() + 86_400_000));
-  const dayAfter = dstamp(new Date(now.getTime() + 2 * 86_400_000));
+  const tomorrow = dstamp(plusDays(1));
+  const dayAfter = dstamp(plusDays(2));
+  const threeDays = dstamp(plusDays(3));
   // Anchor the Mon–Sun week arithmetic too: models botch 下周X/再下周X on boundary days (esp.
   // Sunday), so hand them the concrete Mondays to count from instead of a convention to reason out.
   const dowIdx = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     .indexOf(new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'short' }).format(now));
   const daysToNextMon = ((8 - dowIdx) % 7) || 7;   // Sun→1, Mon→7, Tue→6, … (next week's Monday)
-  const nextMon = dstamp(new Date(now.getTime() + daysToNextMon * 86_400_000));
-  const monAfter = dstamp(new Date(now.getTime() + (daysToNextMon + 7) * 86_400_000));
+  const nextMon = dstamp(plusDays(daysToNextMon));
+  const monAfter = dstamp(plusDays(daysToNextMon + 7));
+  // Literal date tables for the next two Mon–Sun weeks — models (especially fast non-reasoning
+  // ones) botch 下周X/再下周X arithmetic on boundary days; a lookup table can't be miscounted.
+  const shortDay = (d: Date) =>
+    `${new Intl.DateTimeFormat('en-US', { timeZone: ctx.timezone, weekday: 'short' }).format(d)} ` +
+    new Intl.DateTimeFormat('en-CA', { timeZone: ctx.timezone, month: '2-digit', day: '2-digit' }).format(d).replace('-', '/');
+  const weekRow = (off: number) => Array.from({ length: 7 }, (_, i) => shortDay(plusDays(off + i))).join(' ');
   return [
     'You are Planfect — a warm, sharp day-planning companion. The user fires quick fragments ("gym",',
     '"call dentist", "买菜 sat") and you just handle them. BE BRIEF — above all else:',
     '• ONE short line by default; hard cap 2 short sentences, never a paragraph. Lead with the point',
     '  (the slot / answer / what changed); caveats go in a trailing clause.',
     '• No filler ("Sure!", "I\'d be happy to"), no restating their request, no narrated reasoning.',
-    '• A confirmation is ONE scannable line naming the TASK and its slot — "Gym today 7–8am, good? 💪"',
-    '  / "买菜 周六 1:30–2:15？". Match the user\'s brevity.',
+    '• A confirmation is ONE scannable line naming the TASK, its DAY (absolute date) and slot —',
+    '  "Gym Tue 6/23 7–8am 💪" / "买菜 周六 6/27 13:30–14:15". Match the user\'s brevity.',
     'Warmth in few words ("nice 🎉", "heads up, that\'s tight"). Never interrogate — make smart',
     'assumptions, one quick confirmation. Always write in the SAME language the user wrote in.',
     'BOUNDARIES — strictly a friendly day-planning assistant. NEVER use profanity, insults, slurs, or',
@@ -285,19 +308,12 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'PER-EVENT timezone: leave schedule_tasks.timezone UNSET (server uses this zone) — ONLY set an IANA',
     'zone when pre-planning for somewhere the user is NOT yet (booking next week\'s NYC trip from home →',
     'America/New_York). Each plan keeps its own zone forever, so its wall-clock never drifts.',
-    `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
-    `Already on the user's calendar (their CURRENT plans — never say a day is empty if any fall on it): ${formatBlocks(ctx.blocks, ctx.timezone)}`,
-    `The user's REAL device calendar (hard commitments — schedule AROUND these, never overlap them): ${formatCalBusy(ctx.calendarBusy, ctx.timezone)}`,
-    `Saved locations: ${JSON.stringify(ctx.locations)}`,
-    `LEARNED PREFERENCES — apply these every time; they reflect how THIS user likes things and override generic defaults: ${ctx.preferences.length ? ctx.preferences.map((p) => `- ${p.text} [pref:${p.id}]`).join(' ') : 'none yet'}`,
-    `OBSERVED HABITS from their past schedule (soft hints, weaker than a stated preference or routine; use only when it fits): ${ctx.observedHabits}`,
-    `Recurring tasks already set up (reference by id to change/stop): ${formatRecurring(ctx.recurring)}`,
-    `CLOSE FRIENDS — you CAN add a shared plan to their calendar: ${ctx.closeFriends.length ? ctx.closeFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
-    `OTHER FRIENDS — accepted, but they have NOT made you close, so you canNOT add to their calendar yet: ${ctx.regularFriends.length ? ctx.regularFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
-    'WITH A FRIEND ("和 @sam 吃饭", "dinner with Alex"): if ONE close friend is a confident match, set',
-    'with_friends=[username] so it lands on BOTH calendars. Vague ("和朋友") or unmatchable → do NOT',
-    'guess: ask_user_questions "和哪位好友一起？" with the CLOSE FRIENDS as options (multi_select=true),',
-    'then schedule with the chosen usernames. If they meant an OTHER (non-close) friend, schedule for',
+    'WITH A FRIEND ("和 @sam 吃饭", "dinner with Alex"): FIRST check the CLOSE FRIENDS list — if it',
+    'says "none", there is NOBODY to pick: NEVER ask 和哪位好友, just schedule it for the user alone',
+    '(和朋友吃饭 with no close friends = a normal meal for the user). If ONE close friend confidently',
+    'matches, set with_friends=[username] so it lands on BOTH calendars. Vague ("和朋友") with SEVERAL',
+    'close friends → ask_user_questions "和哪位好友一起？" with the CLOSE FRIENDS as options',
+    '(multi_select=true), then schedule with the chosen usernames. A non-close friend → schedule for',
     'the user alone + one line that the friend must set them close first.',
     'RECURRING (每周一三五健身 / every Tuesday night): call set_recurring with days_of_week +',
     'start_local — NOT one-offs per week, NOT set_routine (that is background like work/sleep/meals).',
@@ -311,8 +327,10 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'open gap. Guide (generalize): errands/appointments/studying → daytime ~9-18; workout → ~7-9 or',
     '~18-21; meals/coffee → real meal times (lunch ~12-13, dinner ~18-20); deep work → morning; calls →',
     'business hours; leisure/social → evenings/weekends. No natural time → sensible waking hours, and',
-    'keep choices coherent (no dinner at 3pm, no gym at noon on a workday).',
-    'Assume sensibly: no day given → today; estimate a reasonable duration. The upcoming calendar above',
+    'keep choices coherent (no dinner at 3pm, no gym at noon on a workday) — coherence guides only',
+    'when the user gave no day-part; a stated day-part always wins.',
+    'Assume sensibly: no day given → today if its natural window hasn\'t passed per [Now] (else the',
+    'next-occurrence rule below); estimate a reasonable duration. The upcoming calendar above',
     'has exact times — read it directly; do NOT call get_schedule for a day already shown (slow extra',
     'round-trip), only for uncovered days. If the natural window is busy that day (weekday job fills',
     'daytime), prefer the soonest day it IS free (e.g. weekend afternoon) over an odd hour — name that day.',
@@ -402,7 +420,8 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'weekend", an explicit time — the correct response is a schedule_tasks CALL that places it, not a',
     'plain chat reply and not a question. Chatting back about a plan without scheduling it is a miss.',
     'A DAY-PART is NOT vague — 上午/中午/下午/晚上, morning / tonight, "after work", "this weekend"',
-    'GIVE you the window: pick a concrete slot inside it and CALL schedule_tasks NOW — the tap-to-edit',
+    'GIVE you the window: pick a concrete slot inside it and CALL schedule_tasks NOW ("明早跑步" →',
+    'schedule tomorrow ~07:00 immediately, no "可以吗?" text reply) — the tap-to-edit',
     'receipt IS the confirmation (one line only if you assumed something). A stated day-part OVERRIDES',
     'the activity\'s natural window (下午健身 → 12:00–17:59, even though gym is usually evening). NEVER',
     'ask "上午还是下午?" / "今天还是明天?" / "3–4点可以吗?" when they named it, and never re-ask',
@@ -410,18 +429,24 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'AN UNDECIDED DETAIL (which restaurant / gym / exact title) is NOT a question and NOT a reason to',
     'schedule nothing: CALL schedule_tasks to BLOCK A TENTATIVE HOLD at the activity\'s natural time on',
     'the given day, titled for it ("Dinner — spot TBD" / "Fine dining (待定)"), no commute while the',
-    'place is unknown, and say in one line it\'s a hold ("先占了28号晚7点，定好餐厅再调 🙂"). Only ASK',
-    'when you can\'t tell even roughly WHEN, or whether they want it on the calendar at all.',
-    'PROPOSE then confirm — for a SINGLE task ONLY when you had to ASSUME the TIME or DAY ("sometime",',
-    '"this week", nothing given): don\'t schedule yet; ask_user_questions with ONE confirmation naming',
+    'place is unknown, and say in one line it\'s a hold ("先占了28号晚7点，定好餐厅再调 🙂").',
+    'PROPOSE then confirm — for a SINGLE task ONLY when you had to ASSUME the DAY itself ("sometime",',
+    '"this week", nothing given — a stated day or day-part like 明早/周六/tonight means ACT, above):',
+    'don\'t schedule yet; ask_user_questions with ONE confirmation naming',
     'the slot ("Gym today 3:00–5:00 PM — work for you?" → 2–3 options, each with a short description;',
     'the app adds "Other" itself). On confirm, schedule with start_local = the agreed HH:MM. If only the',
     'DURATION is a guess, schedule with a sensible default — never ask "how long?"; the receipt is',
     'tap-to-edit.',
-    'An EXPLICIT time is authoritative: start_local = exactly that, allow_over_routine=true if it',
-    'overlaps work/meals; never shift it. Explicit time with NO day = the obvious next occurrence',
-    '(today, or tomorrow if already past per [Now]) — schedule and NAME the day ("跟老板开会 明天 15:00',
-    '✅"), don\'t ask. A day-part with no day works the same: soonest day that window still fits.',
+    'An EXPLICIT time is authoritative — with exactly TWO exceptions: (a) SLEEP: a time inside the',
+    'sleep window is NEVER scheduled silently — ask the single sleep confirmation first (rule above);',
+    '(b) THE PAST: check the [Now] clock — if the',
+    'stated time on the stated/implied day is already BEHIND [Now] ("今天下午两点" said at 10 PM), do',
+    'NOT schedule it in the past; move it to the next occurrence (tomorrow) and name the day, or ask.',
+    'Otherwise start_local = exactly that, allow_over_routine=true if it overlaps work/meals; never',
+    'shift it. Explicit time with NO day = the obvious next occurrence',
+    '(today, or tomorrow if already past per [Now]) — schedule and NAME the day ("跟老板开会 周二 6/23',
+    '15:00"), don\'t ask. NEVER place anything in the past: a time named for TODAY that has already',
+    'passed per [Now] goes to its next occurrence (tomorrow) — say so — or confirm once if unsure. A day-part with no day works the same: soonest day that window still fits.',
     '(Reserve questions for when even the rough WHEN is missing — "随便找个时间".)',
     'A time you PROPOSED and the user ACCEPTED is authoritative too: pass it as start_local with',
     'allow_over_routine=true if needed — NEVER report "no free slot" for an agreed time. If',
@@ -432,13 +457,24 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'ALWAYS deliver proposals/confirmations via ask_user_questions (tappable) — never plain-text',
     'bulleted choices, even right after a web_search. When the user answers "another time", propose a',
     'genuinely different option (another part of day / another day), not a slightly later slot.',
-    `Today is ${weekday}, ${ymd} (${ctx.timezone}). Tomorrow (明天) is ${tomorrow}. The day after tomorrow (后天) is ${dayAfter}.`,
+    '--- THE USER\'S DATA (changes per request; every rule above applies to it) ---',
+    `Saved locations: ${JSON.stringify(ctx.locations)}`,
+    `The user's routine — schedule AROUND these by default, but they are SOFT, not hard walls: ${JSON.stringify(ctx.routines)}`,
+    `CLOSE FRIENDS — you CAN add a shared plan to their calendar: ${ctx.closeFriends.length ? ctx.closeFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
+    `OTHER FRIENDS — accepted, but they have NOT made you close, so you canNOT add to their calendar yet: ${ctx.regularFriends.length ? ctx.regularFriends.map((f) => `@${f.username} (${f.name})`).join(', ') : 'none'}`,
+    `LEARNED PREFERENCES — apply these every time; they reflect how THIS user likes things and override generic defaults: ${ctx.preferences.length ? ctx.preferences.map((p) => `- ${p.text} [pref:${p.id}]`).join(' ') : 'none yet'}`,
+    `OBSERVED HABITS from their past schedule (soft hints, weaker than a stated preference or routine; use only when it fits): ${ctx.observedHabits}`,
+    `Recurring tasks already set up (reference by id to change/stop): ${formatRecurring(ctx.recurring)}`,
+    `Already on the user's calendar (their CURRENT plans — never say a day is empty if any fall on it): ${formatBlocks(ctx.blocks, ctx.timezone)}`,
+    `The user's REAL device calendar (hard commitments — schedule AROUND these, never overlap them): ${formatCalBusy(ctx.calendarBusy, ctx.timezone)}`,
+    `Today is ${weekday}, ${ymd} (${ctx.timezone}). Tomorrow (明天) is ${tomorrow}. The day after tomorrow (后天) is ${dayAfter}. Three days out (大后天) is ${threeDays}.`,
     `Weeks run MONDAY–Sunday. NEXT week (下周) starts ${nextMon}; the week AFTER next (再下周 / 下下周)`,
-    `starts ${monAfter}. So 下周X = that weekday in the week starting ${nextMon}, and 再下周X = that`,
-    `weekday in the week starting ${monAfter} — count from these anchors, NEVER re-derive the week`,
-    'yourself (on a Sunday the current week ends TODAY: 下周三 is only 3 days away, 再下周三 is 10).',
-    '这周X / this Xday = that weekday inside the current Mon–Sun week. Always state the absolute date',
-    'in your confirmation so the user can catch a mis-count.',
+    `starts ${monAfter}. Do NOT count days yourself — READ the exact date from these tables:`,
+    `下周 (next week): ${weekRow(daysToNextMon)}`,
+    `再下周/下下周 (week after next): ${weekRow(daysToNextMon + 7)}`,
+    'So 再下周三 = the Wed entry of the 再下周 row — even on a Sunday, when the current week ends',
+    'TODAY. 这周X / this Xday = that weekday inside the current Mon–Sun week. State the absolute',
+    'date in your confirmation so a mis-read is visible.',
     'This "Today" date is GROUND TRUTH and matches the [Now: …] stamp on the latest user message.',
     'This conversation may span MULTIPLE real days: earlier turns (and any date THEY mention, or any',
     'date in an existing calendar entry) can be from previous days — NEVER infer the current date from',
@@ -529,9 +565,14 @@ export function buildHandlers(
     },
     [TOOL_GET_SCHEDULE]: async (args) => {
       if (demo) return JSON.stringify(ctx.blocks ?? []);   // demo has no persisted schedule
-      const start = String(args.start ?? '');
+      // Date-only bounds are the user's local days, not UTC days — build them in ctx.timezone
+      // (a UTC end-of-day cut off every block after ~5pm for US-timezone users).
+      const startRaw = String(args.start ?? '');
       const endRaw = String(args.end ?? '');
-      const end = endRaw.includes('T') ? endRaw : `${endRaw}T23:59:59.999Z`; // include the whole end day
+      const sd = parseDate(startRaw);
+      const ed = parseDate(endRaw);
+      const start = startRaw.includes('T') || !sd ? startRaw : new Date(zonedToUtc(sd, 0, tz)).toISOString();
+      const end = endRaw.includes('T') || !ed ? endRaw : new Date(zonedToUtc(ed, 24 * 60, tz)).toISOString();
       const { data } = await supabase
         .from('time_blocks')
         .select('id,start_at,end_at,kind,title,status,task_id,recurring_id')
@@ -646,6 +687,9 @@ export function buildHandlers(
         if (!title || !days.length || !startLocal) {
           return JSON.stringify({ ok: false, error: 'need title, days_of_week, and start_local' });
         }
+        if (!/^([01]?\d|2[0-3]):[0-5]\d$/.test(startLocal)) {
+          return JSON.stringify({ ok: false, error: `invalid start_local "${startLocal}" — expected HH:MM (24h)` });
+        }
         const dur = args.estimated_duration_min ? Number(args.estimated_duration_min) : 60;
         const { data } = await supabase.from('recurring_tasks').insert({
           user_id: userId, title, category: args.category ? String(args.category) : null,
@@ -665,7 +709,9 @@ export function buildHandlers(
     [TOOL_ESTIMATE_COMMUTE]: async (args) => {
       const fromArg = String(args.from_location_id ?? '').trim();
       const toArg = String(args.to_location_id ?? '').trim();
-      const arriveBy = args.arrive_by ? String(args.arrive_by) : undefined;
+      // Naive "YYYY-MM-DDTHH:MM" is the user's wall-clock, not UTC (parseWhen handles both).
+      const arriveByMs = parseWhen(args.arrive_by, tz);
+      const arriveBy = arriveByMs != null ? new Date(arriveByMs).toISOString() : undefined;
       // Use the mode the model asked for (driving for an airport run, etc.); fall back to the
       // user's preferred mode when it didn't specify one.
       const mode = normalizeMode(args.mode) ?? ctx.preferredModes[0] ?? 'transit';
@@ -721,7 +767,7 @@ export function buildHandlers(
       const items: ScheduledItem[] = [];
       const assumptions: string[] = [];
 
-      for (const t of tasks) {
+      for (let t of tasks) {
         const date = parseDate(t.date);
         if (!date) {
           items.push({ title: t.title, start: null, end: null });
@@ -744,6 +790,11 @@ export function buildHandlers(
         // day — even over sleep — so it uses a full-day window; an un-pinned task stays in the awake
         // window. When overriding routine we only avoid other already-booked tasks. The agent is
         // responsible for confirming a sleep-time placement with the user first.
+        const HHMM = /^([01]?\d|2[0-3]):[0-5]\d$/;
+        if (t.start_local && !HHMM.test(String(t.start_local).trim())) {
+          assumptions.push(`Ignored invalid time "${t.start_local}" for "${t.title}" — picked a free slot instead.`);
+          t = { ...t, start_local: undefined };
+        }
         const pinned = !!t.start_local;
         const overlap = t.allow_overlap === true;
         const overRoutine = t.allow_over_routine === true || pinned;
@@ -1155,7 +1206,9 @@ async function applyTaskUpdate(
       if (b.error) return await fail(`status update failed: ${b.error.message}`);
       if (!b.data?.length) return await fail('status update matched nothing');
       if (scope === 'task') {
-        await supabase.from('tasks').update({ status: changes.status }).eq('id', taskId).eq('user_id', userId);
+        // tasks.status has no 'planned' — un-completing maps back to 'scheduled'.
+        const taskStatus = changes.status === 'done' ? 'done' : 'scheduled';
+        await supabase.from('tasks').update({ status: taskStatus }).eq('id', taskId).eq('user_id', userId);
       }
       if (!changes.date && !changes.start_local && !changes.estimated_duration_min && !changes.timezone) {
         return JSON.stringify({ ok: true, action: 'status', status, title: renamed ?? title0 });
@@ -1187,10 +1240,16 @@ async function applyTaskUpdate(
       // Move the satellite blocks WITH the task so they stay contiguous (otherwise a moved task
       // strands its old commute/buffer on the calendar): commute keeps its length and ends at the
       // new start; buffer keeps its length and begins at the new end.
+      const delta = newStart - Date.parse(String(main.start_at));
       for (const b of blocks) {
         if (b.id === main.id) continue;
         const len = Date.parse(String(b.end_at)) - Date.parse(String(b.start_at));
-        const s = b.kind === 'commute' ? newStart - len : b.kind === 'buffer' ? newEnd : null;
+        // commute re-anchors to end at the new start; buffer starts at the new end; extra task
+        // sessions of a split task shift by the same delta (they used to be left behind).
+        const s = b.kind === 'commute' ? newStart - len
+          : b.kind === 'buffer' ? newEnd
+          : b.kind === 'task' ? Date.parse(String(b.start_at)) + delta
+          : null;
         if (s == null) continue;
         await supabase.from('time_blocks').update({
           start_at: new Date(s).toISOString(), end_at: new Date(s + len).toISOString(), tz: blockTz,
@@ -1270,7 +1329,7 @@ async function loadDayBusy(
   tz: string,
 ): Promise<Interval[]> {
   const dayStart = zonedToUtc(date, 0, tz);
-  const dayEnd = zonedToUtc(date, 24 * 60, tz);
+  const dayEnd = zonedToUtc(date, 28 * 60, tz);   // pinned windows run to 04:00 next day — cover them
   const { data } = await supabase
     .from('time_blocks')
     .select('start_at,end_at')

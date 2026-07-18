@@ -52,6 +52,7 @@ struct InsightsView: View {
     @State private var analysis: String?
     @State private var analyzing = false
     @State private var analysisError: String?
+    @State private var analysisGen = 0   // invalidates in-flight analyses on period change
     @State private var agg = Aggregate()
 
     var body: some View {
@@ -109,8 +110,8 @@ struct InsightsView: View {
             }
         }
         .refreshable { await vm.load(); recomputeAgg() }
-        .onChange(of: scope) { _, _ in analysis = nil; analysisError = nil; recomputeAgg() }
-        .onChange(of: anchor) { _, _ in analysis = nil; analysisError = nil; recomputeAgg() }
+        .onChange(of: scope) { _, _ in analysisGen += 1; analyzing = false; analysis = nil; analysisError = nil; recomputeAgg() }
+        .onChange(of: anchor) { _, _ in analysisGen += 1; analyzing = false; analysis = nil; analysisError = nil; recomputeAgg() }
     }
 
     // MARK: - AI analysis
@@ -152,10 +153,16 @@ struct InsightsView: View {
 
     private func runAnalysis() {
         analyzing = true; analysisError = nil
+        analysisGen += 1
+        let gen = analysisGen
         Task {
-            do { analysis = try await supa.analyzeInsights(currentSummary()) }
-            catch { analysisError = error.uiMessage }
-            analyzing = false
+            do {
+                let text = try await supa.analyzeInsights(currentSummary())
+                if gen == analysisGen { analysis = text }   // drop a result for a superseded period
+            } catch {
+                if gen == analysisGen { analysisError = error.uiMessage }
+            }
+            if gen == analysisGen { analyzing = false }
         }
     }
 

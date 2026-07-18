@@ -38,7 +38,7 @@ struct BlockDetailView: View {
                 Section {
                     TextField("Title", text: $title, axis: .vertical)
                         .font(.headline).lineLimit(1...3)
-                    Label(block.kind.capitalized, systemImage: kindIcon)
+                    Label(LocalizedStringKey(block.kind.capitalized), systemImage: kindIcon)
                         .font(.caption).foregroundStyle(.secondary)
                 } header: {
                     Text("Title")
@@ -53,7 +53,10 @@ struct BlockDetailView: View {
                 }
 
                 Section("Time") {
+                    // Edit in the BLOCK's own zone — the row the user tapped shows that wall-clock,
+                    // and the device-zone picker used to display a different time than the list.
                     DatePicker("Starts", selection: $start, displayedComponents: [.date, .hourAndMinute])
+                        .environment(\.timeZone, block.zone)
                     Stepper("Duration: \(durationMin) min", value: $durationMin, in: 5...600, step: 5)
                 }
 

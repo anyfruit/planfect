@@ -19,7 +19,7 @@ export const TOOL_SET_RECURRING = 'set_recurring';
 const askUserQuestions: ToolDef = {
   name: TOOL_ASK_USER_QUESTIONS,
   description:
-    'Ask the user 1-3 quick multiple-choice questions when a consequential detail is ambiguous. Prefer this over guessing on things that materially change the schedule (durations, dates, locations, one-off vs recurring). Do not ask about trivia.',
+    'Ask the user 1-3 quick multiple-choice questions — ONLY when even the rough day/window is unknowable from the message, a sleep-window time needs its one confirmation, or a required choice (e.g. which close friend) cannot be matched. NEVER ask for a duration or a venue (assume/hold instead), and never re-ask anything already stated.',
   parameters: {
     type: 'object',
     additionalProperties: false,
@@ -74,8 +74,8 @@ const estimateCommute: ToolDef = {
     additionalProperties: false,
     required: ['from_location_id', 'to_location_id'],
     properties: {
-      from_location_id: { type: 'string' },
-      to_location_id: { type: 'string' },
+      from_location_id: { type: 'string', description: "A saved location id, 'home'/'work' (家/公司), a saved place name, a placeId from geocode_place, or a raw address." },
+      to_location_id: { type: 'string', description: 'Same accepted values as from_location_id.' },
       mode: {
         type: 'string',
         enum: ['driving', 'transit', 'walking', 'cycling'],
@@ -84,7 +84,7 @@ const estimateCommute: ToolDef = {
           'for an airport/station run, a long or cross-town hop, or whenever the user implies a car ' +
           '(车程, 开车, "drive"). Pass the SAME mode as transport_mode to schedule_tasks.',
       },
-      arrive_by: { type: 'string', description: 'ISO-8601 (optional)' },
+      arrive_by: { type: 'string', description: "ISO-8601 (optional). A naive 'YYYY-MM-DDTHH:MM' is read as the user's local wall-clock." },
     },
   },
 };
@@ -303,8 +303,9 @@ const setRecurring: ToolDef = {
   name: TOOL_SET_RECURRING,
   description:
     'Create or remove a RECURRING task/habit the user wants to do repeatedly — "gym every Mon/Wed/Fri ' +
-    'at 7am", "study 30 min daily", "writing every Tuesday night". This is for things to DO on a repeat; ' +
+    'at 7am", "study 30 min daily at 20:00", "writing every Tuesday night". This is for things to DO on a repeat; ' +
     'NOT background like work/sleep/meals (use set_routine) and NOT a one-off (use schedule_tasks). ' +
+    'add REQUIRES title, days_of_week (daily = [0,1,2,3,4,5,6]) and start_local. ' +
     'Occurrences are auto-placed on the calendar for the coming weeks and extend over time. DELETE one ' +
     '(by the id from the recurring list) when the user wants to stop it.',
   parameters: {

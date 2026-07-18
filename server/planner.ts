@@ -65,7 +65,8 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
       // model skipped the tool call and told the user it was scheduled while the calendar stayed
       // empty. Give it ONE corrective step to really do it (or rephrase honestly); the note stays in
       // the thread as a lasting example. Never triggers when any write succeeded.
-      if (!nudged && !wroteOk && placed.length === 0 && claimsCalendarChange(res.text)) {
+      const canNudge = step < maxSteps - 1;   // a nudge on the final step would go unanswered
+      if (canNudge && !nudged && !wroteOk && placed.length === 0 && claimsCalendarChange(res.text)) {
         nudged = true;
         msgs.push({
           role: 'user',
@@ -82,7 +83,7 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
       // write this turn. Seen in the wild on a fresh "周一五点有面试": the model invented an outage
       // and told the user to wait, though the very same request succeeded seconds later. An honest
       // failure report after a REAL attempt is untouched — attemptedWrite guards this branch.
-      if (!nudged && !attemptedWrite && !wroteOk && placed.length === 0 && claimsSystemFailure(res.text)) {
+      if (canNudge && !nudged && !attemptedWrite && !wroteOk && placed.length === 0 && claimsSystemFailure(res.text)) {
         nudged = true;
         msgs.push({
           role: 'user',
@@ -158,7 +159,12 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
     }
   }
 
-  return { type: 'message', text: '(reached max planning steps)', messages: msgs };
+  // Ran out of steps mid-plan — say so in human terms, never the internal marker.
+  return {
+    type: 'message',
+    text: "这条有点复杂，一轮内没走完 — 再发一次我马上重新接手 🙂 (That took more steps than one turn allows — please resend.)",
+    messages: msgs,
+  };
 }
 
 function safeParse(s: string): { items?: unknown; assumptions?: unknown } | null {
