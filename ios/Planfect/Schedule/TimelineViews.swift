@@ -148,6 +148,8 @@ struct WeekTimelineView: View {
 
     private let hourHeight: CGFloat = 46
     private let ruler: CGFloat = 40
+    /// Today's circle in the day strip — scales with the user's text size so "31" never clips.
+    @ScaledMetric(relativeTo: .caption) private var dayCircle: CGFloat = 24
     private var days: [Date] {
         (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: weekStart) }
     }
@@ -164,11 +166,14 @@ struct WeekTimelineView: View {
                             Text(d.formatted(.dateTime.weekday(.narrow)))
                                 .font(.caption2).foregroundStyle(.secondary)
                             // Bare day number: .dateTime.day() localizes to "19日" in zh, which
-                            // truncates to "1…" in the 24pt circle.
+                            // truncates to "1…" in the 24pt circle. The circle also grows with the
+                            // text size, and the number shrinks rather than clipping — a fixed-size
+                            // circle ate the second digit at large Dynamic Type sizes.
                             Text(String(Calendar.current.component(.day, from: d)))
                                 .font(.caption.weight(isToday(d) ? .bold : .regular))
+                                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                                 .foregroundStyle(isToday(d) ? Color.accentColor : .primary)
-                                .frame(width: 24, height: 24)
+                                .frame(width: dayCircle, height: dayCircle)
                                 .background(isToday(d) ? Color.accentColor.opacity(0.15) : .clear, in: Circle())
                         }
                         .frame(maxWidth: .infinity)
@@ -282,13 +287,16 @@ private struct DayCell: View {
     let day: Date
     let colors: [Color]
     let today: Bool
+    /// The date circle scales with the user's text size, so a two-digit day never gets clipped.
+    @ScaledMetric(relativeTo: .callout) private var circle: CGFloat = 28
     var body: some View {
         VStack(spacing: 4) {
             // Bare number — .dateTime.day() is "19日" in zh, which truncates in the 28pt circle.
             Text(String(Calendar.current.component(.day, from: day)))
                 .font(.callout.weight(today ? .bold : .regular))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
                 .foregroundStyle(today ? Color.white : .primary)
-                .frame(width: 28, height: 28)
+                .frame(width: circle, height: circle)
                 .background(today ? Color.accentColor : .clear, in: Circle())
             HStack(spacing: 3) {
                 ForEach(Array(colors.enumerated()), id: \.offset) { _, c in
