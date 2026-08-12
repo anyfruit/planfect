@@ -228,6 +228,13 @@ _2026-08-12_
   day-anchored `parseBound` (6 new cases; 50/50 unit tests green). Measured on the live model:
   prompt eval **25/26** with two new day-part scenarios, and the live `/plan` request that failed
   3/3 before now schedules the outing.
+- **"这周末" answered as plain text instead of a plan.** The one scenario still failing after the
+  above (`weekend-vague`, 2 of 6 runs) came back as a typed question — "周六还是周日？几点出发？" —
+  which the app can't render as tappable options. 这周末 now defaults to Saturday at the activity's
+  natural time and schedules straight away (the receipt is tap-to-edit, so Sunday is one tap), and
+  a question typed as assistant text is explicitly disallowed — questions go through
+  `ask_user_questions` or not at all. Measured: **6/6** on the scenario, **26/26** on the full
+  suite.
 
 _2026-07-18_
 
