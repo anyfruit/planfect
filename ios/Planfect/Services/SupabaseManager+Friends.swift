@@ -119,7 +119,10 @@ extension SupabaseManager {
     /// Upload JPEG bytes to `avatars/<uid>/avatar.jpg`, point the profile at the public URL
     /// (cache-busted so the new image shows), and return that URL.
     func uploadAvatar(_ jpeg: Data) async throws -> String {
-        guard let uid = userId?.uuidString else { throw profileError("Not signed in") }
+        // LOWERCASE matters: the Storage RLS policy compares the folder name to `auth.uid()::text`,
+        // which Postgres renders lowercase — while Swift's `UUID.uuidString` is UPPERCASE. Uploading
+        // to `AB12…/avatar.jpg` fails the policy with a 403 "new row violates row-level security".
+        guard let uid = userId?.uuidString.lowercased() else { throw profileError("Not signed in") }
         let token = await currentToken()
         let path = "\(uid)/avatar.jpg"
         var req = URLRequest(url: URL(string: SupabaseConfig.url.absoluteString + "/storage/v1/object/avatars/\(path)")!)

@@ -5,6 +5,7 @@ import {
   weekdayInTz,
   routineInstancesForDate,
   planningWindowsForDate,
+  parseBound,
   type RoutineInput,
 } from './routines.ts';
 import { scheduleTask } from './scheduler.ts';
@@ -66,4 +67,53 @@ test('late sleeper (same-day sleep 01:00–10:00) gets a forward awake window, n
   // a 2h task at 10:00 now fits (previously failed with no_slot)
   const p = scheduleTask(availability, [], { durationMin: 120, earliestStart: zonedToUtc(date, 600, NY) });
   assert.equal(p.ok, true);
+});
+
+// --- parseBound: earliest_start / deadline the model supplies -------------------------------
+
+const SH = 'Asia/Shanghai';
+const JUL21 = { year: 2026, month: 7, day: 21 };
+
+test('parseBound reads a bare HH:MM as wall-clock on the task day (never NaN)', () => {
+  // The killer case: "13:00" used to hit Date.parse → NaN → findSlot could place NOTHING, so a
+  // completely free day came back as "no free slot".
+  assert.equal(parseBound('13:00', SH, JUL21, 'start'), zonedToUtc(JUL21, 13 * 60, SH));
+  assert.equal(parseBound('9:30', SH, JUL21, 'start'), zonedToUtc(JUL21, 9 * 60 + 30, SH));
+});
+
+test('parseBound reads a naive date-time as local wall-clock, not UTC', () => {
+  assert.equal(parseBound('2026-07-21T13:00', SH, JUL21, 'start'), zonedToUtc(JUL21, 13 * 60, SH));
+  assert.equal(parseBound('2026-07-21 13:00', SH, JUL21, 'start'), zonedToUtc(JUL21, 13 * 60, SH));
+});
+
+test('parseBound keeps an explicit zone absolute', () => {
+  assert.equal(parseBound('2026-07-21T13:00:00Z', SH, JUL21, 'start'), Date.UTC(2026, 6, 21, 13, 0));
+});
+
+test('parseBound treats a date-only deadline as the END of that local day', () => {
+  // Date.parse("2026-07-21") = UTC midnight = 08:00 in Shanghai, so a deadline meaning "by the end
+  // of Tuesday" used to reject every slot after 8am.
+  assert.equal(parseBound('2026-07-21', SH, JUL21, 'end'), zonedToUtc({ year: 2026, month: 7, day: 22 }, 0, SH));
+  assert.equal(parseBound('2026-07-21', SH, JUL21, 'start'), zonedToUtc(JUL21, 0, SH));
+});
+
+test('parseBound returns undefined for junk rather than a NaN that blocks placement', () => {
+  for (const junk of ['白天', 'afternoon', '', '   ', null, undefined, 42]) {
+    assert.equal(parseBound(junk, SH, JUL21, 'start'), undefined, `junk: ${String(junk)}`);
+  }
+});
+
+test('a day-part bound no longer empties a free day', () => {
+  // Late sleeper (01:00–10:00) asking for "白天" on an otherwise empty Tuesday, with the model
+  // sending bare clock times for the daytime window: a 3h outing must still be placeable.
+  const late: RoutineInput[] = [{ kind: 'sleep', daysOfWeek: everyday, startMin: 60, endMin: 600, isFlexible: false }];
+  const { availability, busy } = planningWindowsForDate(late, JUL21, SH);
+  const p = scheduleTask(availability, busy, {
+    durationMin: 180,
+    earliestStart: parseBound('10:00', SH, JUL21, 'start'),
+    deadline: parseBound('18:00', SH, JUL21, 'end'),
+  });
+  assert.equal(p.ok, true);
+  if (!p.ok) return;
+  assert.equal(p.blocks[0].start, zonedToUtc(JUL21, 10 * 60, SH));
 });

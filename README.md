@@ -207,6 +207,28 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-08-12_
+
+- **Avatar upload was impossible for every user; "白天" outings were refused on empty days.**
+  Two reported bugs, both root-caused and fixed. **Avatar:** saving a profile picture always failed
+  with `403 new row violates row-level security policy`. The Storage policy checks the first path
+  segment against `auth.uid()::text`, which Postgres renders lowercase — but the iOS client built
+  the path from Swift's `UUID.uuidString`, which is UPPERCASE, so `avatars/DD00…/avatar.jpg` never
+  matched. Reproduced live (uppercase → 403, lowercase → 200). The client now lowercases the path,
+  and the policies compare case-insensitively so **already-installed 1.0.3 builds are fixed without
+  an App Store update** (verified live: both cases upload, another user's folder still 403s).
+  **Planning:** "周二白天和朋友出去玩" came back as a question claiming the day was busy when the
+  calendar was empty. Two causes: 白天 / 全天 / 一整天 were not in the prompt's day-part list, so a
+  complete request read as vague — added with concrete windows, plus a rule that a day may never be
+  called 没空 unless the calendar or a tool result this turn actually shows a clash (routines are
+  soft, not a conflict). And `earliest_start` / `deadline` went through `Date.parse`: a bare
+  `"13:00"` became `NaN`, which poisons every comparison in `findSlot` so **nothing at all could be
+  placed on a completely free day**, while a date-only `"2026-07-21"` deadline resolved to UTC
+  midnight = 08:00 in Shanghai and rejected the rest of the day. Replaced with a tested, tz- and
+  day-anchored `parseBound` (6 new cases; 50/50 unit tests green). Measured on the live model:
+  prompt eval **25/26** with two new day-part scenarios, and the live `/plan` request that failed
+  3/3 before now schedules the outing.
+
 _2026-07-18_
 
 - **Full-app audit: 4-track parallel review, 25+ fixes, prompt tuned to a measured 24/24.**

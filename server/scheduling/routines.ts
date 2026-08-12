@@ -46,6 +46,52 @@ function tzOffsetMs(utcMs: number, tz: string): number {
   return asUTC - utcMs;
 }
 
+/**
+ * Parse an earliest_start / deadline the model supplied into an epoch-ms bound, anchored to the day
+ * the task is being placed on and read in that task's timezone.
+ *
+ * The tool schema asks for ISO-8601, but models routinely send a bare "13:00" or a date-only
+ * "2026-07-21". Both used to go through `Date.parse`: the first yields NaN, which poisons every
+ * comparison in findSlot so NOTHING can be placed (a completely free day reported as "no free
+ * slot"); the second yields UTC midnight, which east of Greenwich lands mid-morning local and made
+ * a deadline meaning "end of that day" reject the whole day. So:
+ *
+ *   - explicit zone (…Z / ±HH:MM)  → absolute
+ *   - "YYYY-MM-DD[T ]HH:MM"        → that wall-clock in `tz` (naive ≠ UTC)
+ *   - "HH:MM"                      → that wall-clock on `onDate` in `tz`
+ *   - "YYYY-MM-DD"                 → start of that local day, or its END for a deadline
+ *   - anything else                → undefined (an unreadable bound must never block placement)
+ */
+export function parseBound(
+  s: unknown,
+  tz: string,
+  onDate: CalendarDate,
+  role: 'start' | 'end',
+): number | undefined {
+  if (typeof s !== 'string' || !s.trim()) return undefined;
+  const v = s.trim();
+  const finite = (n: number) => (Number.isFinite(n) ? n : undefined);
+
+  if (/([zZ]|[+-]\d{2}:?\d{2})$/.test(v)) return finite(Date.parse(v));   // explicit zone → absolute
+
+  const dateTime = v.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
+  if (dateTime) {
+    return zonedToUtc({ year: +dateTime[1], month: +dateTime[2], day: +dateTime[3] },
+                      (+dateTime[4]) * 60 + (+dateTime[5]), tz);
+  }
+
+  const clock = v.match(/^(\d{1,2}):(\d{2})/);
+  if (clock) return zonedToUtc(onDate, (+clock[1]) * 60 + (+clock[2]), tz);
+
+  const dateOnly = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    const d = { year: +dateOnly[1], month: +dateOnly[2], day: +dateOnly[3] };
+    return role === 'end' ? zonedToUtc(nextDay(d), 0, tz) : zonedToUtc(d, 0, tz);
+  }
+
+  return finite(Date.parse(v));
+}
+
 /** Weekday (0=Sun … 6=Sat) of `date` as observed in `tz`. */
 export function weekdayInTz(date: CalendarDate, tz: string): number {
   const ms = zonedToUtc(date, 12 * 60, tz); // noon avoids DST edges

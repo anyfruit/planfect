@@ -317,6 +317,30 @@ const SCENARIOS: Scenario[] = [
       return f;
     },
   },
+  {
+    name: 'daypart-daytime', text: '周二白天和朋友出去玩',
+    note: '白天 is a real day-part: schedule Tue 6/23 in daytime hours — never ask, never claim 没空',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.date !== '2026-06-23') f.push(`date ${p.date}≠2026-06-23`);
+      if (p.hour < 8 || p.hour > 17) f.push(`hour ${p.hour} not daytime`);
+      return f;
+    },
+  },
+  {
+    name: 'daypart-allday', text: '周三一整天陪家人',
+    note: '一整天 is a window, not a question: schedule Wed 6/24 during the day',
+    check: (r) => {
+      if (r.type !== 'scheduled') return [`expected scheduled, got ${r.type}`];
+      const p = parts(items(r)[0]?.start); const f: string[] = [];
+      if (!p) return ['no start time'];
+      if (p.date !== '2026-06-24') f.push(`date ${p.date}≠2026-06-24`);
+      if (p.hour < 7 || p.hour > 18) f.push(`hour ${p.hour} not daytime`);
+      return f;
+    },
+  },
 ];
 
 // ---- run ----

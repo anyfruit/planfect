@@ -12,6 +12,7 @@ import { type UsageEvent, type UsageSink } from '../../../server/usage.ts';
 import { scheduleTask, type PlacedBlock } from '../../../server/scheduling/scheduler.ts';
 import {
   planningWindowsForDate,
+  parseBound,
   zonedToUtc,
   weekdayInTz,
   type RoutineInput,
@@ -426,6 +427,15 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'the activity\'s natural window (下午健身 → 12:00–17:59, even though gym is usually evening). NEVER',
     'ask "上午还是下午?" / "今天还是明天?" / "3–4点可以吗?" when they named it, and never re-ask',
     'ANYTHING already stated — re-asking given information is the single worst miss here.',
+    'WIDE day-parts count too — 白天 / 大白天 / daytime / during the day = ~10:00–18:00; 全天 / 一整天 /',
+    'all day = wake→~18:00; 早上 ~07:00–09:00, 傍晚 ~17:00–19:00. "周二白天和朋友出去玩" is a COMPLETE',
+    'request: schedule_tasks on that Tuesday inside the daytime window (a few hours, e.g. 13:00, over',
+    'lunch/dinner if needed with allow_over_routine=true) — do NOT ask 几点 / 上午还是下午 / 哪天.',
+    'NEVER claim a day or window is 没空 / 排满了 / "not free" / "you\'re busy then" unless the calendar',
+    'list above actually shows a plan overlapping it, or a tool result THIS turn said so. Routines',
+    '(sleep, meals, work) are NOT "没空" — they are soft, and a wide window like 白天 always has room',
+    'around them. Inventing a conflict to move the user to another day is a serious error: place it on',
+    'the day they asked for. If something real does overlap, name the actual clashing plan and its time.',
     'AN UNDECIDED DETAIL (which restaurant / gym / exact title) is NOT a question and NOT a reason to',
     'schedule nothing: CALL schedule_tasks to BLOCK A TENTATIVE HOLD at the activity\'s natural time on',
     'the given day, titled for it ("Dinner — spot TBD" / "Fine dining (待定)"), no commute while the',
@@ -709,8 +719,9 @@ export function buildHandlers(
     [TOOL_ESTIMATE_COMMUTE]: async (args) => {
       const fromArg = String(args.from_location_id ?? '').trim();
       const toArg = String(args.to_location_id ?? '').trim();
-      // Naive "YYYY-MM-DDTHH:MM" is the user's wall-clock, not UTC (parseWhen handles both).
-      const arriveByMs = parseWhen(args.arrive_by, tz);
+      // Naive "YYYY-MM-DDTHH:MM" is the user's wall-clock, not UTC (parseBound handles both); a
+      // bare "HH:MM" with no date is read as today in the user's zone.
+      const arriveByMs = parseBound(args.arrive_by, tz, localParts(Date.now(), tz).date, 'start');
       const arriveBy = arriveByMs != null ? new Date(arriveByMs).toISOString() : undefined;
       // Use the mode the model asked for (driving for an airport run, etc.); fall back to the
       // user's preferred mode when it didn't specify one.
@@ -816,8 +827,8 @@ export function buildHandlers(
           // pass it as pinnedStart so any commute is laid down BEFORE it. Otherwise it's just a soft
           // "not before" bound.
           pinnedStart: t.start_local ? zonedToUtc(date, timeToMin(t.start_local), taskTz) : undefined,
-          earliestStart: t.start_local ? undefined : parseWhen(t.earliest_start, taskTz),
-          deadline: parseWhen(t.deadline, taskTz),
+          earliestStart: t.start_local ? undefined : parseBound(t.earliest_start, taskTz, date, 'start'),
+          deadline: parseBound(t.deadline, taskTz, date, 'end'),
         });
         if (!placement.ok) {
           items.push({ title: t.title, start: null, end: null });
@@ -1054,21 +1065,6 @@ function safeTimezone(tz: unknown, fallback: string): string {
   } catch {
     return fallback;
   }
-}
-
-/**
- * Parse a datetime the model passed for earliest_start / deadline. A string with an explicit
- * zone (trailing Z or ±HH:MM) is absolute; a NAIVE "YYYY-MM-DDTHH:MM" is read as wall-clock in
- * the user's timezone — NOT UTC. (Deno's Date.parse treats naive strings as UTC, which silently
- * shifted a model-supplied local time by the tz offset and could push it into the sleep block.)
- */
-function parseWhen(s: unknown, tz: string): number | undefined {
-  if (typeof s !== 'string' || !s.trim()) return undefined;
-  const v = s.trim();
-  if (/([zZ]|[+-]\d{2}:?\d{2})$/.test(v)) return Date.parse(v);   // explicit zone → absolute
-  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
-  if (m) return zonedToUtc({ year: +m[1], month: +m[2], day: +m[3] }, (+m[4]) * 60 + (+m[5]), tz);
-  return Date.parse(v);   // date-only or unrecognized → best effort
 }
 
 /** Local Y-M-D and minutes-from-midnight of a UTC instant, in the given tz. */
