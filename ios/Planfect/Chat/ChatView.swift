@@ -43,8 +43,12 @@ final class ChatViewModel: ObservableObject {
     // gates every send/answer; the sheet (bound to `showConsent`) calls grant/decline. One-time.
     @Published var showConsent = false
     private var pendingAfterConsent: (() -> Void)?
-    private static let consentKey = "planfect.aiConsent.v1"
-    var hasAIConsent: Bool { UserDefaults.standard.bool(forKey: Self.consentKey) }
+    static let consentKey = "planfect.aiConsent.v1"
+    /// Shared with the first-run flow, which asks for consent on first open rather than waiting for
+    /// the first send — both write the same key, so whichever asks first settles it.
+    static var hasStoredAIConsent: Bool { UserDefaults.standard.bool(forKey: consentKey) }
+    static func storeAIConsent() { UserDefaults.standard.set(true, forKey: consentKey) }
+    var hasAIConsent: Bool { Self.hasStoredAIConsent }
 
     /// True if the user has already consented; otherwise stash `proceed`, show the sheet, return false.
     private func ensureConsent(then proceed: @escaping () -> Void) -> Bool {

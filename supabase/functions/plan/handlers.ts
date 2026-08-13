@@ -159,7 +159,7 @@ export async function getPlannerConfig(
 ): Promise<PlannerChoice> {
   const fallback: PlannerChoice = {
     provider: envProvider || 'openai',
-    model: envModel || 'gpt-5.1-chat-latest',
+    model: envModel || 'gpt-5.5',
   };
   const cached = _plannerCfgCache.get(surface);
   if (cached && Date.now() - cached.at < PLANNER_CFG_TTL_MS) return cached.v;
@@ -374,6 +374,11 @@ export function buildSystemPrompt(ctx: PlanContext, now: Date = new Date()): str
     'CONCURRENT (一边…一边…, "while I watch the match"): no separate slot — SCHEDULE it (schedule_tasks)',
     'at the SAME time: start_local = that activity\'s start, allow_overlap=true, so they sit on top of',
     'each other.',
+    'A NOTE IS NOT A TITLE. Detail that belongs with a plan — a shopping list, what to ask, what to',
+    'bring ("记一下要买蓝色和绿色的花", "add a note: bring the receipt") — goes in the NOTES field:',
+    'update_task {notes:"…"} on an existing plan, or schedule_tasks notes on a new one. NEVER append',
+    'it to the title: the app has its own 备注 box, and a title stuffed with detail reads as garbage on',
+    'the calendar. Keep the title the short name of the thing ("Flower market"), everything else in notes.',
     'EDITING existing plans: to move, resize, complete, or delete something already on the calendar, call',
     'update_task with its id (shown as [task:UUID] in the calendar list above) and the changes — e.g.',
     '{start_local:"14:00"} or {date:"2026-06-17"} to move it, {status:"done"}, {delete:true}. To SWAP or',
@@ -865,6 +870,7 @@ export function buildHandlers(
           .insert({
             user_id: userId,
             title: t.title,
+            notes: typeof t.notes === 'string' && t.notes.trim() ? t.notes.trim() : null,
             estimated_duration_min: durationMin,
             location_id: t.location_id ?? null,
             status: 'scheduled',
@@ -1027,6 +1033,7 @@ interface ScheduleTaskArg {
   transport_mode?: string;
   buffer_min?: number;
   session_min?: number;
+  notes?: string;          // detail that belongs with the plan, kept OUT of the title
   earliest_start?: string; // ISO-8601
   deadline?: string;       // ISO-8601
   allow_over_routine?: boolean;
@@ -1183,6 +1190,23 @@ async function applyTaskUpdate(
       return JSON.stringify({ ok: true, action: 'deleted', title: title0 });
     }
 
+    // Notes live on the tasks row (the app's 备注 field). Without this the model had nowhere to put
+    // "add a note saying X" and appended it to the TITLE instead.
+    let notesSet = false;
+    if (typeof changes.notes === 'string') {
+      if (scope !== 'task') {
+        return await fail('that item has no notes field — notes belong to a [task:…] item');
+      }
+      const n = await supabase.from('tasks').update({ notes: changes.notes })
+        .eq('id', taskId).eq('user_id', userId).select('id');
+      if (n.error) return await fail(`note update failed: ${n.error.message}`);
+      if (!n.data?.length) return await fail('note update matched nothing');
+      notesSet = true;
+      if (Object.keys(changes).filter((k) => k !== 'notes').length === 0) {
+        return JSON.stringify({ ok: true, action: 'notes', title: title0, notes: changes.notes });
+      }
+    }
+
     let renamed: string | undefined;
     if (typeof changes.title === 'string' && changes.title.trim()) {
       const newTitle = changes.title.trim();
@@ -1260,13 +1284,17 @@ async function applyTaskUpdate(
       return JSON.stringify({
         ok: true, action: 'rescheduled', title: renamed ?? title0,
         ...(scope === 'block' ? { scope: 'single occurrence' } : {}),
+        ...(notesSet ? { notes: changes.notes } : {}),
         start: new Date(newStart).toISOString(), end: new Date(newEnd).toISOString(), timezone: blockTz,
       });
     }
 
-    if (renamed) return JSON.stringify({ ok: true, action: 'renamed', title: renamed });
+    if (renamed) {
+      return JSON.stringify({ ok: true, action: 'renamed', title: renamed, ...(notesSet ? { notes: changes.notes } : {}) });
+    }
+    if (notesSet) return JSON.stringify({ ok: true, action: 'notes', title: title0, notes: changes.notes });
     return await fail(
-      "nothing to apply — pass changes like {start_local:'HH:MM'}, {date:'YYYY-MM-DD'}, {estimated_duration_min:90}, {status:'done'}, or {delete:true}",
+      "nothing to apply — pass changes like {start_local:'HH:MM'}, {date:'YYYY-MM-DD'}, {estimated_duration_min:90}, {notes:'…'}, {status:'done'}, or {delete:true}",
     );
   } catch (e) {
     return await fail((e as Error).message);

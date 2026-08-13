@@ -44,7 +44,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const apiKey = Deno.env.get('OPENAI_API_KEY');
     if (!apiKey) return json({ error: 'analysis is not configured' }, 500);
-    const model = Deno.env.get('INSIGHTS_MODEL') ?? 'gpt-5.3';
+    const model = Deno.env.get('INSIGHTS_MODEL') ?? 'gpt-5.5';
 
     const t0 = Date.now();
     const res = await fetch('https://api.openai.com/v1/responses', {

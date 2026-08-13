@@ -342,9 +342,10 @@
 <span class="c">// the planning round-trip</span>
 <b>iOS app</b> (SwiftUI)  ──HTTPS──▶  <b>/plan</b>  Supabase Edge Function (Deno · TypeScript)
                                        │
-                                       ├─▶ <b>AI agent loop</b>  (OpenAI, tool-calling)
-                                       │      tools: get_schedule · schedule_tasks ·
-                                       │             estimate_commute · web_search ·
+                                       ├─▶ <b>AI agent loop</b>  (tool-calling; provider swappable
+                                       │      at runtime: OpenAI · Kimi · MiniMax)
+                                       │      tools: get_schedule · schedule_tasks · update_task ·
+                                       │             estimate_commute · web_search · set_recurring ·
                                        │             set_routine · remember_preference …
                                        │
                                        ├─▶ <b>Google Maps</b>  (Routes + Geocoding)
@@ -354,13 +355,13 @@
   </div>
   <div class="grid g3 en" style="margin-top:18px">
     <div class="card"><h4>iOS · SwiftUI</h4><p>Chat UI w/ markdown, day/week/month timetable, Swift Charts insights, WidgetKit (App Groups), EventKit, Speech, Sign in with Apple, notifications.</p></div>
-    <div class="card"><h4>Backend · Supabase</h4><p>Postgres + RLS, Edge Functions in Deno/TypeScript, auth, migrations. A timezone-aware scheduling engine (pure, unit-tested) places tasks into free slots.</p></div>
-    <div class="card"><h4>AI · agent loop</h4><p>Multi-step tool-calling over OpenAI: reads context, proposes, confirms, then writes. Pluggable provider/model; usage &amp; cost logged.</p></div>
+    <div class="card"><h4>Backend · Supabase</h4><p>Postgres + RLS, four Edge Functions in Deno/TypeScript, auth, ordered migrations, security-definer RPCs for cross-user reads. A timezone-aware scheduling engine (pure, 50 unit tests) places tasks into free slots.</p></div>
+    <div class="card"><h4>AI · agent loop</h4><p>Multi-step tool-calling: reads context, proposes, confirms, then writes. Provider and model are swapped at runtime from the dashboard — OpenAI, Kimi, or MiniMax behind one adapter — with per-turn latency, token usage and cost logged for each.</p></div>
   </div>
   <div class="grid g3 zh" style="margin-top:18px">
     <div class="card"><h4>iOS · SwiftUI</h4><p>带 Markdown 的聊天界面、日/周/月时间表、Swift Charts 分析图、WidgetKit 小组件(App Groups)、EventKit、语音识别、Apple 登录、本地通知。</p></div>
-    <div class="card"><h4>后端 · Supabase</h4><p>Postgres + 行级安全(RLS)、Deno/TypeScript 的 Edge Functions、鉴权、数据库迁移。一个时区感知的排程引擎(纯函数、有单元测试)把任务放进空闲时段。</p></div>
-    <div class="card"><h4>AI · agent 循环</h4><p>在 OpenAI 上做多步工具调用:读上下文 → 提议 → 确认 → 写库。模型/服务商可插拔;用量与成本都有记录。</p></div>
+    <div class="card"><h4>后端 · Supabase</h4><p>Postgres + 行级安全(RLS)、四个 Deno/TypeScript 的 Edge Function、鉴权、有序迁移,跨用户读取走 security-definer RPC。一个时区感知的排程引擎(纯函数、50 个单元测试)把任务放进空闲时段。</p></div>
+    <div class="card"><h4>AI · agent 循环</h4><p>多步工具调用:读上下文 → 提议 → 确认 → 写库。服务商与模型可在后台运行时切换——OpenAI / Kimi / MiniMax 共用一套适配层——每一轮的延迟、token 用量和成本都分别记录。</p></div>
   </div>
 </div></section>
 
@@ -372,6 +373,7 @@
     <div class="card"><h4>🌍 Timezone-correct scheduling</h4><p>The planner schedules in the user's local time, and looks up cross-timezone events (a London match watched from the US) and converts to their clock. Fixed a class of bugs where “today” drifted to a past date in long, multi-day chats — by stamping the authoritative date onto the latest turn for recency.</p></div>
     <div class="card"><h4>🧭 Product-minded placement</h4><p>Commute is scheduled <em>before</em> a pinned task (you leave early, arrive on time — not the activity pushed later). A voice brain-dump of several tasks is planned in one batch; genuine conflicts are surfaced, never silently mis-scheduled. When a detail is still undecided — which restaurant, exactly where — it blocks a <em>tentative hold</em> you can refine in a tap, instead of interrogating you or scheduling nothing.</p></div>
     <div class="card"><h4>⚡ Latency, halved</h4><p>Cut planner latency ~60% by short-circuiting a redundant LLM round-trip once tasks land on the calendar, skipping needless schedule lookups (the calendar is already in context), and parsing dates once at decode.</p></div>
+    <div class="card"><h4>🎯 Prompt changes, measured not eyeballed</h4><p>The planner's behaviour is a 3,000-word system prompt — the kind of thing normally tuned by vibes. Instead there's an eval harness that drives the <em>real</em> agent loop over a fixed scenario suite against a pinned clock and scores each result programmatically, so every prompt edit reports a pass rate. It caught regressions vibes would have missed and turned tuning into a number: <b>20/26 → 26/26</b> on the live model.</p></div>
     <div class="card"><h4>🔒 Shipping rigor</h4><p>RLS-secured data, App Groups for the widget, distribution signing → TestFlight → App Store pipeline (automated via API key), a password-gated analytics dashboard, CI, and prompt-level content guardrails.</p></div>
     <div class="card"><h4>🗓 Calendar sync that never touches your stuff</h4><p>Plans sync into a <em>dedicated</em> “Planfect” calendar, reconciled — create / move / delete — against a <code>planfect://block/&lt;id&gt;</code> marker stamped on each event. Edits and deletions in the app flow to Apple Calendar, while your personal events are never read or modified; the planner also excludes its own calendar when reading “busy,” so it never plans around itself.</p></div>
     <div class="card"><h4>🌐 Instant in-app language switch</h4><p>Flipping 中文 ⇄ EN in Settings re-skins the whole app <em>immediately</em> — no relaunch. A <code>Bundle.main</code> reclass redirects every localized lookup to the chosen <code>.lproj</code> at runtime, and the view tree re-renders keyed on the language while the one-time startup work stays put.</p></div>
@@ -381,6 +383,7 @@
     <div class="card"><h4>🌍 时区正确的排程</h4><p>排程一律按用户本地时间;查跨时区赛事(在美国看伦敦的比赛)会自动换算成你的钟点。还修掉了一类 bug:跨好几天的长对话里"今天"会漂到过去的日期——办法是把权威日期戳到最新一条消息上,靠"就近"压住旧日期。</p></div>
     <div class="card"><h4>🧭 有产品思维的排法</h4><p>通勤排在定点任务<em>之前</em>(你提前出门、准点到,而不是把活动往后推)。语音一口气报好几件事会被一次性批量排好;真正的冲突会提示你,绝不偷偷排错。细节还没定(哪家店、具体在哪)时,会先占一个<em>临时位</em>,之后一点就能改,而不是反问你或干脆什么都不排。</p></div>
     <div class="card"><h4>⚡ 延迟砍掉一半</h4><p>排程延迟降了约 60%:任务一落到日历就短路掉一次多余的 LLM 来回、省掉没必要的日程查询(日历本来就在上下文里)、日期只在解码时解析一次。</p></div>
+    <div class="card"><h4>🎯 提示词改动靠量化,不靠感觉</h4><p>规划器的行为由一份三千词的系统提示词决定——这种东西通常只能凭感觉调。这里有一套 eval:用固定时钟、固定场景集去跑<em>真实</em>的 agent 循环,再按程序逐条判分,于是每次改提示词都能报出一个通过率。它抓到过纯靠感觉必然漏掉的回归,也把调优变成了一个数字:线上模型 <b>20/26 → 26/26</b>。</p></div>
     <div class="card"><h4>🔒 上线工程的严谨度</h4><p>RLS 保护的数据、小组件用的 App Groups、发布签名 → TestFlight → App Store 全流程(用 API key 自动化)、带密码保护的分析后台、CI、以及提示词层面的内容护栏。</p></div>
     <div class="card"><h4>🗓 只动自己那本的日历同步</h4><p>计划会同步进一本<em>专属</em>的「Planfect」日历,按写在每个事件上的 <code>planfect://block/&lt;id&gt;</code> 标记做对账——新建 / 移动 / 删除。你在 app 里改或删,都会同步到 Apple 日历,而你自己的私人事件从不被读取或改动;规划器读「忙碌」时也会排除自己这本日历,绝不围着自己排程。</p></div>
     <div class="card"><h4>🌐 即时切换 App 语言</h4><p>在设置里 中文 ⇄ EN 一切,整个 app <em>立刻</em>换皮、不用重启。靠把 <code>Bundle.main</code> 重新归类、运行时把每次本地化查找重定向到选定的 <code>.lproj</code>,再让视图树按语言重渲染,而一次性的启动逻辑原地不动。</p></div>
@@ -396,7 +399,8 @@
       <div class="it"><b>The iOS app</b><span>Auth, a conversational (not form-based) onboarding, chat → planner, and day/week/month schedule views.</span></div>
       <div class="it"><b>Feature waves</b><span>Reminders, real commute times, insights + AI analysis, recurring habits, habit learning, voice input, data export, widgets, Sign in with Apple — and full EN / 中文 localization.</span></div>
       <div class="it"><b>Hardening from real use</b><span>Every round of device testing surfaced bugs: date arithmetic, late-sleeper scheduling, concurrent tasks, the multi-day “today” drift, commute direction, reply brevity — fixed with unit tests where it counts.</span></div>
-      <div class="it"><b>Ship it</b><span>Distribution signing, export-compliance, a privacy policy, bilingual App Store metadata, TestFlight for friends, and submission for review.</span></div>
+      <div class="it"><b>Ship it</b><span>Distribution signing, export-compliance, a privacy policy, bilingual App Store metadata, TestFlight for friends — <b>live on the App Store</b>, released and updated entirely from the command line (no Xcode GUI).</span></div>
+      <div class="it"><b>Live, and still shipping</b><span>Real users mean real bug reports. Since launch: friends &amp; tier-blurred shared schedules, per-event timezones so a trip keeps its own clock, APNs push, an observability dashboard (per-model p50/p95, cost, tool reliability), a prompt-eval suite, and a stream of fixes found by using it every day.</span></div>
     </div>
   </div>
   <div class="zh"><h2>迭代历程</h2><h3>在真机上一轮轮打磨出来的</h3>
@@ -405,7 +409,8 @@
       <div class="it"><b>iOS app</b><span>登录、对话式(而非填表)的引导、聊天 → 规划、日/周/月日程视图。</span></div>
       <div class="it"><b>功能波次</b><span>提醒、真实通勤时间、分析 + AI 解读、重复习惯、习惯学习、语音输入、数据导出、小组件、Apple 登录——以及完整的中英双语。</span></div>
       <div class="it"><b>真机用出来的加固</b><span>每一轮真机测试都暴露 bug:日期算错、晚睡作息排不进、并发任务、跨天"今天"漂移、通勤方向、回复啰嗦——该写单元测试的地方都补上了。</span></div>
-      <div class="it"><b>上架</b><span>发布签名、出口合规、隐私政策、中英双语的商店文案、给朋友的 TestFlight,以及提交审核。</span></div>
+      <div class="it"><b>上架</b><span>发布签名、出口合规、隐私政策、中英双语的商店文案、给朋友的 TestFlight——<b>已在 App Store 上线</b>,而且发布和更新全程命令行完成(不用 Xcode 图形界面)。</span></div>
+      <div class="it"><b>上线之后,继续迭代</b><span>有真实用户就有真实 bug。上线以来:好友与按等级模糊的共享日程、每个日程各自的时区(出差时行程保持当地钟点)、APNs 推送、可观测后台(分模型 p50/p95、成本、工具可靠性)、提示词 eval 套件,以及每天自己用出来的一连串修复。</span></div>
     </div>
   </div>
 </div></section>
@@ -417,8 +422,10 @@
   <div class="chips">
     <span class="chip">Swift</span><span class="chip">SwiftUI</span><span class="chip">WidgetKit</span><span class="chip">EventKit</span>
     <span class="chip">TypeScript</span><span class="chip">Deno</span><span class="chip">Supabase</span><span class="chip">PostgreSQL</span>
-    <span class="chip">Row-Level Security</span><span class="chip">OpenAI</span><span class="chip">LLM tool-calling</span>
-    <span class="chip">Google Maps API</span><span class="chip">XcodeGen</span><span class="chip">App Store Connect API</span>
+    <span class="chip">Row-Level Security</span><span class="chip">Swift Charts</span><span class="chip">APNs</span>
+    <span class="chip">OpenAI</span><span class="chip">Kimi</span><span class="chip">MiniMax</span><span class="chip">LLM tool-calling</span>
+    <span class="chip">Prompt evals</span><span class="chip">Google Maps API</span><span class="chip">Next.js</span>
+    <span class="chip">XcodeGen</span><span class="chip">App Store Connect API</span>
     <span class="chip">Node test runner</span><span class="chip">Railway</span><span class="chip">i18n (EN / 中文)</span>
   </div>
 </div></section>

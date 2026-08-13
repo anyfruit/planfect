@@ -136,6 +136,13 @@ const scheduleTasks: ToolDef = {
                 "'America/New_York'). The clock time is the wall-clock in THIS zone; never pre-convert it.",
             },
             estimated_duration_min: { type: 'integer', description: 'Minutes; defaults to 60 if omitted.' },
+            notes: {
+              type: 'string',
+              description:
+                'Detail that belongs WITH the plan but is not its name — a shopping list, what to ask, ' +
+                'what to bring ("买蓝色和绿色的花", "bring the receipt"). Keep the title short and put ' +
+                'the rest here; never pack detail into the title.',
+            },
             start_local: {
               type: 'string',
               description: "Exact local start time as HH:MM (24h) in this task's timezone — set this to pin the task at a specific time; the server converts it to UTC. Prefer this over earliest_start for a concrete time.",
@@ -215,13 +222,20 @@ const updateTask: ToolDef = {
         type: 'object',
         additionalProperties: true,
         description:
-          "What to change: { title: 'New name' } to rename, { start_local: 'HH:MM', date: " +
-          "'YYYY-MM-DD' } to move it, { estimated_duration_min: 90 } to resize, { status: 'done' } to " +
-          "complete, { delete: true } to remove. start_local is read in the task's existing timezone; " +
-          "pass { timezone: 'America/New_York' } too only to move it to a different zone. Moving a task " +
-          'carries its commute/buffer with it automatically.',
+          "What to change: { title: 'New name' } to rename, { notes: 'text' } to set the note on it, " +
+          "{ start_local: 'HH:MM', date: 'YYYY-MM-DD' } to move it, { estimated_duration_min: 90 } to " +
+          "resize, { status: 'done' } to complete, { delete: true } to remove. start_local is read in " +
+          "the task's existing timezone; pass { timezone: 'America/New_York' } too only to move it to a " +
+          'different zone. Moving a task carries its commute/buffer with it automatically.',
         properties: {
           title: { type: 'string', description: 'New name for the task.' },
+          notes: {
+            type: 'string',
+            description:
+              'The note/detail attached to the task ("记一下要买蓝色和绿色的花", "ask about the warranty"). ' +
+              'This is where a remark about a plan goes — NEVER append it to the title. Replaces the ' +
+              'existing note; pass "" to clear it.',
+          },
           start_local: { type: 'string', description: "New local start time, HH:MM (24h), in the task's timezone." },
           date: { type: 'string', description: 'New local calendar day, YYYY-MM-DD.' },
           estimated_duration_min: { type: 'integer', description: 'New length in minutes.' },

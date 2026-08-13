@@ -10,8 +10,9 @@ import type { DemoConversationRow } from '../lib/types';
 // Curated provider:model options for the switcher. All are priced in server/usage.ts so cost
 // tracking keeps working; switching to one needs its API key set as a Supabase secret.
 const MODEL_OPTIONS: [string, string][] = [
-  ['openai', 'gpt-5.1-chat-latest'],
+  ['openai', 'gpt-5.5'],
   ['openai', 'gpt-5.4'],
+  ['openai', 'gpt-5.4-mini'],
   ['anthropic', 'claude-opus-4-8'],
   ['anthropic', 'claude-sonnet-4-6'],
   ['minimax', 'MiniMax-M3'],
@@ -51,8 +52,8 @@ export default async function DashboardPage() {
     getUpdateTaskHealth(14),
     getStepLatency(14),
   ]);
-  const appChoice = `${cfg.planner_provider_app ?? 'openai'}:${cfg.planner_model_app ?? 'gpt-5.1-chat-latest'}`;
-  const demoChoice = `${cfg.planner_provider_demo ?? 'openai'}:${cfg.planner_model_demo ?? 'gpt-5.1-chat-latest'}`;
+  const appChoice = `${cfg.planner_provider_app ?? 'openai'}:${cfg.planner_model_app ?? 'gpt-5.5'}`;
+  const demoChoice = `${cfg.planner_provider_demo ?? 'openai'}:${cfg.planner_model_demo ?? 'gpt-5.5'}`;
 
   const t = totals(models);
   const peakActive = dau.reduce((m, d) => Math.max(m, d.active_users), 0);

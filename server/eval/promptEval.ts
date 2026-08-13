@@ -7,7 +7,7 @@
 //   EVAL_PROVIDER=minimax EVAL_MODEL=MiniMax-M2.7-highspeed \
 //     deno run --allow-net --allow-env server/eval/promptEval.ts
 //
-// To eval the production model, set EVAL_PROVIDER=openai EVAL_MODEL=gpt-5.1-chat-latest (needs OPENAI_API_KEY).
+// To eval the production model, set EVAL_PROVIDER=openai EVAL_MODEL=gpt-5.5 (needs OPENAI_API_KEY).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { runPlanner, type PlannerResult } from '../planner.ts';

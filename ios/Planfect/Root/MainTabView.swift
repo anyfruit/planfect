@@ -4,6 +4,7 @@ import UIKit
 struct MainTabView: View {
     @EnvironmentObject var router: AppRouter
     @State private var showProfile = false
+    @StateObject private var firstRun = FirstRunCoordinator()
 
     var body: some View {
         TabView(selection: $router.tab) {
@@ -32,11 +33,24 @@ struct MainTabView: View {
             .tag(3)
         }
         .sheet(isPresented: $showProfile) { ProfileView() }
+        // First open: ask for AI consent, notifications, and calendar sync right away rather than
+        // ambushing the user with a legal sheet the moment they send their first message.
+        .sheet(item: $firstRun.step) { step in
+            switch step {
+            case .aiConsent:
+                AIConsentView(onAgree: { firstRun.grantConsent() }, onDecline: { firstRun.declineConsent() })
+                    .interactiveDismissDisabled()
+            case .calendar:
+                CalendarSyncAskView(onEnable: { Task { await firstRun.enableCalendar() } },
+                                    onSkip: { firstRun.skipCalendar() })
+                    .interactiveDismissDisabled()
+            }
+        }
         // Leaving a tab drops the keyboard — otherwise a stuck keyboard can hide the tab bar and
         // trap the user on the current tab.
         .onChange(of: router.tab) { _, _ in UIApplication.shared.endEditing() }
+        .task { await firstRun.startIfNeeded() }
         .onAppear {
-            Task { await NotificationManager.shared.ensureAuthorization() }
             #if DEBUG
             if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "schedule" { router.tab = 1 }
             if ProcessInfo.processInfo.environment["PLANFECT_START_TAB"] == "insights" { router.tab = 2 }

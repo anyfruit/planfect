@@ -179,7 +179,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let apiKey = Deno.env.get(providerKeyEnv(provider));
     if (!apiKey) {   // chosen provider has no key → fall back to OpenAI so the demo still works
       provider = 'openai';
-      model = Deno.env.get('PLANNER_MODEL') || 'gpt-5.1-chat-latest';
+      model = Deno.env.get('PLANNER_MODEL') || 'gpt-5.5';
       apiKey = Deno.env.get('OPENAI_API_KEY');
     }
     if (!apiKey) return json({ error: 'demo temporarily unavailable' }, 503);

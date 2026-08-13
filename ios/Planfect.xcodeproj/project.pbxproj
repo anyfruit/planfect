@@ -29,6 +29,7 @@
 		7CEE3FE1F23691C11D2EDC57 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C211D8C7BE8AE1B0523629AD /* Assets.xcassets */; };
 		82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */; };
 		861E9736F45EDE9BDA117AAB /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = F52D82E7FBC6225B9446F7B2 /* Localizable.strings */; };
+		898582E46F729C8222906CAF /* FirstRunFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C18E39EACCA81331684A8D /* FirstRunFlow.swift */; };
 		8EE826113A721E5647468747 /* SupabaseManager+Data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 730A0F3B0923ED5F71AC5DB0 /* SupabaseManager+Data.swift */; };
 		9251BFF923DBE9B060F1F6D6 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */; };
 		9291AE3AEBA6BF925BA6E1B5 /* PlanfectWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621776B04C4F2726894FCEB9 /* PlanfectWidget.swift */; };
@@ -87,6 +88,7 @@
 		0E22D74302E20B73680756E3 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		2E7EB0D4ACB0AA5D47E4A62E /* AddressEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddressEditView.swift; sourceTree = "<group>"; };
 		41327E533766185C31A72594 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
+		46C18E39EACCA81331684A8D /* FirstRunFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunFlow.swift; sourceTree = "<group>"; };
 		4BD88171481ED831C7C1BBBB /* LanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LanguageManager.swift; sourceTree = "<group>"; };
 		51B79EF8B602BC6B5212B2CC /* QuestionCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionCardView.swift; sourceTree = "<group>"; };
 		52A0479DD6B7754763783FB7 /* AIConsentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIConsentView.swift; sourceTree = "<group>"; };
@@ -165,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				C2B68EB2FABB371E417D0387 /* AppRouter.swift */,
+				46C18E39EACCA81331684A8D /* FirstRunFlow.swift */,
 				6BF2BF21B8B4E52BCCFE6047 /* MainTabView.swift */,
 				70C02298574E621578D70481 /* RootView.swift */,
 			);
@@ -453,6 +456,7 @@
 				82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */,
 				C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */,
 				2641D2751E182AB714239454 /* ErrorPresentation.swift in Sources */,
+				898582E46F729C8222906CAF /* FirstRunFlow.swift in Sources */,
 				123D1230375971B7E2ADEF6D /* FriendsView.swift in Sources */,
 				5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */,
 				C0FA7555B4D949CB2AB2C388 /* LanguageManager.swift in Sources */,

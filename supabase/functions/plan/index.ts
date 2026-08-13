@@ -63,7 +63,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let apiKey = Deno.env.get(providerKeyEnv(provider));
     if (!apiKey) {
       provider = 'openai';
-      model = Deno.env.get('PLANNER_MODEL') || 'gpt-5.1-chat-latest';
+      model = Deno.env.get('PLANNER_MODEL') || 'gpt-5.5';
       apiKey = Deno.env.get('OPENAI_API_KEY');
     }
     obsProvider = provider;
