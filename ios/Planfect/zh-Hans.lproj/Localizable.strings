@@ -221,6 +221,8 @@
 "username" = "用户名";
 "Display name" = "昵称";
 "Your name" = "你的名字";
+"Planfect ID" = "Planfect ID";
+"We assign you an ID when you sign up. Friends find and add you by it — change it to anything 3–20 letters, numbers, or underscore." = "注册时我们会给你分配一个 ID。好友靠它找到并添加你——你也可以改成任意 3–20 位字母、数字或下划线。";
 "3–20 letters, numbers, or underscore. Friends find and add you by this." = "3–20 位字母、数字或下划线。好友靠它找到并添加你。";
 "Username must be 3–20 letters, numbers, or underscore." = "用户名必须是 3–20 位字母、数字或下划线。";
 

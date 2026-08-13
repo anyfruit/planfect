@@ -112,7 +112,7 @@ struct FriendsList: Codable {
 }
 
 /// The signed-in user's own editable profile fields.
-struct MyProfile: Decodable {
+struct MyProfile: Codable {
     let username: String?
     let display_name: String?
     let avatar_url: String?

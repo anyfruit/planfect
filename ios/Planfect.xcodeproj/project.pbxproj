@@ -24,6 +24,7 @@
 		4D6C451AADFA2AC95823B319 /* WidgetModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E578E174CF9A1913F0BA58AD /* WidgetModel.swift */; };
 		5031247618266C8A8BE61CBB /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6660911D238AB2DB9F54CE /* InsightsView.swift */; };
 		50CA1A3511FDEB327EBE67FF /* SpeechRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E296785A9D25607F434C4E11 /* SpeechRecognizer.swift */; };
+		5F9532244E7233F3A45BC987 /* AvatarCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0DBABACE9D927284F36E96 /* AvatarCache.swift */; };
 		6579D9C67852BFF7A690D3EA /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0016DA3561DE72EB9D6B20CA /* Models.swift */; };
 		7CEE3FE1F23691C11D2EDC57 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C211D8C7BE8AE1B0523629AD /* Assets.xcassets */; };
 		82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */; };
@@ -42,6 +43,7 @@
 		C0FA7555B4D949CB2AB2C388 /* LanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BD88171481ED831C7C1BBBB /* LanguageManager.swift */; };
 		C1081592411CC1EF6B278C19 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B266EB035034732CCE00FD /* ChatView.swift */; };
 		C16AB4C190180035275F8B23 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB2922E43C5BEDE6AB2C73D0 /* WidgetBridge.swift */; };
+		C546E220AB185B2DB92B6E7F /* AvatarCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA0DBABACE9D927284F36E96 /* AvatarCache.swift */; };
 		C58AC76843AEE44BA888CF52 /* SupabaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB3FA70264BD26E32D019A49 /* SupabaseConfig.swift */; };
 		CF5D067CFABE1F792684331B /* CategoryStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */; };
 		D0DF87CB04A9A4713EFFF1E3 /* AddressAutocompleteField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8165D8429962B74C0CA0527D /* AddressAutocompleteField.swift */; };
@@ -127,6 +129,7 @@
 		E97D82409A559BA08A144C75 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		EB2922E43C5BEDE6AB2C73D0 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
 		F469ADAFC2822CB9EFD73800 /* SupabaseManager+Friends.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SupabaseManager+Friends.swift"; sourceTree = "<group>"; };
+		FA0DBABACE9D927284F36E96 /* AvatarCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarCache.swift; sourceTree = "<group>"; };
 		FE8E612B6AAFC17E0953F6AC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -258,6 +261,7 @@
 		9FB3F28F7EBB8F5BD0E414E1 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				FA0DBABACE9D927284F36E96 /* AvatarCache.swift */,
 				A97A5085BB78EA968FE7BBE2 /* CategoryStyle.swift */,
 				53DC6A69918A7252A76A7BAF /* ErrorPresentation.swift */,
 				E578E174CF9A1913F0BA58AD /* WidgetModel.swift */,
@@ -425,6 +429,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5F9532244E7233F3A45BC987 /* AvatarCache.swift in Sources */,
 				CF5D067CFABE1F792684331B /* CategoryStyle.swift in Sources */,
 				3BF70DC93210881D62CA4FED /* ErrorPresentation.swift in Sources */,
 				9291AE3AEBA6BF925BA6E1B5 /* PlanfectWidget.swift in Sources */,
@@ -442,6 +447,7 @@
 				A7C09B5495743B1F03E9F368 /* AppRouter.swift in Sources */,
 				DF2113A40A8E0AD591DD2BAA /* AppleSignInButton.swift in Sources */,
 				D661222F14C6B60DAE9ADC6A /* AuthView.swift in Sources */,
+				C546E220AB185B2DB92B6E7F /* AvatarCache.swift in Sources */,
 				08D12122C2D64AF1933E7E86 /* BlockDetailView.swift in Sources */,
 				D347F1657CA06B0BF94D5B1A /* CalendarManager.swift in Sources */,
 				82D496D88DFFC463465F17E6 /* CategoryStyle.swift in Sources */,

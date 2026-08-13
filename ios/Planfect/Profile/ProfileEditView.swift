@@ -42,9 +42,9 @@ struct ProfileEditView: View {
                             .autocorrectionDisabled()
                     }
                 } header: {
-                    Text("Username")
+                    Text("Planfect ID")
                 } footer: {
-                    Text("3–20 letters, numbers, or underscore. Friends find and add you by this.")
+                    Text("We assign you an ID when you sign up. Friends find and add you by it — change it to anything 3–20 letters, numbers, or underscore.")
                 }
 
                 Section("Display name") {
@@ -67,24 +67,21 @@ struct ProfileEditView: View {
     }
 
     @ViewBuilder private var avatarPreview: some View {
-        Group {
-            if let img = pickedImage {
-                Image(uiImage: img).resizable().scaledToFill()
-            } else {
-                AsyncImage(url: avatarURL) { img in
-                    img.resizable().scaledToFill()
-                } placeholder: {
-                    Image(systemName: "person.crop.circle.fill").resizable().scaledToFit()
-                        .foregroundStyle(.quaternary)
-                }
-            }
+        if let img = pickedImage {
+            Image(uiImage: img).resizable().scaledToFill()
+                .frame(width: 96, height: 96).clipShape(Circle())
+        } else {
+            Avatar(url: avatarURL, size: 96)   // cached: your current photo, not a silhouette
         }
-        .frame(width: 96, height: 96)
-        .clipShape(Circle())
     }
 
     private func loadProfile() async {
+        if let cached = supa.cachedProfile { apply(cached) }     // paint first, refresh behind it
         guard let p = try? await supa.fetchMyProfile() else { return }
+        apply(p)
+    }
+
+    private func apply(_ p: MyProfile) {
         username = p.username ?? ""
         displayName = p.display_name ?? ""
         avatarURL = p.avatarURL

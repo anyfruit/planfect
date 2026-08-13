@@ -143,15 +143,31 @@ struct FriendRow<Trailing: View>: View {
 struct Avatar: View {
     let url: URL?
     var size: CGFloat = 42
+    /// Read the cache synchronously in `init` so an already-seen face is on screen in the FIRST
+    /// frame — going through .task would still show the placeholder for a beat.
+    @State private var image: UIImage?
+
+    init(url: URL?, size: CGFloat = 42) {
+        self.url = url
+        self.size = size
+        _image = State(initialValue: url.flatMap(AvatarCache.image(for:)))
+    }
+
     var body: some View {
-        AsyncImage(url: url) { img in
-            img.resizable().scaledToFill()
-        } placeholder: {
-            Image(systemName: "person.crop.circle.fill").resizable().scaledToFit()
-                .foregroundStyle(.quaternary)
+        Group {
+            if let image {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                Image(systemName: "person.crop.circle.fill").resizable().scaledToFit()
+                    .foregroundStyle(.quaternary)
+            }
         }
         .frame(width: size, height: size)
         .clipShape(Circle())
+        .task(id: url) {
+            guard let url, image == nil else { return }
+            image = await AvatarCache.load(url)
+        }
     }
 }
 

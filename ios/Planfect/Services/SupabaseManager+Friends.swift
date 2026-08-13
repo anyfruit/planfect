@@ -132,8 +132,29 @@ extension SupabaseManager {
         guard let p = try JSONDecoder().decode([MyProfile].self, from: data).first else {
             throw profileError("Profile not found")
         }
+        cachedProfile = p
         return p
     }
+
+    /// The last profile we fetched, so the Profile sheet shows your name and photo in its first
+    /// frame instead of the default silhouette. Survives relaunches; cleared on sign-out.
+    var cachedProfile: MyProfile? {
+        get {
+            guard let uid = userId?.uuidString.lowercased(),
+                  let data = UserDefaults.standard.data(forKey: Self.profileCacheKey(uid)) else { return nil }
+            return try? JSONDecoder().decode(MyProfile.self, from: data)
+        }
+        set {
+            guard let uid = userId?.uuidString.lowercased() else { return }
+            let key = Self.profileCacheKey(uid)
+            guard let newValue, let data = try? JSONEncoder().encode(newValue) else {
+                UserDefaults.standard.removeObject(forKey: key); return
+            }
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    static func profileCacheKey(_ uid: String) -> String { "planfect.profile.\(uid)" }
 
     /// Set the unique @username. Surfaces a friendly message when it's already taken (PostgREST 409).
     func updateUsername(_ username: String) async throws {
@@ -177,6 +198,13 @@ extension SupabaseManager {
             + "/storage/v1/object/public/avatars/\(path)?t=\(Int(Date().timeIntervalSince1970))"
         _ = try await rest("PATCH", "profiles?id=eq.\(uid)",
                            body: try JSONEncoder().encode(["avatar_url": publicURL]), prefer: "return=minimal")
+        // We already have the exact bytes the new URL will serve — cache them under it, and point
+        // the cached profile at it, so the new photo is on screen the instant you go back rather
+        // than after a profile fetch plus an image download.
+        if let url = URL(string: publicURL) { AvatarCache.store(jpeg, for: url) }
+        if let p = cachedProfile {
+            cachedProfile = MyProfile(username: p.username, display_name: p.display_name, avatar_url: publicURL)
+        }
         return publicURL
     }
 

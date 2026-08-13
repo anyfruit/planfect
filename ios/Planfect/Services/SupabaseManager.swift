@@ -71,8 +71,10 @@ final class SupabaseManager: ObservableObject {
     }
 
     func signOut() async {
-        // Drop the cached friends list while we can still resolve the key from the live session.
+        // Drop the cached friends list + profile while we can still resolve the key from the
+        // live session.
         cachedFriends = nil
+        cachedProfile = nil
         try? await client.auth.signOut()
     }
 }

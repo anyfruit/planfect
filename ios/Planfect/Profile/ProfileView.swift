@@ -287,13 +287,24 @@ struct ProfileView: View {
     }
 
     private func reload() async {
-        routines = (try? await supa.fetchRoutines()) ?? []
-        let hw = await supa.fetchHomeWork()
+        // Show the cached name/photo first — the fetches below are independent round trips, and
+        // when the profile was the LAST of five in series the avatar stayed a silhouette for
+        // seconds every time this sheet opened.
+        if myProfile == nil { myProfile = supa.cachedProfile }
+        async let routinesTask = (try? await supa.fetchRoutines()) ?? []
+        async let hwTask = supa.fetchHomeWork()
+        async let prefsTask = supa.fetchPreferences()
+        async let recurringTask = supa.fetchRecurring()
+        async let profileTask = try? await supa.fetchMyProfile()
+        async let entitlementTask: Void = supa.refreshEntitlement()
+
+        routines = await routinesTask
+        let hw = await hwTask
         homeAddr = hw.home ?? ""; workAddr = hw.work ?? ""
-        prefs = await supa.fetchPreferences()
-        recurring = await supa.fetchRecurring()
-        myProfile = try? await supa.fetchMyProfile()
-        await supa.refreshEntitlement()
+        prefs = await prefsTask
+        recurring = await recurringTask
+        if let fresh = await profileTask { myProfile = fresh }
+        await entitlementTask
     }
 
     @ViewBuilder
