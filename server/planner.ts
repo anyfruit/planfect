@@ -17,6 +17,18 @@ import {
 export type ToolHandler = (args: Record<string, unknown>) => Promise<string> | string;
 export type ToolHandlers = Record<string, ToolHandler>;
 
+/**
+ * Progress from inside a turn, for a client that is streaming it.
+ *
+ * `tool` fires when the agent starts a server-side tool, so the app can say what it's doing
+ * ("checking your schedule…") instead of showing an undifferentiated spinner — most of a turn's
+ * wall-clock is tool steps, so this is where the waiting actually is. `delta` carries the visible
+ * reply as the model writes it.
+ */
+export type PlannerEvent =
+  | { type: 'tool'; name: string }
+  | { type: 'delta'; text: string };
+
 export interface PlannerDeps {
   llm: PlannerLLM;
   model: string;
@@ -27,6 +39,8 @@ export interface PlannerDeps {
   usage?: UsageSink;
   now?: () => number;
   maxSteps?: number;
+  /** Set to stream a turn. Absent = the classic buffered call, byte-for-byte unchanged. */
+  onEvent?: (event: PlannerEvent) => void;
 }
 
 export type PlannerResult =
@@ -47,7 +61,12 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
 
   for (let step = 0; step < maxSteps; step++) {
     const t0 = now();
-    const res = await deps.llm.step({ system: deps.system, messages: msgs, tools: deps.tools, model: deps.model });
+    const res = await deps.llm.step({
+      system: deps.system, messages: msgs, tools: deps.tools, model: deps.model,
+      // Stream the visible reply only. A step that turns out to be a tool call emits no text, so
+      // nothing bogus reaches the user; a step that IS the answer streams word by word.
+      onDelta: deps.onEvent ? (text) => deps.onEvent!({ type: 'delta', text }) : undefined,
+    });
 
     if (deps.usage) {
       await deps.usage.record(
@@ -120,6 +139,7 @@ export async function runPlanner(messages: LLMMessage[], deps: PlannerDeps): Pro
 
     // Fulfill server-side tools and feed the results back.
     for (const call of res.toolCalls) {
+      deps.onEvent?.({ type: 'tool', name: call.name });
       const handler = deps.handlers[call.name];
       let result: string;
       try {

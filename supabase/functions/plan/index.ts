@@ -6,7 +6,7 @@
 // server/demo/planDemo.ts. Deploy with: supabase functions deploy plan
 
 import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
-import { runPlanner } from '../../../server/planner.ts';
+import { runPlanner, type PlannerDeps, type PlannerEvent, type PlannerResult } from '../../../server/planner.ts';
 import { createPlanner } from '../../../server/llm/providers.ts';
 import { PLANNER_TOOLS } from '../../../server/llm/tools.ts';
 import { type LLMMessage, type LLMProvider } from '../../../server/llm/types.ts';
@@ -42,6 +42,19 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const body = await req.json();
     const conversationId: string | undefined = body.conversation_id;
+
+    // Reconnect path: the app lost the stream (backgrounded, killed, network flipped) and is asking
+    // for that turn's saved result. Cheap, and RLS-scoped by the user client.
+    if (typeof body.fetch_turn === 'string') {
+      const { data } = await supabase
+        .from('plan_turns').select('result').eq('id', body.fetch_turn).maybeSingle();
+      return data ? json({ ...(data.result as Record<string, unknown>), turn_id: body.fetch_turn })
+                  : json({ pending: true, turn_id: body.fetch_turn });
+    }
+    // The client supplies the id so it can come back for this exact turn even if the response
+    // never arrives. UUIDs from the app; fall back to one of ours for callers that omit it.
+    const turnId: string = typeof body.turn_id === 'string' && UUID_RE.test(body.turn_id)
+      ? body.turn_id : crypto.randomUUID();
     let messages: LLMMessage[] = body.messages ?? [{ role: 'user', content: String(body.text ?? '') }];
     // The app replays the WHOLE chat every turn, and threads live for weeks — a 30k-token history
     // slows every model step, costs real tokens, and feeds the model stale ids/dates from old days
@@ -123,7 +136,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const inSteps = countAssistant(messages);
     const inNudges = countNudges(messages);
 
-    const result = await runPlanner(messages, {
+    const plannerDeps = {
       llm: createPlanner(provider, { apiKey: apiKey ?? '' }),
       model,
       system: buildSystemPrompt(ctx),
@@ -132,21 +145,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
       context: { userId: user.id, conversationId },
       usage: new SupabaseUsageSink(admin),
       maxSteps: 14,
-    });
+    };
+    const finish = (result: PlannerResult) => {
+      logTurn(admin, user.id, {
+        ok: true,
+        type: result.type,
+        steps: countAssistant(result.messages) - inSteps,
+        nudges: countNudges(result.messages) - inNudges,
+        ms: Date.now() - t0,
+        provider,
+        model,
+        streamed: body.stream === true,
+      });
+      // Persist the finished turn so a client that lost the connection (backgrounded, killed,
+      // switched networks) can still collect the model's ACTUAL reply instead of losing it. The
+      // schedule itself was already written by the tools; this is the reply text/receipt.
+      saveTurn(admin, user.id, turnId, result);
+    };
 
-    logTurn(admin, user.id, {
-      ok: true,
-      type: result.type,
-      steps: countAssistant(result.messages) - inSteps,
-      nudges: countNudges(result.messages) - inNudges,
-      ms: Date.now() - t0,
-      provider,
-      model,
-    });
+    // Streaming turn: the client gets tool-progress and the reply as it is written, and the same
+    // final payload it would have received from the buffered call. Old clients don't set
+    // `stream`, so they keep the byte-identical JSON response.
+    if (body.stream === true) {
+      return streamTurn(messages, plannerDeps, turnId, finish);
+    }
 
-    // NOTE (Phase 2): also persist `messages` into the `messages` table here so the
-    // conversation + clarifying-question state survives across the ask -> answer round trip.
-    return json(result);
+    const result = await runPlanner(messages, plannerDeps);
+    finish(result);
+    return json({ ...result, turn_id: turnId });
   } catch (e) {
     if (obs) {
       logTurn(obs, obsUserId, {
@@ -157,6 +183,67 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return json({ error: (e as Error).message }, 500);
   }
 });
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Run the turn as Server-Sent Events: `tool` / `delta` while it works, then one `result` frame
+ * carrying exactly the payload the buffered endpoint returns.
+ *
+ * The planner is NOT tied to the response stream: if the client disappears mid-turn, the loop
+ * still runs to completion and `finish` still persists the result, which is the whole point —
+ * the user gets their reply back when they return, however long that takes.
+ */
+function streamTurn(
+  messages: LLMMessage[],
+  deps: Omit<PlannerDeps, 'onEvent'>,
+  turnId: string,
+  finish: (r: PlannerResult) => void,
+): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      let open = true;
+      const send = (event: string, data: unknown) => {
+        if (!open) return;   // client hung up — keep planning, just stop writing
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          open = false;
+        }
+      };
+      send('open', { turn_id: turnId });
+      try {
+        const result = await runPlanner(messages, {
+          ...deps,
+          onEvent: (e: PlannerEvent) => send(e.type, e),
+        });
+        finish(result);
+        send('result', { ...result, turn_id: turnId });
+      } catch (e) {
+        send('error', { error: (e as Error).message });
+      } finally {
+        if (open) { try { controller.close(); } catch { /* already closed */ } }
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+    },
+  });
+}
+
+/** Persist a finished turn so a reconnecting client can collect it. Never fails the turn. */
+function saveTurn(admin: SupabaseClient, userId: string, turnId: string, result: PlannerResult): void {
+  // `messages` (the full LLM thread) is replayed by the app anyway and is the biggest part of the
+  // payload — store the user-facing result only.
+  const { messages: _thread, ...payload } = result as PlannerResult & { messages?: unknown };
+  admin.from('plan_turns').upsert({ id: turnId, user_id: userId, result: payload })
+    .then(() => {}, () => {});
+}
 
 /** Model steps in a thread (assistant turns — includes tool-calling steps). */
 function countAssistant(msgs: LLMMessage[]): number {

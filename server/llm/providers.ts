@@ -80,11 +80,20 @@ class OpenAICompatiblePlanner implements PlannerLLM {
       body.model = String(body.model).slice(0, -'-nothink'.length);
       body.thinking = { type: 'disabled' };
     }
+    if (input.onDelta) {
+      body.stream = true;
+      // Usage is omitted from streamed responses unless asked for — without this the dashboard's
+      // token/cost numbers would silently go to zero for every streamed turn.
+      body.stream_options = { include_usage: true };
+    }
     const res = await fetch(`${this.baseURL}/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify(body),
     });
+    if (input.onDelta && res.ok && res.body) {
+      return await this.readStream(res, input);
+    }
     const json = (await res.json()) as any;
     // Surface provider failures (bad key, rate limit, context overflow) as thrown errors: parsing
     // an error body as a normal step used to return an EMPTY final reply recorded as success —
@@ -111,6 +120,80 @@ class OpenAICompatiblePlanner implements PlannerLLM {
       model: json.model ?? input.model,
       provider: this.provider,
       finishReason: mapFinish(choice.finish_reason),
+    };
+  }
+
+  /**
+   * Consume an OpenAI-style SSE stream into the same LLMStepResult a non-streamed call returns,
+   * forwarding visible text to `onDelta` as it arrives.
+   *
+   * Tool calls arrive as deltas too, and the pieces are addressed by `index`, NOT by order — a
+   * multi-tool step interleaves them, so arguments must be concatenated per index rather than
+   * appended to "the last one seen".
+   */
+  private async readStream(res: Response, input: LLMStepInput): Promise<LLMStepResult> {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let text = '';
+    let finish: string | undefined;
+    let model: string | undefined;
+    let usage: any;
+    const calls = new Map<number, { id: string; name: string; args: string }>();
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // SSE frames are separated by a blank line; keep the trailing partial frame in the buffer.
+      const frames = buffer.split('\n\n');
+      buffer = frames.pop() ?? '';
+      for (const frame of frames) {
+        for (const line of frame.split('\n')) {
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          let evt: any;
+          try { evt = JSON.parse(payload); } catch { continue; }
+          if (evt.error) {
+            throw new Error(`${this.provider} error: ${evt.error.message ?? JSON.stringify(evt.error)}`);
+          }
+          if (evt.model) model = evt.model;
+          if (evt.usage) usage = evt.usage;
+          const choice = evt.choices?.[0];
+          if (!choice) continue;
+          if (choice.finish_reason) finish = choice.finish_reason;
+          const delta = choice.delta ?? {};
+          if (typeof delta.content === 'string' && delta.content) {
+            text += delta.content;
+            input.onDelta!(delta.content);
+          }
+          for (const tc of delta.tool_calls ?? []) {
+            const idx = tc.index ?? 0;
+            const cur = calls.get(idx) ?? { id: '', name: '', args: '' };
+            if (tc.id) cur.id = tc.id;
+            if (tc.function?.name) cur.name = tc.function.name;
+            if (tc.function?.arguments) cur.args += tc.function.arguments;
+            calls.set(idx, cur);
+          }
+        }
+      }
+    }
+
+    const toolCalls: ToolCall[] = [...calls.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, c]) => ({ id: c.id, name: c.name, arguments: safeJson(c.args) }));
+    return {
+      text: stripThink(text),
+      toolCalls,
+      usage: {
+        inputTokens: usage?.prompt_tokens ?? 0,
+        outputTokens: usage?.completion_tokens ?? 0,
+        cachedInputTokens: usage?.prompt_tokens_details?.cached_tokens ?? 0,
+      },
+      model: model ?? input.model,
+      provider: this.provider,
+      finishReason: mapFinish(finish),
     };
   }
 }

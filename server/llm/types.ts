@@ -33,6 +33,13 @@ export interface LLMStepInput {
   messages: LLMMessage[];
   tools: ToolDef[];
   model: string;
+  /**
+   * Called with each chunk of assistant TEXT as it arrives, when the provider supports streaming.
+   * Only the visible reply is streamed — tool-call arguments are accumulated silently, since a
+   * half-parsed argument object is meaningless to show. Providers without streaming support
+   * simply never call it; the step result is identical either way.
+   */
+  onDelta?: (text: string) => void;
 }
 
 export type FinishReason = 'stop' | 'tool_calls' | 'length' | 'other';
