@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The Friends tab — incoming requests to accept, your friends (tap for tier + removal), and
 /// the requests you've sent. Add people by @username via the toolbar.
@@ -253,10 +254,35 @@ private struct AddFriendView: View {
     @State private var searching = false
     @State private var error: String?
     @State private var actedOn: Set<UUID> = []
+    @State private var copied = false
 
     var body: some View {
         NavigationStack {
             List {
+                // Adding a friend is a two-way street: show them their OWN id right here, one tap
+                // to copy, so "what's your Planfect?" doesn't send them hunting through Profile.
+                if let me = supa.cachedProfile?.username, !me.isEmpty {
+                    Section {
+                        Button {
+                            UIPasteboard.general.string = me
+                            copied = true
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Your ID").font(.caption).foregroundStyle(.secondary)
+                                    Text("@\(me)").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                }
+                                Spacer()
+                                Label(copied ? "Copied" : "Copy",
+                                      systemImage: copied ? "checkmark" : "doc.on.doc")
+                                    .font(.caption.weight(.semibold))
+                                    .labelStyle(.titleAndIcon)
+                            }
+                        }
+                    } footer: {
+                        Text("Share this with a friend so they can add you.")
+                    }
+                }
                 ForEach(results) { u in
                     HStack(spacing: 12) {
                         Avatar(url: u.avatarURL, size: 42)

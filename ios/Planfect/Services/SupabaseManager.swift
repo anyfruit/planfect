@@ -30,9 +30,11 @@ final class SupabaseManager: ObservableObject {
             session = change.session
             bootstrapping = false
             if change.session != nil {
-                // Warm the Friends tab now so tapping it paints instantly instead of spinning
-                // through a ~1s round trip. Fire-and-forget: it must not delay startup routing.
+                // Warm what the user can tap into immediately — the Friends tab and their own
+                // profile (name, @id, avatar image) — so the first open paints from cache instead
+                // of spinning through a round trip. Fire-and-forget: must not delay startup routing.
                 Task { await prefetchFriends() }
+                Task { await prefetchMyProfile() }
                 await refreshOnboardingState()
                 await refreshEntitlement()
             } else {

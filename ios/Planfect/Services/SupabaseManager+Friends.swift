@@ -136,6 +136,14 @@ extension SupabaseManager {
         return p
     }
 
+    /// Warm the profile cache AND the avatar image right after sign-in. Without this the very first
+    /// visit to Profile still showed the silhouette and the email for a second, because nothing had
+    /// fetched the profile yet — the cache only helped from the second visit on.
+    func prefetchMyProfile() async {
+        guard let p = try? await fetchMyProfile() else { return }
+        if let url = p.avatarURL { _ = await AvatarCache.load(url) }
+    }
+
     /// The last profile we fetched, so the Profile sheet shows your name and photo in its first
     /// frame instead of the default silhouette. Survives relaunches; cleared on sign-out.
     var cachedProfile: MyProfile? {

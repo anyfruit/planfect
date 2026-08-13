@@ -16,7 +16,9 @@ struct ProfileView: View {
     @State private var showPaywall = false
     @State private var shareItem: ShareItem?
     @State private var exporting = false
-    @State private var myProfile: MyProfile?
+    /// Seeded from the cache at init, not in .task — a @State set during the first .task still
+    /// renders one frame of the silhouette + email placeholder first.
+    @State private var myProfile: MyProfile? = SupabaseManager.shared.cachedProfile
     @State private var showEditProfile = false
     @AppStorage(NotificationManager.enabledKey) private var remindersEnabled = true
     @AppStorage(NotificationManager.leadKey) private var leadMin = 10

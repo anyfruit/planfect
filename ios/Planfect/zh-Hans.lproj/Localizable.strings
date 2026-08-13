@@ -221,6 +221,10 @@
 "username" = "用户名";
 "Display name" = "昵称";
 "Your name" = "你的名字";
+"Your ID" = "你的 ID";
+"Copy" = "复制";
+"Copied" = "已复制";
+"Share this with a friend so they can add you." = "把它发给朋友,他们就能加你。";
 "Planfect ID" = "Planfect ID";
 "We assign you an ID when you sign up. Friends find and add you by it — change it to anything 3–20 letters, numbers, or underscore." = "注册时我们会给你分配一个 ID。好友靠它找到并添加你——你也可以改成任意 3–20 位字母、数字或下划线。";
 "3–20 letters, numbers, or underscore. Friends find and add you by this." = "3–20 位字母、数字或下划线。好友靠它找到并添加你。";
