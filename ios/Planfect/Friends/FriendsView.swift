@@ -4,7 +4,8 @@ import SwiftUI
 /// the requests you've sent. Add people by @username via the toolbar.
 struct FriendsView: View {
     @EnvironmentObject var supa: SupabaseManager
-    @State private var data = FriendsList(friends: [], incoming: [], outgoing: [])
+    @State private var data = FriendsList.empty
+    @State private var loaded = false
     @State private var loading = false
     @State private var error: String?
     @State private var showAdd = false
@@ -31,8 +32,9 @@ struct FriendsView: View {
             }
 
             Section(header: Text(data.friends.isEmpty ? "" : "Friends")) {
-                if data.friends.isEmpty && data.incoming.isEmpty && data.outgoing.isEmpty {
-                    emptyState
+                if data.isEmpty {
+                    // Only after a real load — otherwise "No friends yet" flashes under the spinner.
+                    if loaded { emptyState }
                 } else {
                     ForEach(data.friends) { f in
                         NavigationLink {
@@ -66,9 +68,14 @@ struct FriendsView: View {
         }
         .sheet(isPresented: $showAdd, onDismiss: { Task { await load() } }) { AddFriendView() }
         .refreshable { await load() }
-        .task { await load() }
+        .task {
+            // Paint the cached list first — the round trip is ~1s, and the list rarely changes
+            // between visits — then revalidate behind it. The spinner is only for a true cold start.
+            if !loaded, let cached = supa.cachedFriends { data = cached; loaded = true }
+            await load()
+        }
         .overlay {
-            if loading && data.friends.isEmpty && data.incoming.isEmpty { ProgressView() }
+            if loading && !loaded { ProgressView() }
         }
         .alert("Friends", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("OK", role: .cancel) {}
@@ -94,8 +101,13 @@ struct FriendsView: View {
 
     private func load() async {
         loading = true; defer { loading = false }
-        do { data = try await supa.friendsList() }
-        catch { self.error = error.uiMessage }
+        do {
+            data = try await supa.friendsList()
+            loaded = true
+        } catch {
+            // A failed revalidation must not blank out the cached list we're already showing.
+            if !loaded { self.error = error.uiMessage }
+        }
     }
 
     private func act(_ work: @escaping () async throws -> Void) {

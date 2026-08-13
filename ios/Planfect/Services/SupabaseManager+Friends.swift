@@ -29,8 +29,39 @@ extension SupabaseManager {
 
     func friendsList() async throws -> FriendsList {
         let data = try await friendsCall(["action": "list"])
-        return try JSONDecoder().decode(FriendsList.self, from: data)
+        let list = try JSONDecoder().decode(FriendsList.self, from: data)
+        cacheFriends(list)
+        return list
     }
+
+    /// Refresh the cached list in the background — used to warm the Friends tab before it's opened
+    /// and to revalidate after showing the cache. Failures are silent: the cache stays as it was.
+    func prefetchFriends() async {
+        _ = try? await friendsList()
+    }
+
+    /// The last list we successfully fetched, so opening the Friends tab paints immediately instead
+    /// of spinning through a ~1s round trip. Survives relaunches; cleared on sign-out.
+    var cachedFriends: FriendsList? {
+        get {
+            guard let uid = userId?.uuidString.lowercased(),
+                  let data = UserDefaults.standard.data(forKey: Self.friendsCacheKey(uid)) else { return nil }
+            return try? JSONDecoder().decode(FriendsList.self, from: data)
+        }
+        set {
+            guard let uid = userId?.uuidString.lowercased() else { return }
+            let key = Self.friendsCacheKey(uid)
+            guard let newValue, let data = try? JSONEncoder().encode(newValue) else {
+                UserDefaults.standard.removeObject(forKey: key); return
+            }
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    private func cacheFriends(_ list: FriendsList) { cachedFriends = list }
+
+    /// Keyed per user so a second account on the same device never sees the first one's friends.
+    static func friendsCacheKey(_ uid: String) -> String { "planfect.friends.\(uid)" }
 
     func searchUsers(_ q: String) async throws -> [FriendProfile] {
         let trimmed = q.trimmingCharacters(in: .whitespaces)

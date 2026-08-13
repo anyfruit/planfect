@@ -30,6 +30,9 @@ final class SupabaseManager: ObservableObject {
             session = change.session
             bootstrapping = false
             if change.session != nil {
+                // Warm the Friends tab now so tapping it paints instantly instead of spinning
+                // through a ~1s round trip. Fire-and-forget: it must not delay startup routing.
+                Task { await prefetchFriends() }
                 await refreshOnboardingState()
                 await refreshEntitlement()
             } else {
@@ -68,6 +71,8 @@ final class SupabaseManager: ObservableObject {
     }
 
     func signOut() async {
+        // Drop the cached friends list while we can still resolve the key from the live session.
+        cachedFriends = nil
         try? await client.auth.signOut()
     }
 }

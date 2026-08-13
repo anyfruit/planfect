@@ -25,13 +25,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   try {
     const authHeader = req.headers.get('Authorization') ?? '';
     const url = Deno.env.get('SUPABASE_URL')!;
-    const userClient = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } },
-      auth: { persistSession: false },
-    });
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) return json({ error: 'unauthorized' }, 401);
-    const me = user.id.toLowerCase();
+    // The platform verifies the JWT before this function runs (a forged or missing token never gets
+    // here — it's rejected with UNAUTHORIZED_*), so read the caller's uid straight from the verified
+    // payload. `auth.getUser()` would be a second network round trip on every request, ~150ms of the
+    // ~250ms this function spends server-side. Fall back to it if the payload is unreadable.
+    let me = uidFromJWT(authHeader);
+    if (!me) {
+      const userClient = createClient(url, Deno.env.get('SUPABASE_ANON_KEY')!, {
+        global: { headers: { Authorization: authHeader } },
+        auth: { persistSession: false },
+      });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (!user) return json({ error: 'unauthorized' }, 401);
+      me = user.id.toLowerCase();
+    }
 
     const srKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     if (!srKey) return json({ error: 'not configured' }, 500);
@@ -183,6 +190,28 @@ async function notify(db: SupabaseClient, userId: string, kind: string, actorId:
   await db.from('notifications').insert({ user_id: userId, kind, actor_id: actorId, body, delivered: true });
   await sendPush(db, userId, 'Planfect', body);
 }
+
+/**
+ * The `sub` claim of an already-verified bearer token, lowercased. NOT a verification step — the
+ * Edge Function gateway rejects anything unsigned or expired before we run; this only reads the id
+ * out of a token that has already passed. Returns null on anything unexpected so the caller can
+ * fall back to `auth.getUser()`.
+ */
+function uidFromJWT(authHeader: string): string | null {
+  try {
+    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const padded = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(padded + '='.repeat((4 - padded.length % 4) % 4)));
+    const sub = json?.sub;
+    return typeof sub === 'string' && UUID_RE.test(sub) ? sub.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });

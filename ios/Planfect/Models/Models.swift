@@ -83,7 +83,7 @@ struct RoutineInsert: Encodable {
 
 /// A friend, a pending request (either direction), or a search hit — the shape the `friends`
 /// edge function returns. Tier fields appear only in the friends list; `relationship` only in search.
-struct FriendProfile: Decodable, Identifiable {
+struct FriendProfile: Codable, Identifiable {
     let id: UUID
     let username: String?
     let display_name: String?
@@ -102,10 +102,13 @@ struct FriendProfile: Decodable, Identifiable {
     var avatarURL: URL? { avatar_url.flatMap { URL(string: $0) } }
 }
 
-struct FriendsList: Decodable {
+struct FriendsList: Codable {
     let friends: [FriendProfile]
     let incoming: [FriendProfile]
     let outgoing: [FriendProfile]
+
+    static let empty = FriendsList(friends: [], incoming: [], outgoing: [])
+    var isEmpty: Bool { friends.isEmpty && incoming.isEmpty && outgoing.isEmpty }
 }
 
 /// The signed-in user's own editable profile fields.
