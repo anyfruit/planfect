@@ -122,6 +122,89 @@ extension SupabaseManager {
         }
     }
 
+    /// Stream a planning turn: `onEvent` fires with each tool step and each chunk of the reply as
+    /// the server produces them, and the returned value is the same PlanResponse the buffered call
+    /// gives. `request.turn_id` must be set — if this throws (the app was backgrounded past iOS's
+    /// grant, the network dropped), the turn is still running server-side and `collectTurn` picks
+    /// up its real result later.
+    func planStreaming(_ request: PlanRequest, onEvent: @escaping (PlanStreamEvent) -> Void) async throws -> PlanResponse {
+        var request = request
+        request.device_timezone = TimeZone.current.identifier
+        request.stream = true
+        let body = try JSONEncoder().encode(request)
+        let token = await currentToken()
+        var req = URLRequest(url: URL(string: SupabaseConfig.url.absoluteString + "/functions/v1/plan")!)
+        req.httpMethod = "POST"
+        req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        req.httpBody = body
+        // No timeout on the response body: a turn legitimately takes many seconds and the stream is
+        // idle between tool steps.
+        req.timeoutInterval = 120
+
+        return try await withBackgroundTask("plan") {
+            let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+            if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                throw NSError(domain: "Planfect.Plan", code: http.statusCode,
+                              userInfo: [NSLocalizedDescriptionKey: Self.plannerMessage(http.statusCode)])
+            }
+            var event = ""
+            var result: PlanResponse?
+            // SSE: "event: <name>" then "data: <json>", frames separated by a blank line.
+            for try await line in bytes.lines {
+                if line.hasPrefix("event:") {
+                    event = String(line.dropFirst(6)).trimmingCharacters(in: .whitespaces)
+                } else if line.hasPrefix("data:") {
+                    let payload = Data(String(line.dropFirst(5)).trimmingCharacters(in: .whitespaces).utf8)
+                    switch event {
+                    case "tool":
+                        struct E: Decodable { let name: String }
+                        if let e = try? JSONDecoder().decode(E.self, from: payload) { onEvent(.tool(e.name)) }
+                    case "delta":
+                        struct E: Decodable { let text: String }
+                        if let e = try? JSONDecoder().decode(E.self, from: payload) { onEvent(.delta(e.text)) }
+                    case "result":
+                        if let r = try? JSONDecoder().decode(PlanResponse.self, from: payload) {
+                            result = r
+                            onEvent(.result(r))
+                        }
+                    case "error":
+                        struct E: Decodable { let error: String }
+                        let msg = (try? JSONDecoder().decode(E.self, from: payload))?.error
+                        throw NSError(domain: "Planfect.Plan", code: 0,
+                                      userInfo: [NSLocalizedDescriptionKey: msg ?? "Planner failed."])
+                    default:
+                        break
+                    }
+                }
+            }
+            guard let result else {
+                // Stream ended without a result — the turn is still running server-side.
+                throw NSError(domain: "Planfect.PlanInterrupted", code: 0,
+                              userInfo: [NSLocalizedDescriptionKey: "Connection interrupted."])
+            }
+            return result
+        }
+    }
+
+    /// Collect a turn we already sent, by its id. Returns nil while the server is still working on
+    /// it — the caller retries. This is what makes a reply survive the app being backgrounded or
+    /// killed: the turn kept running server-side and its result is waiting.
+    func collectTurn(_ turnId: String) async throws -> PlanResponse? {
+        var req = PlanRequest()
+        req.fetch_turn = turnId
+        let resp = try await plan(req)
+        return resp.pending == true ? nil : resp
+    }
+
+    static func plannerMessage(_ status: Int) -> String {
+        status == 401
+            ? String(localized: "Your session expired — please sign in again.")
+            : String(localized: "Planner unavailable. Please try again.")
+    }
+
     /// Ask the `/insights` Edge Function for an AI read of the user's time breakdown.
     func analyzeInsights(_ summary: InsightsSummary) async throws -> String {
         let token = await currentToken()

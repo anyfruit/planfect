@@ -28,6 +28,13 @@ final class ChatViewModel: ObservableObject {
     @Published var items: [ChatItem] = []
     @Published var input = ""
     @Published var sending = false
+    /// The reply as it streams in, and what the turn is doing before any text exists.
+    @Published var streamingText = ""
+    @Published var streamingStatus = String(localized: "Planning…")
+    /// A turn we sent but never saw finish (backgrounded, killed, network dropped). The server
+    /// keeps running it and saves the result, so we collect it by id when we're back.
+    private static let pendingTurnKey = "planfect.pendingTurn"
+    private var collecting = false
     @Published var showPaywall = false
     /// The id of the one question card the user can still answer. Cleared the moment they move on
     /// (send a new message, answer it, or the assistant replies again) so a stale card locks and a
@@ -189,51 +196,108 @@ final class ChatViewModel: ObservableObject {
     private func run(_ req: PlanRequest) async {
         guard let supa else { return }
         sending = true
+        streamingText = ""
+        streamingStatus = String(localized: "Planning…")
         var req = req
         req.calendar_busy = await CalendarManager.shared.upcomingBusy()   // empty unless calendar sync is on
+        // Stamp the turn BEFORE sending and remember it: if we never see the response, the server
+        // still finishes and saves it under this id, and we collect it on the next foreground.
+        let turnId = UUID().uuidString.lowercased()
+        req.turn_id = turnId
+        UserDefaults.standard.set(turnId, forKey: Self.pendingTurnKey)
         do {
-            let resp = try await supa.plan(req)
-            if let m = resp.messages { history = m }
-            activeQuestionID = nil   // any reply supersedes a prior pending question card
-            switch resp.type {
-            case "questions":
-                if let qs = resp.questions, !qs.isEmpty {
-                    items.append(.questions(qs))
-                    activeQuestionID = items.last?.id   // this card is now the answerable one
-                } else { items.append(.assistant(String(localized: "I had a question but it came through empty."))) }
-            case "scheduled":
-                if let r = resp.receipt {
-                    items.append(.receipt(r))
-                } else { items.append(.assistant(String(localized: "Scheduled."))) }
-                await refreshMirrors()
-            case "upgrade":
-                items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Upgrade to Planfect Pro to keep planning.")))
-                showPaywall = true
-            default:
-                // A blank server reply must never render as an empty bubble — fall back to a word.
-                items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Done.")))
-                // A plain-text turn can still have MOVED or DELETED plans (update_task edits come
-                // back as type "message") — refresh mirrors here too, or Apple Calendar and the
-                // reminders keep the old time until the user happens to open the Schedule tab.
-                await refreshMirrors()
+            let resp = try await supa.planStreaming(req) { [weak self] event in
+                guard let self else { return }
+                switch event {
+                case .tool(let name): self.streamingStatus = Self.statusFor(name)
+                case .delta(let text): self.streamingText += text
+                case .result: break
+                }
             }
+            UserDefaults.standard.removeObject(forKey: Self.pendingTurnKey)
+            streamingText = ""
+            await apply(resp)
         } catch {
-            // If the app was backgrounded mid-request the connection drops — but the planner often
-            // finished server-side anyway. Pull the latest schedule so a plan that DID land shows up,
-            // and say so honestly instead of a scary raw error.
+            streamingText = ""
             if (error as? URLError)?.code == .notConnectedToInternet {
-                // Never left the device — say so plainly, with a Retry.
+                // Never left the device — nothing is running server-side, so drop the pending turn
+                // and offer a plain Retry.
+                UserDefaults.standard.removeObject(forKey: Self.pendingTurnKey)
                 items.append(.error(String(localized: "No internet connection — check your network and tap Retry.")))
-            } else if let ue = error as? URLError,
-               [.networkConnectionLost, .cancelled, .timedOut].contains(ue.code) {
-                await refreshMirrors()
-                items.append(.assistant(String(localized: "Sent — but the connection dropped when you switched away. I've refreshed; check Schedule to see if it landed, or resend.")))
             } else {
-                items.append(.error("⚠️ \(error.localizedDescription)"))
+                // The request DID leave: the turn is still running on the server and its result is
+                // being saved under our turn id. Don't ask the user to resend (that would plan it
+                // twice) — say it's still coming and collect it when we're back.
+                items.append(.assistant(String(localized: "Still working on this one — I'll drop the answer in as soon as I'm back.")))
+                sending = false           // the turn is no longer OURS to watch; let the collector take it
+                await collectPendingTurn()
             }
         }
         persist()
         sending = false
+    }
+
+    /// Render a finished turn — used both for a stream we watched to the end and for one we
+    /// collected afterwards, so a reply that arrived while the app was away looks identical.
+    private func apply(_ resp: PlanResponse) async {
+        if let m = resp.messages { history = m }
+        activeQuestionID = nil   // any reply supersedes a prior pending question card
+        switch resp.type {
+        case "questions":
+            if let qs = resp.questions, !qs.isEmpty {
+                items.append(.questions(qs))
+                activeQuestionID = items.last?.id   // this card is now the answerable one
+            } else { items.append(.assistant(String(localized: "I had a question but it came through empty."))) }
+        case "scheduled":
+            if let r = resp.receipt {
+                items.append(.receipt(r))
+            } else { items.append(.assistant(String(localized: "Scheduled."))) }
+            await refreshMirrors()
+        case "upgrade":
+            items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Upgrade to Planfect Pro to keep planning.")))
+            showPaywall = true
+        default:
+            // A blank server reply must never render as an empty bubble — fall back to a word.
+            items.append(.assistant(nonEmpty(resp.text) ?? String(localized: "Done.")))
+            // A plain-text turn can still have MOVED or DELETED plans (update_task edits come
+            // back as type "message") — refresh mirrors here too, or Apple Calendar and the
+            // reminders keep the old time until the user happens to open the Schedule tab.
+            await refreshMirrors()
+        }
+    }
+
+    /// Collect a turn whose stream we lost. The server finished it (or is finishing it) regardless
+    /// of how long the app was away, so this is what makes "switch away mid-plan" cost nothing.
+    /// Call on foreground and after an interrupted send.
+    func collectPendingTurn() async {
+        // Never race a live stream: if a turn is in flight we're already watching it, and applying
+        // the collected copy too would render the same reply twice.
+        guard !collecting, !sending,
+              let supa, let turnId = UserDefaults.standard.string(forKey: Self.pendingTurnKey) else { return }
+        collecting = true
+        defer { collecting = false }
+        // A few spaced attempts: the turn may still be mid-flight when we come back.
+        for attempt in 0..<6 {
+            if attempt > 0 { try? await Task.sleep(nanoseconds: 2_500_000_000) }
+            guard let resp = try? await supa.collectTurn(turnId) else { continue }
+            UserDefaults.standard.removeObject(forKey: Self.pendingTurnKey)
+            await apply(resp)
+            persist()
+            return
+        }
+    }
+
+    /// Human wording for the tool the turn just started — this is where the seconds actually go.
+    private static func statusFor(_ tool: String) -> String {
+        switch tool {
+        case "get_schedule":      return String(localized: "Checking your schedule…")
+        case "schedule_tasks":    return String(localized: "Putting it on your calendar…")
+        case "update_task":       return String(localized: "Updating your plan…")
+        case "estimate_commute", "geocode_place": return String(localized: "Working out travel time…")
+        case "web_search":        return String(localized: "Looking that up…")
+        case "set_routine", "set_recurring":      return String(localized: "Saving that to your routine…")
+        default:                  return String(localized: "Planning…")
+        }
     }
 
     /// Trimmed text if it has visible content, else nil — guards against rendering an empty bubble.
@@ -353,6 +417,7 @@ struct ChatView: View {
     @StateObject private var speech = SpeechRecognizer()
     @FocusState private var inputFocused: Bool
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showReset = false
     @State private var atBottom = true
 
@@ -373,13 +438,26 @@ struct ChatView: View {
                             if vm.sending {
                                 HStack(alignment: .top, spacing: 8) {
                                     BotAvatar()
-                                    HStack(spacing: 8) {
-                                        ProgressView().controlSize(.small)
-                                        Text("Planning…").foregroundStyle(.secondary).font(.system(.footnote, design: .rounded))
+                                    if vm.streamingText.isEmpty {
+                                        // Still working: name what it's doing, so the wait reads as
+                                        // progress instead of a blank spinner.
+                                        HStack(spacing: 8) {
+                                            ProgressView().controlSize(.small)
+                                            Text(vm.streamingStatus).foregroundStyle(.secondary)
+                                                .font(.system(.footnote, design: .rounded))
+                                        }
+                                        .padding(.horizontal, 14).padding(.vertical, 10)
+                                        .background(Color(.secondarySystemBackground), in: Capsule())
+                                    } else {
+                                        // The reply as it's written.
+                                        Text(vm.streamingText)
+                                            .font(.system(.body, design: .rounded))
+                                            .padding(.horizontal, 14).padding(.vertical, 10)
+                                            .background(Color(.secondarySystemBackground),
+                                                        in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                                     }
-                                    .padding(.horizontal, 14).padding(.vertical, 10)
-                                    .background(Color(.secondarySystemBackground), in: Capsule())
                                 }
+                                .id("streaming")
                             }
                             Color.clear.frame(height: 1).id("bottom")
                         }
@@ -447,8 +525,14 @@ struct ChatView: View {
         } message: {
             Text("This clears the current conversation.")
         }
+        // Coming back — foreground OR relaunch — pick up any turn whose stream we lost. The server
+        // ran it to completion however long the user was away.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await vm.collectPendingTurn() } }
+        }
         .onAppear {
             vm.bind(supa)
+            Task { await vm.collectPendingTurn() }
             #if DEBUG
             vm.seedIfRequested()
             if ProcessInfo.processInfo.environment["PLANFECT_MIC_TEST"] == "1" {

@@ -221,6 +221,14 @@
 "username" = "用户名";
 "Display name" = "昵称";
 "Your name" = "你的名字";
+"Checking your schedule…" = "正在看你的日程…";
+"Putting it on your calendar…" = "正在排进日历…";
+"Updating your plan…" = "正在改这条安排…";
+"Working out travel time…" = "正在算路上要多久…";
+"Looking that up…" = "正在查…";
+"Saving that to your routine…" = "正在存进你的作息…";
+"Still working on this one — I'll drop the answer in as soon as I'm back." = "这条还在处理——回来我就把结果补上。";
+"Planner unavailable. Please try again." = "规划服务暂时不可用,请再试一次。";
 "Your ID" = "你的 ID";
 "Copy" = "复制";
 "Copied" = "已复制";
