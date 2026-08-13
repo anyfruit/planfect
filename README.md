@@ -207,6 +207,24 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-08-13_
+
+- **Friends tab opened with a spinner every time; now it paints instantly.** The list lived in the
+  view's own `@State`, so every tab switch started empty and blocked on `POST /friends
+  {action:list}`. Measured against the live project (min of 8 runs): **~0.97s** end to end, of which
+  **~0.71s is plain network RTT** and ~0.26s is server-side — so no server tuning alone could have
+  removed the spinner. The list is now cached per user and painted immediately, then revalidated
+  behind it (a failed refresh no longer blanks the list or alerts over it), prefetched on sign-in so
+  even the first tap is warm, and cleared on sign-out. Server side, the function called
+  `auth.getUser()` on every request — a second network round trip — even though the Edge Function
+  gateway already verifies the JWT before the handler runs; the uid now comes from the verified
+  payload (`auth.getUser()` kept as a fallback), **~60–90ms** off every call. Verified live: list
+  output unchanged, a forged token still 401s, and re-entering the tab renders with no spinner.
+- **Date circles scale with text size.** The month grid and week day-strip drew the day number in a
+  fixed 28/24pt circle while the font scaled with Dynamic Type, so at large text sizes the second
+  digit was clipped ("12" → "1…"). Both are `@ScaledMetric` now, with `minimumScaleFactor` so the
+  number shrinks instead of truncating.
+
 _2026-08-12_
 
 - **Avatar upload was impossible for every user; "白天" outings were refused on empty days.**
