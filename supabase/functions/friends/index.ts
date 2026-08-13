@@ -142,36 +142,16 @@ async function setTier(db: SupabaseClient, me: string, friend?: string, tier?: T
   return json({ ok: true });
 }
 
-/** My friends (accepted) plus pending requests in both directions, each with profile + tiers. */
+/**
+ * My friends (accepted) plus pending requests in both directions, each with profile + tiers.
+ * ONE round trip: the join (my edges → their profiles → the reverse edge for the tier they grant
+ * me) happens in `friends_list`, a security-definer function only service_role may execute. This
+ * used to be two sequential round trips, and it is the request the Friends tab blocks on.
+ */
 async function list(db: SupabaseClient, me: string): Promise<Response> {
-  const { data: edges } = await db.from('friendships')
-    .select('friend_id, status, tier, requested_by').eq('owner_id', me);
-  const rows = edges ?? [];
-  const friends = rows.filter((e) => e.status === 'accepted');
-  const outgoing = rows.filter((e) => e.status === 'pending' && e.requested_by === me);
-  const incoming = rows.filter((e) => e.status === 'pending' && e.requested_by !== me);
-
-  const fids = rows.map((e) => e.friend_id as string);
-  const theirTier: Record<string, string> = {};
-  const profMap: Record<string, unknown> = {};
-  if (fids.length) {
-    const [{ data: rev }, { data: profs }] = await Promise.all([
-      db.from('friendships').select('owner_id, tier').eq('friend_id', me).in('owner_id', fids),
-      db.from('profiles').select(PROFILE).in('id', fids),
-    ]);
-    for (const r of rev ?? []) theirTier[r.owner_id as string] = r.tier as string;
-    for (const p of profs ?? []) profMap[p.id as string] = p;
-  }
-  const shape = (e: { friend_id: string; tier: string }) => ({
-    ...(profMap[e.friend_id] as Record<string, unknown> ?? { id: e.friend_id }),
-    my_tier: e.tier,
-    their_tier: theirTier[e.friend_id] ?? null,
-  });
-  return json({
-    friends: friends.map((e) => shape(e as { friend_id: string; tier: string })),
-    incoming: incoming.map((e) => shape(e as { friend_id: string; tier: string })),
-    outgoing: outgoing.map((e) => shape(e as { friend_id: string; tier: string })),
-  });
+  const { data, error } = await db.rpc('friends_list', { p_user: me });
+  if (error) return json({ error: error.message }, 500);
+  return json(data ?? { friends: [], incoming: [], outgoing: [] });
 }
 
 /** Flip both directed rows of a relationship to accepted. */

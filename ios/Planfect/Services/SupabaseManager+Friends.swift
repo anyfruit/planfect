@@ -9,16 +9,21 @@ extension SupabaseManager {
     /// POST one action to the `friends` function and return the raw body (throws a readable error).
     @discardableResult
     private func friendsCall(_ body: [String: String]) async throws -> Data {
-        let token = await currentToken()
-        var req = URLRequest(url: URL(string: SupabaseConfig.url.absoluteString + "/functions/v1/friends")!)
-        req.httpMethod = "POST"
-        req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
-            let msg = (try? JSONDecoder().decode([String: String].self, from: data))?["error"] ?? "HTTP \(http.statusCode)"
+        let url = URL(string: SupabaseConfig.url.absoluteString + "/functions/v1/friends")!
+        let payload = try JSONSerialization.data(withJSONObject: body)
+        let (data, http) = try await authedData { token in
+            var req = URLRequest(url: url)
+            req.httpMethod = "POST"
+            req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = payload
+            return req
+        }
+        if let http, !(200..<300).contains(http.statusCode) {
+            // The gateway's own 401 body has no `error` key — don't show its raw shape.
+            let msg = (try? JSONDecoder().decode([String: String].self, from: data))?["error"]
+                ?? Self.httpMessage(http.statusCode)
             throw NSError(domain: "Planfect.Friends", code: http.statusCode,
                           userInfo: [NSLocalizedDescriptionKey: msg])
         }

@@ -68,6 +68,22 @@ extension SupabaseManager {
         return SupabaseConfig.anonKey
     }
 
+    /// Send an authenticated request, and on a 401 force a token refresh and send it ONCE more.
+    ///
+    /// `currentToken()` normally hands back a fresh token, but when the SDK's refresh throws (a
+    /// transient failure on resume, say) it falls back to the mirrored session's access token —
+    /// which by then may be expired — and ultimately to the anon key. The gateway rejects both with
+    /// a bare 401, which the app surfaced as an "HTTP 401" alert on a perfectly valid session.
+    func authedData(_ makeRequest: (String) -> URLRequest) async throws -> (Data, HTTPURLResponse?) {
+        let (data, resp) = try await URLSession.shared.data(for: makeRequest(await currentToken()))
+        guard (resp as? HTTPURLResponse)?.statusCode == 401,
+              let fresh = try? await client.auth.refreshSession().accessToken else {
+            return (data, resp as? HTTPURLResponse)
+        }
+        let (data2, resp2) = try await URLSession.shared.data(for: makeRequest(fresh))
+        return (data2, resp2 as? HTTPURLResponse)
+    }
+
     /// Run async network work under a UIKit background-task assertion, so a request the user kicked
     /// off keeps running for the ~30 s iOS grants after they switch apps — instead of being suspended
     /// mid-flight (which surfaced as a "network connection lost" error even when the server finished).
@@ -395,21 +411,30 @@ extension SupabaseManager {
     // MARK: - PostgREST over URLSession with the user's JWT
 
     func rest(_ method: String, _ pathAndQuery: String, body: Data? = nil, prefer: String? = nil) async throws -> Data {
-        let token = await currentToken()
         let url = URL(string: SupabaseConfig.url.absoluteString + "/rest/v1/" + pathAndQuery)!
-        var req = URLRequest(url: url)
-        req.httpMethod = method
-        req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let prefer { req.setValue(prefer, forHTTPHeaderField: "Prefer") }
-        req.httpBody = body
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        if let http = resp as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+        let (data, http) = try await authedData { token in
+            var req = URLRequest(url: url)
+            req.httpMethod = method
+            req.setValue(SupabaseConfig.anonKey, forHTTPHeaderField: "apikey")
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if let prefer { req.setValue(prefer, forHTTPHeaderField: "Prefer") }
+            req.httpBody = body
+            return req
+        }
+        if let http, !(200..<300).contains(http.statusCode) {
             throw NSError(domain: "Planfect.REST", code: http.statusCode,
-                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode)"])
+                          userInfo: [NSLocalizedDescriptionKey: Self.httpMessage(http.statusCode)])
         }
         return data
+    }
+
+    /// A message the user can act on. A 401 that survives the refresh-and-retry means the session
+    /// is really gone — say so instead of showing a status code.
+    static func httpMessage(_ status: Int) -> String {
+        status == 401
+            ? String(localized: "Your session expired — please sign in again.")
+            : "HTTP \(status)"
     }
 }
 

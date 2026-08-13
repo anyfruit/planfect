@@ -31,6 +31,11 @@
   .hero .links{margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
   .hero .links a{background:rgba(255,255,255,.16);color:#fff;padding:9px 18px;border-radius:999px;font-weight:600}
   .hero .links a:hover{background:rgba(255,255,255,.28);text-decoration:none}
+  /* Primary CTA: the real App Store listing. Solid white so it reads first against the gradient. */
+  .hero .links a.appstore{background:#fff;color:var(--brand);display:inline-flex;align-items:center;gap:8px;
+    padding:10px 20px;font-weight:700;box-shadow:0 6px 20px rgba(0,0,0,.16)}
+  .hero .links a.appstore:hover{background:#fff;transform:translateY(-1px)}
+  .hero .links a.appstore svg{width:16px;height:16px;flex:none}
 
   section{padding:52px 0;border-bottom:1px solid var(--line)}
   h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--brand);margin:0 0 6px;font-weight:800}
@@ -81,6 +86,10 @@
       <span class="zh">用打字或语音说出你的计划——「周五下午看牙、周末买菜、这周写完报告」——它就按你的作息、通勤和习惯把这一天排好。从设计、开发到上架,端到端打造。</span>
     </p>
     <div class="links">
+      <a class="appstore" href="https://apps.apple.com/cn/app/planfect/id6781118366" target="_blank" rel="noopener">
+        <svg viewBox="0 0 384 512" aria-hidden="true"><path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+        <span class="en">Download on the App Store</span><span class="zh">App Store 下载</span>
+      </a>
       <a href="https://linkedin.com/in/kejing-yan">LinkedIn</a>
     </div>
   </div>
@@ -193,12 +202,12 @@
     en:{ph:'Tell me a plan…',sched:'Scheduled',tap:'Tap to view & edit in your schedule',
         leave:'leave',min:'min',oops:'Hmm, the demo hit a snag — give it a moment and try again.',
         usedph:'Demo limit reached',
-        usednote:"✨ That's the demo limit (5 turns). <b>Download Planfect</b> for unlimited planning — live web lookups, real travel times, and your whole day handled.",
+        usednote:"✨ That's the demo limit (5 turns). <a href='https://apps.apple.com/cn/app/planfect/id6781118366' target='_blank' rel='noopener'><b>Download Planfect</b></a> for unlimited planning — live web lookups, real travel times, and your whole day handled.",
         chips:['morning run, standup at 10, lunch with my advisor, write my thesis, movie at 8pm','remind me to watch the World Cup final','meeting at MIT 2pm tomorrow, leaving from Brown University in Providence']},
     zh:{ph:'说个安排吧…',sched:'已安排',tap:'点这里在日程里查看和编辑',
         leave:'出发',min:'分钟',oops:'诶,demo 卡了一下——稍等片刻再试试。',
         usedph:'体验回合已用完',
-        usednote:'✨ Demo 体验到这就够啦(5 回合)。<b>下载 Planfect</b> 解锁无限规划——真·联网查时间、算通勤,一整天都帮你排好。',
+        usednote:'✨ Demo 体验到这就够啦(5 回合)。<a href="https://apps.apple.com/cn/app/planfect/id6781118366" target="_blank" rel="noopener"><b>下载 Planfect</b></a> 解锁无限规划——真·联网查时间、算通勤,一整天都帮你排好。',
         chips:['明天早上跑步，10点开组会，中午和导师吃饭，下午写论文，晚上8点看电影','提醒我看世界杯决赛','明天下午2点去剑桥的MIT开会，从普罗维登斯的布朗大学出发']}
   };
   var CATS=[
@@ -417,6 +426,7 @@
 <footer><div class="wrap">
   <span class="en">Planfect — designed &amp; built by <b>Kejing Yan</b> &amp; <b>Weijie Cao</b></span>
   <span class="zh">Planfect —— 由 <b>闫可菁 (Kejing Yan)</b> 与 <b>曹炜杰 (Weijie Cao)</b> 共同设计与打造</span>
+  &nbsp;·&nbsp; <a href="https://apps.apple.com/cn/app/planfect/id6781118366" target="_blank" rel="noopener">App Store</a>
   &nbsp;·&nbsp; <a href="https://linkedin.com/in/kejing-yan">LinkedIn</a>
   &nbsp;·&nbsp; <a href="mailto:yankejing711@gmail.com">yankejing711@gmail.com</a>
 </div></footer>
