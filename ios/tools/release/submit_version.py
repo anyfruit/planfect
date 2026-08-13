@@ -6,23 +6,11 @@ import os, time, pathlib, sys, json
 import jwt, urllib.request
 
 APP_ID = "6781118366"
-VERSION = "1.0.3"
-BUILD_NO = "12"
+VERSION = "1.0.4"
+BUILD_NO = "13"
 WHATS_NEW = {
-    "zh-Hans": (
-        "• 对话升级：长按消息可复制或重新发送，发送失败一键重试；翻看历史时“回到最新”按钮不再消失\n"
-        "• 周视图打开直接定位到你的日程，中文日期显示完整不再省略\n"
-        "• 修复了好友页等偶发的“已取消”报错弹窗\n"
-        "• “我的”页新增小提示：界面语言、语音识别语言、吃饭作息时间等都可以随时调整\n"
-        "• 规划助手更可靠：不再偶发“系统没反应”之类的错误借口"
-    ),
-    "en-US": (
-        "• Chat upgrades: long-press to copy or resend a message, one-tap retry on failures, and the jump-to-latest button no longer disappears in long conversations\n"
-        "• Week view now opens right at your events, with dates fully readable in Chinese\n"
-        "• Fixed occasional \"Cancelled\" error pop-ups on the Friends tab and elsewhere\n"
-        "• A new tip in Profile shows everything you can tune — app language, voice-input language, meal and sleep times\n"
-        "• A more reliable planner that never makes up \"system not responding\" excuses"
-    ),
+    "zh-Hans": '• 回复不再丢了:等结果时连接断开(或切去别的 app),回来会自动把答案补上——以前只会让你重发\n• 排程过程实时可见:助手会告诉你它正在做什么(查日程、算路程、排进日历),回复也边写边出现\n• 备注终于会用了:说「给这条加个备注」,内容进备注栏,不再被塞进标题\n• 修好了头像改不了的问题;头像和资料现在秒开\n• 每个账号都有了好记的 Planfect ID(比如 kindmeadow11),加好友页一键复制\n• 首次打开会一次性问清权限:AI 使用、通知、Apple 日历同步',
+    "en-US": '• Replies no longer get lost: if the connection drops (or you switch apps) while it is working, the answer is waiting when you come back instead of asking you to resend\n• Watch it work: the assistant says what it is doing (checking your schedule, working out travel time, adding to your calendar) and writes its reply as it goes\n• Notes finally work: “add a note to this” puts the text in the note field instead of the title\n• Fixed profile photos not saving; your photo and profile now open instantly\n• Every account gets a memorable Planfect ID (like kindmeadow11), with one-tap copy on the Add-friend screen\n• First launch asks about AI use, notifications, and Apple Calendar sync up front',
 }
 
 KEY_ID = os.environ["ASC_KEY_ID"]

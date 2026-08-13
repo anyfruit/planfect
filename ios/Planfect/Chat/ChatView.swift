@@ -276,9 +276,10 @@ final class ChatViewModel: ObservableObject {
               let supa, let turnId = UserDefaults.standard.string(forKey: Self.pendingTurnKey) else { return }
         collecting = true
         defer { collecting = false }
-        // A few spaced attempts: the turn may still be mid-flight when we come back.
-        for attempt in 0..<6 {
-            if attempt > 0 { try? await Task.sleep(nanoseconds: 2_500_000_000) }
+        // Backing-off attempts covering ~60s: measured turns run 8s at the median and 27s at the
+        // longest, and the user can come back while one is still mid-flight.
+        for delay in [0.0, 1.0, 2.0, 3.0, 5.0, 8.0, 10.0, 12.0, 15.0] {
+            if delay > 0 { try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) }
             guard let resp = try? await supa.collectTurn(turnId) else { continue }
             UserDefaults.standard.removeObject(forKey: Self.pendingTurnKey)
             await apply(resp)

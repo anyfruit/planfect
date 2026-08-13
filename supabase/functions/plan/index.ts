@@ -204,15 +204,22 @@ function streamTurn(
   const stream = new ReadableStream({
     async start(controller) {
       let open = true;
-      const send = (event: string, data: unknown) => {
+      const write = (frame: string) => {
         if (!open) return;   // client hung up — keep planning, just stop writing
         try {
-          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+          controller.enqueue(encoder.encode(frame));
         } catch {
           open = false;
         }
       };
+      const send = (event: string, data: unknown) =>
+        write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
       send('open', { turn_id: turnId });
+      // Keep bytes moving. A turn can spend 15+ seconds inside ONE model step with nothing to
+      // report, and a connection that goes silent that long gets reaped by carrier NAT and other
+      // middleboxes — which is exactly the "connection dropped" users saw on the buffered endpoint
+      // WITHOUT ever leaving the app. An SSE comment is ignored by every parser and costs 2 bytes.
+      const heartbeat = setInterval(() => write(': keepalive\n\n'), 5_000);
       try {
         const result = await runPlanner(messages, {
           ...deps,
@@ -223,6 +230,7 @@ function streamTurn(
       } catch (e) {
         send('error', { error: (e as Error).message });
       } finally {
+        clearInterval(heartbeat);
         if (open) { try { controller.close(); } catch { /* already closed */ } }
       }
     },
