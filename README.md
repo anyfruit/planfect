@@ -207,6 +207,27 @@ reflect the current state.
 
 ## Recent updates
 
+_2026-08-14_
+
+- **1.0.4 — "connection dropped" fixed at the root, and replies that survive anything.**
+  Users kept seeing *"Sent — but the connection dropped when you switched away"* — often
+  **without leaving the app**. Telemetry ruled out the obvious explanation: the last 40 turns all
+  succeeded server-side (p50 7.8s, p90 15.3s, max 26.9s, **zero failures**). The failure was purely
+  client-side, on a connection that carried **no bytes for 8–27 seconds** — exactly the shape
+  carrier NAT and other middleboxes reap, surfacing as `URLError.networkConnectionLost`. Three
+  layers of fix: turns now **stream** (SSE), so bytes flow continuously; a **5s keepalive** covers
+  the 15+ seconds a single model step can spend with nothing to report (measured: longest silent
+  gap 4.6s, where the buffered endpoint was silent the whole way); and every turn is **persisted
+  server-side under a client-generated id**, so if the stream dies anyway the app collects the
+  model's actual reply on the next foreground. Verified by killing the app 3.5s into a turn — the
+  server finished it and a cold relaunch showed the receipt, with no resend and nothing lost.
+  Streaming also made the wait legible: the pending bubble now names the tool step ("Checking your
+  schedule…", "Working out travel time…") instead of a blank spinner. Also in 1.0.4: notes go in
+  the notes field instead of the title, profile photos save (and open instantly), every account
+  gets a readable Planfect ID, first launch asks for AI/notification/calendar consent up front,
+  and a zh format string that mixed positional and bare specifiers stopped printing a pointer
+  value as the commute duration ("transit,4,465,488,880 分钟").
+
 _2026-08-13_
 
 - **Friends tab opened with a spinner every time; now it paints instantly.** The list lived in the
