@@ -166,7 +166,9 @@
 "🎯 %@ time" = "🎯 %@ 时间";
 
 /* Receipt commute line */
-"Leave %@ · %@, %lld min" = "%1$@ 出发 · %2$@,%lld 分钟";
+/* Every specifier must be positional once ANY of them is: a bare %lld after %1$@ %2$@ re-reads
+   argument one and printed a pointer value ("transit,4,465,488,880 分钟") instead of the minutes. */
+"Leave %@ · %@, %lld min" = "%1$@ 出发 · %2$@,%3$lld 分钟";
 
 /* Recurring (Profile) */
 "Recurring" = "重复";
